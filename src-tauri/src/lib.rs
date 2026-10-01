@@ -25,6 +25,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::todos::list_todos,
             commands::todos::create_todo,
+            commands::todos::toggle_todo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

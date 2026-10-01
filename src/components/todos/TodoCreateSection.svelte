@@ -11,9 +11,8 @@
   };
   const { day }: TodoCreateSectionProps = $props();
 
-  const queryClient = useQueryClient();
-
   let title = $state("");
+  const queryClient = useQueryClient();
   const createTodo = createMutation(() => ({
     mutationFn: (title: string) =>
       invokeClient({ name: "create_todo", args: { day, title } }),

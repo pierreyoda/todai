@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Day, Todo } from "./types";
+import type { UUID } from "node:crypto";
 
 type ClientInvocationCommand = {
   list_todos: {
@@ -15,6 +16,13 @@ type ClientInvocationCommand = {
       description?: string;
     };
     returns: Todo;
+  };
+  toggle_todo: {
+    args: {
+      id: UUID;
+      completed: boolean;
+    };
+    returns: never;
   };
 };
 

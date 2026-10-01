@@ -13,9 +13,9 @@ use crate::{
 
 /// A todo's day.
 ///
-/// Deserialized (e.g. as a command argument) from a strict `YYYY-MM-DD` string.
+/// (De)serialized as a strict `YYYY-MM-DD` string, matching the frontend's `Day`.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(rename_all = "camelCase", try_from = "DbDay")]
+#[serde(try_from = "DbDay", into = "DbDay")]
 pub struct Day {
     /// Format: YYYY-MM-DD
     pub raw: DbDay,
@@ -34,6 +34,12 @@ impl TryFrom<DbDay> for Day {
         }
         let timestamp = date.to_zoned(TimeZone::UTC)?.timestamp();
         Ok(Self { raw, timestamp })
+    }
+}
+
+impl From<Day> for DbDay {
+    fn from(day: Day) -> Self {
+        day.raw
     }
 }
 
@@ -136,4 +142,29 @@ pub async fn create_todo(
             DbTodo::from_row,
         )?;
     todo.try_into()
+}
+
+/// Update a todo's completeness status.
+#[tauri::command]
+pub async fn toggle_todo(state: State<'_, AppState>, id: String, completed: bool) -> Result<()> {
+    let db = state.db();
+    let now = Timestamp::now().as_second();
+    let updated = db
+        .prepare_cached(
+            "UPDATE todos
+                 SET completed = :completed,
+                     completed_at = :completed_at,
+                     updated_at = :now
+                 WHERE id = :id",
+        )?
+        .execute(named_params! {
+            ":id": id,
+            ":completed": completed as i32,
+            ":completed_at": if completed { Some(now) } else { None },
+            ":now": now,
+        })?;
+    if updated == 0 {
+        return Err(TodaiError::CommandError(format!("Todo {id} not found")));
+    }
+    Ok(())
 }
