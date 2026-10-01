@@ -8,25 +8,28 @@
   const { todos }: TodoListProps = $props();
 </script>
 
-<div class="container">
+<ul class="container">
   {#each todos as todo (todo.id)}
-    <div class="todo-item">
-      <h3>{todo.title}</h3>
-      {#if todo.description}
-        <p>{todo.description}</p>
-      {/if}
-    </div>
+    <li class={["todo-item", todo.completed && "completed"]}>
+      <h3 class="title">{todo.title}</h3>
+    </li>
   {/each}
-</div>
+</ul>
 
 <style lang="postcss">
   @reference "tailwindcss";
 
   .container {
-    @apply w-full h-full flex flex-col gap-2;
+    @apply w-full h-full flex flex-col gap-3 p-2 overflow-y-auto;
   }
 
   .todo-item {
-    @apply p-4 bg-white rounded shadow;
+    @apply flex flex-col gap-1 px-4 py-3 rounded-lg;
+    @apply border border-white/10 bg-white/5;
+    @apply transition-colors hover:border-white/20 hover:bg-white/7.5;
+
+    .title {
+      @apply text-sm font-medium text-white wrap-break-word;
+    }
   }
 </style>
