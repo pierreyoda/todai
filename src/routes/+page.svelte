@@ -1,13 +1,12 @@
 <script lang="ts">
-  import type { PageProps } from "./$types";
-
   import TodoPanel from "../components/todos/TodoPanel.svelte";
+  import { dateToTodaiDate } from "../utils/dates";
 
-  const { todos }: PageProps = $props();
+  const day = dateToTodaiDate(new Date());
 </script>
 
 <main>
-  <TodoPanel {todos} />
+  <TodoPanel {day} />
 </main>
 
 <style lang="postcss">

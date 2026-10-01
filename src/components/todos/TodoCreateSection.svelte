@@ -1,34 +1,35 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
+  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
   import { invokeClient } from "../../client";
-  import { dateToTodaiDate } from "../../utils/dates";
+  import { todoKeys } from "../../client/queries";
+  import type { Day } from "../../client/types";
   import FieldText from "../inputs/FieldText.svelte";
 
-  let title = $state("");
-  let submitting = $state(false);
-  let error = $state<string | null>(null);
+  type TodoCreateSectionProps = {
+    day: Day;
+  };
+  const { day }: TodoCreateSectionProps = $props();
 
-  const onsubmit = async (event: SubmitEvent) => {
+  const queryClient = useQueryClient();
+
+  let title = $state("");
+  const createTodo = createMutation(() => ({
+    mutationFn: (title: string) =>
+      invokeClient({ name: "create_todo", args: { day, title } }),
+    onSuccess: () => {
+      title = "";
+      // Returned so the mutation stays pending until the list is refetched.
+      return queryClient.invalidateQueries({ queryKey: todoKeys.day(day) });
+    },
+  }));
+
+  const onsubmit = (event: SubmitEvent) => {
     event.preventDefault();
-    if (submitting || !title.trim()) {
+    if (createTodo.isPending || !title.trim()) {
       return;
     }
-    submitting = true;
-    error = null;
-    try {
-      await invokeClient({
-        name: "create_todo",
-        args: { day: dateToTodaiDate(new Date()), title },
-      });
-      title = "";
-      // Re-runs the page's `load`, to list the new todo.
-      await invalidateAll();
-    } catch (e) {
-      error = String(e);
-    } finally {
-      submitting = false;
-    }
+    createTodo.mutate(title);
   };
 </script>
 
@@ -36,12 +37,12 @@
   <FieldText
     label="New todo"
     hideLabel
-    placeholder="Add a todo…"
+    placeholder="Add a new todo item"
     autocomplete="off"
     bind:value={title}
   />
-  {#if error}
-    <p class="error" role="alert">{error}</p>
+  {#if createTodo.isError}
+    <p class="error" role="alert">{String(createTodo.error)}</p>
   {/if}
 </form>
 
