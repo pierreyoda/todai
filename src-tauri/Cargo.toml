@@ -1,7 +1,7 @@
 [package]
 name = "todai"
 version = "0.1.0"
-description = "A Tauri App"
+description = "A personal, day-by-day tasks-management and notes-taking application."
 authors = ["you"]
 edition = "2021"
 
@@ -15,13 +15,13 @@ name = "todai_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7.1", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-opener = "2.7.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
