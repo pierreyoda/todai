@@ -13,3 +13,6 @@ minimumReleaseAgeExclude:
   - '@tauri-apps/cli-win32-x64-msvc@2.12.1'
   - '@tauri-apps/cli@2.12.1'
   - vite@8.3.2
+  - '@tanstack/query-core@5.104.1'
+  - '@tanstack/svelte-query@6.3.1'
+  - '@types/node@24.19.1'
