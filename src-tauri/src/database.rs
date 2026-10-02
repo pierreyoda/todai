@@ -5,7 +5,10 @@ use crate::errors::Result;
 
 pub mod models;
 
-const MIGRATIONS: &[&str] = &[include_str!("../migrations/001_init.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("../migrations/001_init.sql"),
+    include_str!("../migrations/002_tags.sql"),
+];
 
 pub fn open(path: impl AsRef<Path>) -> Result<Connection> {
     let mut conn = Connection::open(path)?;

@@ -6,7 +6,8 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::{
-    database::models::{DbDay, DbTodo},
+    commands::tags::Tag,
+    database::models::{DbDay, DbTag, DbTodo},
     errors::{Result, TodaiError},
     state::AppState,
 };
@@ -56,6 +57,8 @@ pub struct Todo {
     pub updated_at: Timestamp,
     pub completed_at: Option<Timestamp>,
     pub deleted_at: Option<Timestamp>,
+    /// Associated tags, sorted by name.
+    pub tags: Vec<Tag>,
 }
 
 impl TryFrom<DbTodo> for Todo {
@@ -73,21 +76,50 @@ impl TryFrom<DbTodo> for Todo {
             updated_at: Timestamp::from_second(todo.updated_at)?,
             completed_at: todo.completed_at.map(Timestamp::from_second).transpose()?,
             deleted_at: todo.deleted_at.map(Timestamp::from_second).transpose()?,
+            tags: Vec::new(),
         })
     }
 }
 
-/// Lists the non-deleted todos of `day`, in display order.
+/// Lists the non-deleted todos of `day`, in display order, with their non-deleted tags.
 #[tauri::command]
 pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo>> {
     let db = state.db();
+    // One row per (todo, tag) pair, or a single row with NULL tag columns for an untagged todo.
+    // Sorting by `todos.id` after `position` keeps each todo's rows contiguous.
     let mut statement = db.prepare_cached(
-        "SELECT * FROM todos WHERE day = ?1 AND deleted_at IS NULL ORDER BY position",
+        "SELECT todos.*,
+                tags.id AS tag_id,
+                tags.name AS tag_name,
+                tags.color AS tag_color,
+                tags.created_at AS tag_created_at,
+                tags.updated_at AS tag_updated_at,
+                tags.deleted_at AS tag_deleted_at
+         FROM todos
+         LEFT JOIN todo_tags ON todo_tags.todo_id = todos.id
+         LEFT JOIN tags ON tags.id = todo_tags.tag_id AND tags.deleted_at IS NULL
+         WHERE todos.day = ?1 AND todos.deleted_at IS NULL
+         ORDER BY todos.position, todos.id, tags.name",
     )?;
-    let todos = statement
-        .query_map([&day.raw], DbTodo::from_row)?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    todos.into_iter().map(Todo::try_from).collect()
+    let rows = statement.query_map([&day.raw], |row| {
+        Ok((DbTodo::from_row(row)?, DbTag::from_joined_row(row)?))
+    })?;
+
+    let mut todos: Vec<Todo> = Vec::new();
+    for row in rows {
+        let (todo, tag) = row?;
+        let todo = match todos.last_mut() {
+            Some(last) if last.id == todo.id => last,
+            _ => {
+                todos.push(todo.try_into()?);
+                todos.last_mut().expect("just pushed")
+            }
+        };
+        if let Some(tag) = tag {
+            todo.tags.push(tag.try_into()?);
+        }
+    }
+    Ok(todos)
 }
 
 /// Creates a todo at the end of `day`.

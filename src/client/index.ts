@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Todo } from "./types";
+import type { Day, Tag, Todo } from "./types";
 import type { UUID } from "node:crypto";
 
 type ClientInvocationCommand = {
@@ -21,6 +21,41 @@ type ClientInvocationCommand = {
     args: {
       id: UUID;
       completed: boolean;
+    };
+    returns: never;
+  };
+  list_tags: {
+    args: Record<string, never>;
+    returns: Tag[];
+  };
+  create_tag: {
+    args: {
+      name: string;
+      /** Format: #RRGGBB. */
+      color: string;
+    };
+    returns: Tag;
+  };
+  update_tag: {
+    args: {
+      id: UUID;
+      name?: string;
+      /** Format: #RRGGBB. */
+      color?: string;
+    };
+    returns: Tag;
+  };
+  delete_tag: {
+    args: {
+      id: UUID;
+    };
+    returns: never;
+  };
+  /** Replaces the todo's tags with `tagIds`. */
+  set_todo_tags: {
+    args: {
+      todoId: UUID;
+      tagIds: readonly UUID[];
     };
     returns: never;
   };

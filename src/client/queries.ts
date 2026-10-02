@@ -1,3 +1,4 @@
+import type { UUID } from "node:crypto";
 import { QueryClient, queryOptions } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
@@ -33,3 +34,13 @@ export const todosQueryOptions = (day: Day) =>
     queryKey: todoKeys.day(day),
     queryFn: () => invokeClient({ name: "list_todos", args: { day } }),
   });
+
+export const tagKeys = {
+  all: ["tags"] as const,
+  id: (id: UUID) => [...tagKeys.all, id] as const,
+};
+
+export const tagsQueryOptions = queryOptions({
+  queryKey: tagKeys.all,
+  queryFn: () => invokeClient({ name: "list_tags", args: {} }),
+});

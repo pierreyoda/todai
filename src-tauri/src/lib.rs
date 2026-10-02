@@ -26,6 +26,11 @@ pub fn run() {
             commands::todos::list_todos,
             commands::todos::create_todo,
             commands::todos::toggle_todo,
+            commands::tags::list_tags,
+            commands::tags::create_tag,
+            commands::tags::update_tag,
+            commands::tags::delete_tag,
+            commands::tags::set_todo_tags,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

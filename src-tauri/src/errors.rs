@@ -15,6 +15,8 @@ pub enum TodaiError {
     DateTimeError(#[from] jiff::Error),
     #[error("Invalid day {0:?}: expected YYYY-MM-DD")]
     InvalidDay(String),
+    #[error("Invalid color {0:?}: expected #RRGGBB")]
+    InvalidColor(String),
     #[error("Invalid position {0:?}")]
     InvalidPosition(String),
     #[error("Command error: {0}")]

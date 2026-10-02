@@ -4,7 +4,7 @@
   import { invokeClient } from "../../client";
   import { todoKeys } from "../../client/queries";
   import type { Day } from "../../client/types";
-  import FieldText from "../inputs/FieldText.svelte";
+  import FieldText from "../common/FieldText.svelte";
 
   type TodoCreateSectionProps = {
     day: Day;

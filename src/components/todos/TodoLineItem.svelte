@@ -2,7 +2,7 @@
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
   import type { Todo } from "../../client/types";
-  import FieldCheckbox from "../inputs/FieldCheckbox.svelte";
+  import FieldCheckbox from "../common/FieldCheckbox.svelte";
   import { invokeClient } from "../../client";
   import { todoKeys } from "../../client/queries";
 
