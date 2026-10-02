@@ -14,7 +14,8 @@
   const { data, onSubmit }: TagFormProps = $props();
 
   let editedName = $state(data?.name ?? "");
-  let editedColor = $state(data?.color ?? RGB_TAG_COLOR_PRESETS[0].color);
+  let editedColor = $state(data?.color ?? null);
+  const valid = $derived(editedName.trim().length > 0 && !!editedColor);
 </script>
 
 <div class="container">
@@ -29,7 +30,14 @@
       />
     {/each}
   </div>
-  <Button type="submit" onclick={() => onSubmit(editedName, editedColor)}>
+  <Button
+    type="submit"
+    disabled={!valid}
+    onclick={() => {
+      if (!valid) return;
+      onSubmit(editedName, editedColor!);
+    }}
+  >
     Create
   </Button>
 </div>

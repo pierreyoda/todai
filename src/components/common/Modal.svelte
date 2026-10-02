@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import Button from "./Button.svelte";
 
   type ModalProps = {
     show: boolean;
@@ -32,8 +33,8 @@
       {#if header}
         <h2 id={titleId} class="title">{@render header()}</h2>
       {/if}
-      <button
-        type="button"
+      <Button
+        style="plain"
         class="close"
         aria-label="Close"
         onclick={() => dialog?.close()}
@@ -43,7 +44,7 @@
             d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
           />
         </svg>
-      </button>
+      </Button>
     </header>
 
     <div class="body">
@@ -91,11 +92,9 @@
     @apply text-lg/7 font-semibold text-white;
   }
 
-  /* Pushed right even without a title; negative margin keeps the icon aligned with the padding */
-  .close {
-    @apply -m-1.5 ml-auto shrink-0 rounded-lg p-1.5 text-slate-400;
-    @apply hover:bg-white/5 hover:text-white;
-    @apply focus:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500;
+  header :global(.close) {
+    @apply -m-1.5 ml-auto shrink-0 items-center! border-0! p-1.5! text-slate-400!;
+    @apply hover:bg-white/5! hover:text-white! active:bg-white/10!;
     > svg {
       @apply size-5;
     }

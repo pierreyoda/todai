@@ -26,7 +26,7 @@
 
   /* Global since the class lands on Button's inner <button>; `!` overrides Button's base styles */
   :global(.color-preset) {
-    @apply size-5! shrink-0 cursor-pointer rounded-full! border! border-black/10! p-0! bg-(--preset-color) transition-transform;
+    @apply size-5! shrink-0 cursor-pointer rounded-full! border! border-black/10! p-0! bg-(--preset-color)! transition-transform;
     @apply hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500;
     @apply dark:border-white/15!;
   }
