@@ -1,3 +1,23 @@
+import { utc } from "@date-fns/utc";
+import {
+  addMonths as addMonthsToDate,
+  eachMonthOfInterval,
+  eachWeekOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  getYear,
+  isSameDay,
+  isSameMonth,
+  isSameYear,
+  isValid,
+  max,
+  min,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
+
 import type { Day, Month } from "../client/types";
 
 /** A week of a month: Monday to Sunday, cut at the month's bounds. */
@@ -8,12 +28,18 @@ export type Week = {
 
 const MIN_YEAR = 0;
 const MAX_YEAR = 9999;
-const DAY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
-/** Labels match the rest of the UI, which is in English. */
-const LOCALE = "en-US";
+/** `parseISO` also accepts other ISO 8601 forms (e.g. `20261003`, or with a time): only keep the canonical ones. */
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_PATTERN = /^\d{4}-\d{2}$/;
+const DAY_FORMAT = "uuuu-MM-dd";
+const MONTH_FORMAT = "uuuu-MM";
 
-const padDatePart = (value: number, length: number): string => String(value).padStart(length, "0");
+/*
+ * Days and months are handled as UTC midnights: unlike local ones, every UTC day exists and lasts 24 hours,
+ * so no time zone or daylight saving time change can shift them.
+ */
+const UTC = { in: utc };
+const WEEK = { ...UTC, weekStartsOn: 1 } as const;
 
 /**
  * Formats `date` as `YYYY-MM-DD`, in the local time zone.
@@ -29,69 +55,40 @@ export const dateToTodaiDate = (date: Date): Day => {
   if (!(year >= MIN_YEAR && year <= MAX_YEAR)) {
     throw new RangeError(`Cannot format ${date} as YYYY-MM-DD`);
   }
-  return [
-    padDatePart(year, 4),
-    padDatePart(date.getMonth() + 1, 2),
-    padDatePart(date.getDate(), 2),
-  ].join("-");
+  return format(date, DAY_FORMAT);
 };
 
-/*
- * Days and months are handled as UTC midnights: unlike local dates, every UTC day lasts 24 hours,
- * so no time zone or daylight saving time change can shift them.
- */
-
-/** UTC midnight of the given calendar date; `monthIndex` and `date` overflow into the next units. */
-const utcDate = (year: number, monthIndex: number, date: number): Date => {
-  const result = new Date(0);
-  // Not `Date.UTC`, which maps years 0-99 to 1900-1999
-  result.setUTCFullYear(year, monthIndex, date);
-  return result;
-};
-
-const utcDateToDay = (date: Date): Day =>
-  [
-    padDatePart(date.getUTCFullYear(), 4),
-    padDatePart(date.getUTCMonth() + 1, 2),
-    padDatePart(date.getUTCDate(), 2),
-  ].join("-");
+const toDay = (date: Date): Day => format(date, DAY_FORMAT, UTC);
 
 /** @throws {RangeError} If `day` isn't an existing date formatted as `YYYY-MM-DD`. */
 const parseDay = (day: Day): Date => {
-  const match = DAY_PATTERN.exec(day);
-  const date = match && utcDate(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  // Also rejects overflowing dates, e.g. 2026-02-30 becoming 2026-03-02
-  if (!date || utcDateToDay(date) !== day) {
+  // `parseISO` rejects non-existing dates, e.g. 2026-02-30
+  const date = DAY_PATTERN.test(day) ? parseISO(day, UTC) : undefined;
+  if (!date || !isValid(date)) {
     throw new RangeError(`Invalid day: ${JSON.stringify(day)}`);
   }
   return date;
 };
 
-/** @throws {RangeError} If `month` isn't formatted as `YYYY-MM`, with a month from 01 to 12. */
-const parseMonth = (month: Month): { year: number; monthIndex: number } => {
-  const match = MONTH_PATTERN.exec(month);
-  const monthIndex = Number(match?.[2]) - 1;
-  if (!match || !(monthIndex >= 0 && monthIndex <= 11)) {
+/**
+ * The first day of `month`.
+ *
+ * @throws {RangeError} If `month` isn't formatted as `YYYY-MM`, with a month from 01 to 12.
+ */
+const parseMonth = (month: Month): Date => {
+  const date = MONTH_PATTERN.test(month) ? parseISO(`${month}-01`, UTC) : undefined;
+  if (!date || !isValid(date)) {
     throw new RangeError(`Invalid month: ${JSON.stringify(month)}`);
   }
-  return { year: Number(match[1]), monthIndex };
+  return date;
 };
-
-const addDays = (date: Date, count: number): Date =>
-  utcDate(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + count);
-
-/** 0 for Monday to 6 for Sunday. */
-const mondayBasedWeekday = (date: Date): number => (date.getUTCDay() + 6) % 7;
 
 /**
  * The month of `day`.
  *
  * @throws {RangeError} If `day` is invalid.
  */
-export const monthOf = (day: Day): Month => {
-  parseDay(day);
-  return day.slice(0, 7);
-};
+export const monthOf = (day: Day): Month => format(parseDay(day), MONTH_FORMAT, UTC);
 
 /**
  * The first and last days of `month`.
@@ -99,10 +96,8 @@ export const monthOf = (day: Day): Month => {
  * @throws {RangeError} If `month` is invalid.
  */
 export const monthBounds = (month: Month): [first: Day, last: Day] => {
-  const { year, monthIndex } = parseMonth(month);
-  // Day 0 of the next month is the last day of this one
-  const lastDate = utcDate(year, monthIndex + 1, 0).getUTCDate();
-  return [`${month}-01`, `${month}-${padDatePart(lastDate, 2)}`];
+  const first = parseMonth(month);
+  return [toDay(first), toDay(endOfMonth(first, UTC))];
 };
 
 /**
@@ -111,13 +106,14 @@ export const monthBounds = (month: Month): [first: Day, last: Day] => {
  * @throws {RangeError} If `month` is invalid, or the result is outside 0000-9999.
  */
 export const addMonths = (month: Month, count: number): Month => {
-  const { year, monthIndex } = parseMonth(month);
-  const total = year * 12 + monthIndex + count;
-  const resultYear = Math.floor(total / 12);
-  if (!Number.isInteger(count) || resultYear < MIN_YEAR || resultYear > MAX_YEAR) {
+  const first = parseMonth(month);
+  // date-fns would truncate a fractional `count`
+  const result = Number.isInteger(count) ? addMonthsToDate(first, count, UTC) : undefined;
+  const year = result && getYear(result, UTC);
+  if (!result || !(year! >= MIN_YEAR && year! <= MAX_YEAR)) {
     throw new RangeError(`Cannot add ${count} months to ${month}`);
   }
-  return `${padDatePart(resultYear, 4)}-${padDatePart((total % 12) + 1, 2)}`;
+  return format(result, MONTH_FORMAT, UTC);
 };
 
 /**
@@ -127,17 +123,13 @@ export const addMonths = (month: Month, count: number): Month => {
  * @throws {RangeError} If a month is invalid.
  */
 export const monthsBetween = (newest: Month, oldest: Month): Month[] => {
-  parseMonth(newest);
-  parseMonth(oldest);
-  const months: Month[] = [];
-  // `YYYY-MM` strings compare chronologically
-  for (let month = newest; month >= oldest; ) {
-    months.push(month);
-    // Stops before going below `oldest`, which may be the minimum month
-    if (month === oldest) break;
-    month = addMonths(month, -1);
-  }
-  return months;
+  const newestDate = parseMonth(newest);
+  const oldestDate = parseMonth(oldest);
+  // date-fns would list reversed intervals backwards instead
+  if (oldestDate > newestDate) return [];
+  return eachMonthOfInterval({ start: oldestDate, end: newestDate }, UTC)
+    .reverse()
+    .map((date) => format(date, MONTH_FORMAT, UTC));
 };
 
 /**
@@ -147,15 +139,12 @@ export const monthsBetween = (newest: Month, oldest: Month): Month[] => {
  * @throws {RangeError} If `month` is invalid.
  */
 export const weeksOfMonth = (month: Month): Week[] => {
-  const [first, last] = monthBounds(month).map(parseDay);
-  const weeks: Week[] = [];
-  for (let start = first; start <= last; ) {
-    const sunday = addDays(start, 6 - mondayBasedWeekday(start));
-    const end = sunday < last ? sunday : last;
-    weeks.push({ start: utcDateToDay(start), end: utcDateToDay(end) });
-    start = addDays(end, 1);
-  }
-  return weeks;
+  const first = parseMonth(month);
+  const last = endOfMonth(first, UTC);
+  return eachWeekOfInterval({ start: first, end: last }, WEEK).map((monday) => ({
+    start: toDay(max([monday, first], UTC)),
+    end: toDay(min([endOfWeek(monday, WEEK), last], UTC)),
+  }));
 };
 
 /**
@@ -165,45 +154,42 @@ export const weeksOfMonth = (month: Month): Week[] => {
  */
 export const weekOf = (day: Day): Week => {
   const date = parseDay(day);
-  const weekday = mondayBasedWeekday(date);
-  const monday = addDays(date, -weekday);
-  const sunday = addDays(date, 6 - weekday);
-  const [first, last] = monthBounds(monthOf(day)).map(parseDay);
   return {
-    start: utcDateToDay(monday < first ? first : monday),
-    end: utcDateToDay(sunday > last ? last : sunday),
+    start: toDay(max([startOfWeek(date, WEEK), startOfMonth(date, UTC)], UTC)),
+    end: toDay(min([endOfWeek(date, WEEK), endOfMonth(date, UTC)], UTC)),
   };
 };
 
-const monthFormat = new Intl.DateTimeFormat(LOCALE, { month: "long", year: "numeric", timeZone: "UTC" });
-const shortDateFormat = new Intl.DateTimeFormat(LOCALE, { month: "short", day: "numeric", timeZone: "UTC" });
-const weekdayFormat = new Intl.DateTimeFormat(LOCALE, { weekday: "short", timeZone: "UTC" });
+/*
+ * Labels use date-fns' default locale, English, like the rest of the UI.
+ */
 
 /**
  * E.g. "October 2026".
  *
  * @throws {RangeError} If `month` is invalid.
  */
-export const formatMonth = (month: Month): string => {
-  const { year, monthIndex } = parseMonth(month);
-  return monthFormat.format(utcDate(year, monthIndex, 1));
-};
+export const formatMonth = (month: Month): string => format(parseMonth(month), "MMMM y", UTC);
 
 /**
- * E.g. "Oct 5 – 11", or "Oct 31" for a single day.
+ * E.g. "Oct 5 – 11", "Sep 28 – Oct 4", or "Oct 31" for a single day.
  *
  * @throws {RangeError} If a day of `week` is invalid.
  */
-export const formatWeek = ({ start, end }: Week): string =>
-  shortDateFormat.formatRange(parseDay(start), parseDay(end));
+export const formatWeek = ({ start, end }: Week): string => {
+  const startDate = parseDay(start);
+  const endDate = parseDay(end);
+  const formatBoth = (startFormat: string, endFormat: string) =>
+    `${format(startDate, startFormat, UTC)} – ${format(endDate, endFormat, UTC)}`;
+  if (isSameDay(startDate, endDate, UTC)) return format(startDate, "MMM d", UTC);
+  if (isSameMonth(startDate, endDate, UTC)) return formatBoth("MMM d", "d");
+  if (isSameYear(startDate, endDate, UTC)) return formatBoth("MMM d", "MMM d");
+  return formatBoth("MMM d, y", "MMM d, y");
+};
 
 /**
  * E.g. "Mon 5".
  *
  * @throws {RangeError} If `day` is invalid.
  */
-export const formatDay = (day: Day): string => {
-  const date = parseDay(day);
-  // Built by hand: "en-US" puts the weekday after the date ("5 Mon")
-  return `${weekdayFormat.format(date)} ${date.getUTCDate()}`;
-};
+export const formatDay = (day: Day): string => format(parseDay(day), "EEE d", UTC);
