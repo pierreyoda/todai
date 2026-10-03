@@ -22,11 +22,13 @@
   // TODO: add closing mechanism (click outside, button with icon)
 </script>
 
-<section class="container pt-4 pb-2">
-  <div class="flex flex-col gap-4 p-2">
-    <div class="flex items-center justify-between">
+<section class="container">
+  <div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between mb-2">
       <h2 class="section-title">Tags</h2>
       <Button
+        size="xs"
+        style="outline"
         onclick={() => {
           if (!showTagCreationModal) {
             showTagCreationModal = true;
@@ -51,8 +53,8 @@
       </ol>
     {/if}
   </div>
-  <div class="p-4 flex flex-col">
-    <div class="divider"></div>
+  <div class="flex flex-col">
+    <hr />
     <h2 class="section-title">Settings</h2>
   </div>
   <TagUpsertModal bind:show={showTagCreationModal} />
@@ -63,14 +65,14 @@
 
   .container {
     @apply w-60 h-full bg-gray-800 shadow-lg z-50;
-    @apply flex flex-col justify-between text-center;
+    @apply flex flex-col justify-between text-center p-4;
   }
 
   .section-title {
-    @apply text-sm font-semibold text-gray-400 uppercase tracking-wide px-4;
+    @apply text-sm font-semibold text-gray-400 uppercase tracking-wide;
   }
 
-  .divider {
+  hr {
     @apply border-b border-gray-300 dark:border-gray-700 py-4 mb-4;
   }
 </style>

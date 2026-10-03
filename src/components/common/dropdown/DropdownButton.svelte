@@ -17,6 +17,7 @@
 </script>
 
 <Button
+  size="xs"
   {...props}
   bind:ref={
     () => menu.triggerEl as HTMLButtonElement | undefined,

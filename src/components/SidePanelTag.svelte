@@ -23,7 +23,7 @@
   @reference "tailwindcss";
 
   .tag-item {
-    @apply w-full flex items-center justify-between px-4;
+    @apply w-full flex items-center justify-between;
     .name {
       @apply text-white text-sm;
     }

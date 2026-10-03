@@ -11,7 +11,7 @@
   viewBox="0 0 24 24"
   stroke-width={1.5}
   stroke="currentColor"
-  class={["size-6", extraClass]}
+  class={["size-4", extraClass]}
 >
   <path
     stroke-linecap="round"

@@ -56,20 +56,23 @@
     />
     <div class="flex flex-col gap-1">
       <h3 class="title">{item.title}</h3>
-      <div class="flex items-center gap-4 overflow-x-auto">
-        {#each item.tags as itemTag (itemTag.id)}
-          <div class="flex items-center gap-1">
-            <div
-              class={["rounded-full w-2 h-2"]} style:background-color={itemTag.color}
-            ></div>
-            <span class="text-white text-xs">{itemTag.name}</span>
-          </div>
-        {/each}
-      </div>
+      {#if item.tags.length > 0}
+        <div class="flex items-center gap-4 overflow-x-auto">
+          {#each item.tags as itemTag (itemTag.id)}
+            <div class="flex items-center gap-1">
+              <div
+                class={["rounded-full w-2 h-2"]}
+                style:background-color={itemTag.color}
+              ></div>
+              <span class="text-white text-xs">{itemTag.name}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   </div>
   <Dropdown>
-    <DropdownButton style="outline">
+    <DropdownButton style="plain">
       <EllipsisVertical />
     </DropdownButton>
     <DropdownMenu placement="bottom-end">

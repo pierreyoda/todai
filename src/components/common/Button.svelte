@@ -108,6 +108,7 @@
     children?: Snippet;
     style?: "solid" | "outline" | "plain";
     color?: keyof typeof colors;
+    size?: "xs" | "sm" | "regular" | "lg" | "xl";
     class?: ClassValue;
     /** Bindable: the inner `<button>` element. */
     ref?: HTMLButtonElement;
@@ -118,6 +119,7 @@
     children,
     style = "solid",
     color = "fuchsia",
+    size = "regular",
     class: extraClass,
     ref = $bindable(),
     ...rest
@@ -128,6 +130,7 @@
   bind:this={ref}
   {...rest}
   {type}
+  data-size={size}
   class={[style, colors[color], extraClass]}
 >
   {@render children?.()}
@@ -138,9 +141,9 @@
 
   button {
     /* Base */
-    @apply relative isolate inline-flex items-baseline justify-center gap-x-2 rounded-lg border text-base/6 font-semibold;
-    /* Sizing */
-    @apply px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6;
+    @apply relative isolate inline-flex items-baseline justify-center gap-x-2 rounded-(--btn-radius) border text-base/6 font-semibold;
+    /* Sizing: regular by default, larger on small screens for touch (other sizes below) */
+    @apply [--btn-radius:var(--radius-lg)] px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6;
     /* Focus */
     @apply focus:not-focus-visible:outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500;
     /* Disabled */
@@ -148,13 +151,31 @@
     /* Icon */
     @apply *:data-[slot=icon]:-mx-0.5 *:data-[slot=icon]:my-0.5 *:data-[slot=icon]:size-5 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:self-center *:data-[slot=icon]:text-(--btn-icon) sm:*:data-[slot=icon]:my-1 sm:*:data-[slot=icon]:size-4 forced-colors:[--btn-icon:ButtonText] forced-colors:enabled:hover:[--btn-icon:ButtonText];
 
+    /* Sizes: heights of 24, 28, 36 (regular), 44 and 52px; icons fit within the line height */
+    &[data-size="xs"] {
+      @apply gap-x-1 px-[calc(--spacing(2)-1px)] py-[calc(--spacing(1)-1px)] text-xs/4 [--btn-radius:var(--radius-md)];
+      @apply *:data-[slot=icon]:my-0 *:data-[slot=icon]:size-3.5;
+    }
+    &[data-size="sm"] {
+      @apply gap-x-1.5 px-[calc(--spacing(2.5)-1px)] py-[calc(--spacing(1)-1px)] text-sm/5 [--btn-radius:var(--radius-md)];
+      @apply *:data-[slot=icon]:my-0 *:data-[slot=icon]:size-4;
+    }
+    &[data-size="lg"] {
+      @apply px-[calc(--spacing(4)-1px)] py-[calc(--spacing(2.5)-1px)] text-base/6;
+      @apply *:data-[slot=icon]:my-0 *:data-[slot=icon]:size-5;
+    }
+    &[data-size="xl"] {
+      @apply gap-x-2.5 px-[calc(--spacing(5)-1px)] py-[calc(--spacing(3)-1px)] text-lg/7 [--btn-radius:var(--radius-xl)];
+      @apply *:data-[slot=icon]:my-0 *:data-[slot=icon]:size-6;
+    }
+
     &.solid {
       /* Optical border, implemented as the button background to avoid corner artifacts */
       @apply border-transparent bg-(--btn-border);
       /* Dark mode: border is rendered on `after` so background is set to button background */
       @apply dark:bg-(--btn-bg);
       /* Button background, implemented as foreground layer to stack on top of pseudo-border layer */
-      @apply before:absolute before:inset-0 before:-z-10 before:rounded-[calc(var(--radius-lg)-1px)] before:bg-(--btn-bg);
+      @apply before:absolute before:inset-0 before:-z-10 before:rounded-[calc(var(--btn-radius)-1px)] before:bg-(--btn-bg);
       /* Drop shadow, applied to the inset `before` layer so it blends with the border */
       @apply before:shadow-sm;
       /* Background color is moved to control and shadow is removed in dark mode so hide `before` pseudo */
@@ -162,13 +183,13 @@
       /* Dark mode: Subtle white outline is applied using a border */
       @apply dark:border-white/5;
       /* Shim/overlay, inset to match button foreground and used for hover state + highlight shadow */
-      @apply after:absolute after:inset-0 after:-z-10 after:rounded-[calc(var(--radius-lg)-1px)];
+      @apply after:absolute after:inset-0 after:-z-10 after:rounded-[calc(var(--btn-radius)-1px)];
       /* Inner highlight shadow */
       @apply after:shadow-[inset_0_1px_--theme(--color-white/15%)];
       /* White overlay on hover */
       @apply enabled:active:after:bg-(--btn-hover-overlay) enabled:hover:after:bg-(--btn-hover-overlay);
       /* Dark mode: `after` layer expands to cover entire button */
-      @apply dark:after:-inset-px dark:after:rounded-lg;
+      @apply dark:after:-inset-px dark:after:rounded-(--btn-radius);
       /* Disabled */
       @apply disabled:before:shadow-none disabled:after:shadow-none;
     }
