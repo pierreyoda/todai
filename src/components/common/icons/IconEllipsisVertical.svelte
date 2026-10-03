@@ -1,8 +1,8 @@
 <script lang="ts">
-  type EllipsisVerticalProps = {
+  type IconEllipsisVerticalProps = {
     class?: string;
   };
-  const { class: extraClass }: EllipsisVerticalProps = $props();
+  const { class: extraClass }: IconEllipsisVerticalProps = $props();
 </script>
 
 <svg

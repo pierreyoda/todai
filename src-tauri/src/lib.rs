@@ -24,6 +24,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::todos::list_todos,
+            commands::todos::list_todos_between,
+            commands::todos::list_todo_months,
             commands::todos::create_todo,
             commands::todos::toggle_todo,
             commands::todos::update_todo,

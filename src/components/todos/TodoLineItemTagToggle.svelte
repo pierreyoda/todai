@@ -3,17 +3,18 @@
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
   import { invokeClient } from "../../client";
-  import { tagKeys, todoKeys } from "../../client/queries";
-  import type { Tag } from "../../client/types";
+  import { invalidateTodosOf, tagKeys } from "../../client/queries";
+  import type { Day, Tag } from "../../client/types";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
-  import { dateToTodaiDate } from "../../utils";
 
   type TodoLineItemTagToggleProps = {
     todoId: UUID;
+    todoDay: Day;
     todoTagsIds: readonly UUID[];
     tag: Tag;
   };
-  const { todoId, todoTagsIds, tag }: TodoLineItemTagToggleProps = $props();
+  const { todoId, todoDay, todoTagsIds, tag }: TodoLineItemTagToggleProps =
+    $props();
 
   let assigned = $derived(!!todoTagsIds.find((id) => id === tag.id));
   const queryClient = useQueryClient();
@@ -25,9 +26,7 @@
       }),
     onSuccess: () => {
       // The todo's tags, and the tags' linked todos counts
-      queryClient.invalidateQueries({
-        queryKey: todoKeys.day(dateToTodaiDate(new Date())),
-      });
+      invalidateTodosOf(queryClient, todoDay);
       queryClient.invalidateQueries({ queryKey: tagKeys.all });
     },
   }));

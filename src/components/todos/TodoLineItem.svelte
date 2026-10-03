@@ -6,7 +6,8 @@
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
   import EditableText from "../common/EditableText.svelte";
   import { invokeClient } from "../../client";
-  import { todoKeys } from "../../client/queries";
+  import { invalidateTodosOf } from "../../client/queries";
+  import { createToggleTodoMutation } from "../../client/mutations";
   import { Debounced } from "../../utils/debounced.svelte";
   import {
     Dropdown,
@@ -16,7 +17,7 @@
     DropdownMenu,
     DropdownSubmenu,
   } from "../common/dropdown";
-  import EllipsisVertical from "../common/icons/EllipsisVertical.svelte";
+  import EllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
   import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
   import TagUpsertModal from "../tags/TagUpsertModal.svelte";
 
@@ -31,23 +32,12 @@
 
   // Follows the server state, but is checked/unchecked right away on click.
   let completed = $derived(item.completed);
+  const toggleCompleted = createToggleTodoMutation(
+    () => item,
+    () => (completed = item.completed),
+  );
+
   const queryClient = useQueryClient();
-  const toggleCompleted = createMutation(() => ({
-    mutationFn: (completed: boolean) =>
-      invokeClient({
-        name: "toggle_todo",
-        args: { id: item.id, completed },
-      }),
-    onSuccess: () => {
-      // Returned so the mutation stays pending until the list is refetched.
-      return queryClient.invalidateQueries({
-        queryKey: todoKeys.day(item.day),
-      });
-    },
-    onError: () => {
-      completed = item.completed;
-    },
-  }));
 
   // svelte-ignore state_referenced_locally: edited locally, then saved
   let editedTitle = $state(item.title);
@@ -58,9 +48,7 @@
         args: { id: item.id, title },
       }),
     onSuccess: () => {
-      return queryClient.invalidateQueries({
-        queryKey: todoKeys.day(item.day),
-      });
+      return invalidateTodosOf(queryClient, item.day);
     },
     onError: () => {
       editedTitle = item.title;
@@ -118,6 +106,7 @@
           <DropdownItem onclick={() => {}}>
             <TodoLineItemTagToggle
               todoId={item.id}
+              todoDay={item.day}
               todoTagsIds={item.tagIds}
               {tag}
             />

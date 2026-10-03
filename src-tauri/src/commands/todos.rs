@@ -1,6 +1,6 @@
 use fractional_index::FractionalIndex;
 use jiff::{civil::Date, tz::TimeZone, Timestamp};
-use rusqlite::named_params;
+use rusqlite::{named_params, Connection};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
@@ -81,10 +81,66 @@ impl TryFrom<DbTodo> for Todo {
     }
 }
 
+/// A month's statistics about its non-deleted todos.
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TodoMonth {
+    /// Format: YYYY-MM
+    pub month: String,
+    pub count: u32,
+    pub completed_count: u32,
+}
+
 /// Lists the non-deleted todos of `day`, in display order, with the IDs of their non-deleted tags.
 #[tauri::command]
 pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo>> {
+    query_todos(&state.db(), &day, &day)
+}
+
+/// Lists the non-deleted todos from `start` to `end` (inclusive), by day then in display order, as `list_todos`.
+#[tauri::command]
+pub async fn list_todos_between(
+    state: State<'_, AppState>,
+    start: Day,
+    end: Day,
+) -> Result<Vec<Todo>> {
+    if start > end {
+        return Err(TodaiError::CommandError(format!(
+            "Start day {} is after end day {}",
+            start.raw, end.raw
+        )));
+    }
+    query_todos(&state.db(), &start, &end)
+}
+
+/// Lists the months having non-deleted todos, most recent first, with their statistics.
+#[tauri::command]
+pub async fn list_todo_months(state: State<'_, AppState>) -> Result<Vec<TodoMonth>> {
     let db = state.db();
+    // `day` is YYYY-MM-DD: its first 7 characters are the month. Covered by `idx_todos_day`.
+    let mut statement = db.prepare_cached(
+        "SELECT substr(day, 1, 7) AS month,
+                COUNT(*) AS count,
+                SUM(completed) AS completed_count
+         FROM todos
+         WHERE deleted_at IS NULL
+         GROUP BY month
+         ORDER BY month DESC",
+    )?;
+    let months = statement
+        .query_map([], |row| {
+            Ok(TodoMonth {
+                month: row.get("month")?,
+                count: row.get("count")?,
+                completed_count: row.get("completed_count")?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(months)
+}
+
+/// The non-deleted todos from `start` to `end` (inclusive), by day then in display order.
+fn query_todos(db: &Connection, start: &Day, end: &Day) -> Result<Vec<Todo>> {
     // One row per (todo, tag) pair, or a single row with a NULL tag ID for an untagged todo.
     // Tags are only joined to skip deleted ones. Sorting by `todos.id` after `position` keeps each todo's rows contiguous.
     let mut statement = db.prepare_cached(
@@ -92,10 +148,10 @@ pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo
          FROM todos
          LEFT JOIN todo_tags ON todo_tags.todo_id = todos.id
          LEFT JOIN tags ON tags.id = todo_tags.tag_id AND tags.deleted_at IS NULL
-         WHERE todos.day = ?1 AND todos.deleted_at IS NULL
-         ORDER BY todos.position, todos.id",
+         WHERE todos.day BETWEEN ?1 AND ?2 AND todos.deleted_at IS NULL
+         ORDER BY todos.day, todos.position, todos.id",
     )?;
-    let rows = statement.query_map([&day.raw], |row| {
+    let rows = statement.query_map([&start.raw, &end.raw], |row| {
         Ok((DbTodo::from_row(row)?, row.get::<_, Option<String>>("tag_id")?))
     })?;
 

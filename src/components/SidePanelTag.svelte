@@ -45,7 +45,11 @@
 <!-- TODO: fix a11y warning -->
 <li
   class={["tag-item", selected && "selected"]}
-  on:click={() => onSelectedChanged(!selected)}
+  onclick={(event) => {
+    // Editing the name or the color doesn't toggle the selection (clicks in the modal bubble up here too)
+    if ((event.target as Element).closest("button, input, .color-marker, dialog")) return;
+    onSelectedChanged(!selected);
+  }}
 >
   <span class="count-badge">
     {tag.linkedTodosCount ?? 0}<span class="sr-only"> todos</span>
@@ -60,7 +64,7 @@
     title="Edit color"
     class="color-marker"
     style:background-color={tag.color}
-    on:click={() => (showTagEditionModal = true)}
+    onclick={() => (showTagEditionModal = true)}
   ></div>
   <TagUpsertModal
     bind:show={showTagEditionModal}
@@ -74,6 +78,9 @@
 
   .tag-item {
     @apply w-full flex items-center justify-between gap-2;
+    &.selected {
+      @apply bg-pink-700;
+    }
     .count-badge {
       /* Layout: fixed minimum width so single and double digits line up */
       @apply inline-flex min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 py-0.5;
@@ -83,6 +90,8 @@
       @apply bg-white/5 ring-1 ring-white/10 ring-inset;
       /* Forced colors mode */
       @apply forced-colors:outline;
+      /** Ring-based hover styling. */
+      @apply transition hover:ring-1 hover:ring-pink-500;
     }
     .color-marker {
       @apply w-4 h-4 shrink-0 rounded-full hover:ring-1 hover:ring-pink-500 transition;

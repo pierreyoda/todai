@@ -2,7 +2,7 @@
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
   import { invokeClient } from "../../client";
-  import { todoKeys } from "../../client/queries";
+  import { invalidateTodosOf } from "../../client/queries";
   import type { Day } from "../../client/types";
   import FieldText from "../common/FieldText.svelte";
 
@@ -19,7 +19,7 @@
     onSuccess: () => {
       title = "";
       // Returned so the mutation stays pending until the list is refetched.
-      return queryClient.invalidateQueries({ queryKey: todoKeys.day(day) });
+      return invalidateTodosOf(queryClient, day);
     },
   }));
 

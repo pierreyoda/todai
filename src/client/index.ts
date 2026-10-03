@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Tag, Todo } from "./types";
+import type { Day, Tag, Todo, TodoMonth } from "./types";
 import type { UUID } from "node:crypto";
 
 type ClientInvocationCommand = {
@@ -8,6 +8,19 @@ type ClientInvocationCommand = {
       day: Day,
     };
     returns: Todo[];
+  };
+  /** Todos from `start` to `end` (inclusive), by day then in display order. */
+  list_todos_between: {
+    args: {
+      start: Day;
+      end: Day;
+    };
+    returns: Todo[];
+  };
+  /** Months having todos, most recent first. */
+  list_todo_months: {
+    args: never;
+    returns: TodoMonth[];
   };
   create_todo: {
     args: {
@@ -32,7 +45,7 @@ type ClientInvocationCommand = {
     returns: never;
   };
   list_tags: {
-    args: Record<string, never>;
+    args: never;
     returns: Tag[];
   };
   create_tag: {

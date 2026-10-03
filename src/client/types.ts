@@ -3,6 +3,16 @@ import type { UUID } from "node:crypto";
 /** Format: YYYY-MM-DD */
 export type Day = string;
 
+/** Format: YYYY-MM */
+export type Month = string;
+
+/** A month's statistics about its non-deleted todos. */
+export interface TodoMonth {
+  month: Month;
+  count: number;
+  completedCount: number;
+}
+
 export interface Todo {
   /** UUID v7. */
   id: UUID;

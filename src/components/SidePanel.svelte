@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Tag } from "../client/types";
   import Button from "./common/Button.svelte";
+  import IconCalendar from "./common/icons/IconCalendar.svelte";
+  import IconSun from "./common/icons/IconSun.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";
 
@@ -20,6 +22,22 @@
 
 <section class="container">
   <div class="flex flex-col gap-4">
+    <a href="/">
+      <Button style="outline" class="w-full">
+        <div class="w-full flex items-center justify-between">
+          <h2>Today</h2>
+          <IconSun class="text-white" />
+        </div>
+      </Button>
+    </a>
+    <a href="/calendar">
+      <Button style="outline" class="w-full">
+        <div class="w-full flex items-center justify-between">
+          <IconCalendar class="text-white" />
+          <h2>Calendar</h2>
+        </div>
+      </Button>
+    </a>
     <div class="flex items-center justify-between mb-2">
       <h2 class="section-title">Tags</h2>
       <Button

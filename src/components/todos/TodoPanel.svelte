@@ -9,11 +9,18 @@
   type TodoPanelProps = {
     day: Day;
     tags: readonly Tag[];
+    selectedTagId: Tag["id"] | null;
   };
 
-  const { day, tags }: TodoPanelProps = $props();
+  const { day, tags, selectedTagId }: TodoPanelProps = $props();
 
   const todos = createQuery(() => todosQueryOptions(day));
+  const filteredTodos = $derived(
+    selectedTagId
+      ? (todos.data?.filter(({ tagIds }) => tagIds.includes(selectedTagId)) ??
+          [])
+      : [...(todos?.data ?? [])],
+  );
 </script>
 
 <section class="container">
@@ -23,7 +30,7 @@
   {:else if todos.isError}
     <p class="error" role="alert">{String(todos.error)}</p>
   {:else}
-    <TodoList todos={todos.data} {tags} />
+    <TodoList todos={filteredTodos} {tags} />
   {/if}
 </section>
 
