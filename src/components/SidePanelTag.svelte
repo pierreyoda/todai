@@ -7,6 +7,7 @@
   import { tagKeys } from "../client/queries";
   import { Debounced } from "../utils/debounced.svelte";
   import EditableText from "./common/EditableText.svelte";
+  import TagUpsertModal from "./tags/TagUpsertModal.svelte";
 
   type SidePanelTagProps = {
     tag: Tag;
@@ -37,6 +38,8 @@
     // `mutate` reads the mutation's state, which it then updates: untracked so the effect doesn't loop
     untrack(() => updateTagName.mutate(name));
   });
+
+  let showTagEditionModal = $state(false);
 </script>
 
 <!-- TODO: fix a11y warning -->
@@ -53,7 +56,17 @@
     label={`Name for tag with current name "${tag.name}"`}
     class="flex-1 text-white text-sm"
   />
-  <div class="color-marker" style:background-color={tag.color}></div>
+  <div
+    title="Edit color"
+    class="color-marker"
+    style:background-color={tag.color}
+    on:click={() => (showTagEditionModal = true)}
+  ></div>
+  <TagUpsertModal
+    bind:show={showTagEditionModal}
+    existingTag={tag}
+    mode="color"
+  />
 </li>
 
 <style lang="postcss">
@@ -72,7 +85,7 @@
       @apply forced-colors:outline;
     }
     .color-marker {
-      @apply w-4 h-4 shrink-0 rounded-full;
+      @apply w-4 h-4 shrink-0 rounded-full hover:ring-1 hover:ring-pink-500 transition;
     }
   }
 </style>

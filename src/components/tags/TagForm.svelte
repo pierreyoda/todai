@@ -4,22 +4,34 @@
   import FieldText from "../common/FieldText.svelte";
   import PickableColor from "../common/PickableColor.svelte";
 
-  type TagFormProps = {
-    data: {
-      name: string;
-      color: string;
-    } | null;
+  type TagFormProps = (
+    | {
+        data: {
+          name: string;
+          color: string;
+        };
+        mode: "all" | "color";
+      }
+    | {
+        data?: never;
+        mode: "color";
+      }
+  ) & {
     onSubmit: (name: string, color: string) => void;
+    onDelete: () => void;
   };
-  const { data, onSubmit }: TagFormProps = $props();
+  const { data, mode, onSubmit, onDelete }: TagFormProps = $props();
 
   let editedName = $state(data?.name ?? "");
   let editedColor = $state(data?.color ?? null);
   const valid = $derived(editedName.trim().length > 0 && !!editedColor);
+  let confirmDelete = $state(false);
 </script>
 
 <div class="container">
-  <FieldText bind:value={editedName} label="Name" />
+  {#if mode === "all"}
+    <FieldText bind:value={editedName} label="Name" />
+  {/if}
   <div class="color-picker">
     {#each RGB_TAG_COLOR_PRESETS as { label, color } (color)}
       <PickableColor
@@ -38,7 +50,26 @@
       onSubmit(editedName, editedColor!);
     }}
   >
-    Create
+    {#if confirmDelete}
+      Create
+    {:else}
+      Update
+    {/if}
+  </Button>
+  <Button
+    color="red"
+    onclick={() => {
+      if (confirmDelete) {
+        onDelete();
+        confirmDelete = false;
+      } else confirmDelete = true;
+    }}
+  >
+    {#if confirmDelete}
+      Confirm
+    {:else}
+      Delete
+    {/if}
   </Button>
 </div>
 
@@ -50,6 +81,6 @@
   }
 
   .color-picker {
-    @apply grid grid-cols-4 gap-4;
+    @apply grid grid-cols-4 gap-4 py-4;
   }
 </style>
