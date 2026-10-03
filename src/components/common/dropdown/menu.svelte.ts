@@ -30,6 +30,8 @@ export class MenuState {
   menuEl = $state<HTMLElement>();
   /** Set by the menu component. */
   getPlacement: () => Placement = () => "bottom-start";
+  /** Set by the menu component: whether clicking one of its items leaves the dropdown open. */
+  getKeepOpenOnClick: () => boolean = () => true;
   /** The submenu currently open from this menu, if any. */
   openChild: MenuState | null = null;
 

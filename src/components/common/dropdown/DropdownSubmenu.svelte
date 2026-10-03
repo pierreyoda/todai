@@ -12,6 +12,8 @@
     /** Leading `<svg>` of the item opening the submenu. */
     icon?: Snippet;
     disabled?: boolean;
+    /** Whether clicking a submenu item leaves the dropdown open. Defaults to the parent menu's. */
+    keepOpenOnClick?: boolean;
     /** Applied to the submenu panel. */
     class?: ClassValue;
     /** The submenu items, which can include nested `DropdownSubmenu`s. */
@@ -21,6 +23,7 @@
     label,
     icon,
     disabled = false,
+    keepOpenOnClick,
     class: extraClass,
     children,
   }: DropdownSubmenuProps = $props();
@@ -31,6 +34,6 @@
 
 <DropdownItem {icon} {disabled} submenu={menu}>{label}</DropdownItem>
 <!-- Rendered inside the parent menu: nested popovers stay open together, and close with it -->
-<DropdownMenu {menu} placement="right-start" class={extraClass}>
+<DropdownMenu {menu} placement="right-start" {keepOpenOnClick} class={extraClass}>
   {@render children()}
 </DropdownMenu>

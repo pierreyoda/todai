@@ -12,6 +12,11 @@
   type DropdownMenuProps = {
     /** Side of the button the menu opens on, flipped when it would overflow the viewport. */
     placement?: Placement;
+    /**
+     * Whether clicking one of its items leaves the dropdown open; items can override it with `keepOpen`.
+     * Defaults to the parent menu's for submenus, `true` otherwise.
+     */
+    keepOpenOnClick?: boolean;
     class?: ClassValue;
     /** Internal: the submenu state, provided by `DropdownSubmenu`. */
     menu?: MenuState;
@@ -19,6 +24,7 @@
   };
   const {
     placement = "bottom-start",
+    keepOpenOnClick,
     class: extraClass,
     menu: submenu,
     children,
@@ -27,6 +33,8 @@
   // svelte-ignore state_referenced_locally: a menu level never changes
   const menu = submenu ?? getMenuContext();
   menu.getPlacement = () => placement;
+  menu.getKeepOpenOnClick = () =>
+    keepOpenOnClick ?? menu.parent?.getKeepOpenOnClick() ?? true;
   // Items belong to this menu level
   setMenuContext(menu);
 

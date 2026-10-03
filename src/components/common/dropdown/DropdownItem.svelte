@@ -8,8 +8,10 @@
     /** Renders a link instead of a button. */
     href?: string;
     disabled?: boolean;
-    /** Called before the whole dropdown closes. */
+    /** Called before the whole dropdown closes, if it does (see `keepOpen`). */
     onclick?: (event: MouseEvent) => void;
+    /** Whether clicking the item leaves the dropdown open. Defaults to its menu's `keepOpenOnClick`. */
+    keepOpen?: boolean;
     /** Leading `<svg>`, sized and colored by the item. */
     icon?: Snippet;
     class?: ClassValue;
@@ -21,6 +23,7 @@
     href,
     disabled = false,
     onclick,
+    keepOpen,
     icon,
     class: extraClass,
     submenu,
@@ -47,7 +50,7 @@
       return;
     }
     onclick?.(event);
-    menu.root.hide();
+    if (!(keepOpen ?? menu.getKeepOpenOnClick())) menu.root.hide();
   }
 
   function handleKeydown(event: KeyboardEvent) {
