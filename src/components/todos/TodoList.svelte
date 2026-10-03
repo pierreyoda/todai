@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type { Todo } from "../../client/types";
+  import type { Tag, Todo } from "../../client/types";
   import TodoLineItem from "./TodoLineItem.svelte";
 
   type TodoListProps = {
     todos: readonly Todo[];
+    tags: readonly Tag[];
   };
 
-  const { todos }: TodoListProps = $props();
+  const { todos, tags }: TodoListProps = $props();
 
   const completedTodos = $derived(todos.filter((todo) => todo.completed));
   const incompleteTodos = $derived(todos.filter((todo) => !todo.completed));
@@ -14,14 +15,14 @@
 
 <ul class="container">
   {#each incompleteTodos as item (item.id)}
-    <TodoLineItem {item} />
+    <TodoLineItem {item} {tags} />
   {/each}
   {#if incompleteTodos.length > 0 && completedTodos.length > 0}
     <div class="divider"></div>
   {/if}
   {#if completedTodos.length > 0}
     {#each completedTodos as item (item.id)}
-      <TodoLineItem {item} />
+      <TodoLineItem {item} {tags} />
     {/each}
   {/if}
 </ul>

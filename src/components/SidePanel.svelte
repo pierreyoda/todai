@@ -4,10 +4,9 @@
   import type { Tag } from "../client/types";
   import { invokeClient } from "../client";
   import { tagKeys } from "../client/queries";
-  import Modal from "./common/Modal.svelte";
   import Button from "./common/Button.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";
-  import TagForm from "./tags/TagForm.svelte";
+  import TagUpsertModal from "./tags/TagUpsertModal.svelte";
 
   type SidePanelProps = {
     tags: readonly Tag[] | "error" | "loading";
@@ -19,19 +18,6 @@
     $props();
 
   let showTagCreationModal = $state(false);
-
-  const queryClient = useQueryClient();
-  const createTag = createMutation(() => ({
-    mutationFn: (newTag: Pick<Tag, "name" | "color">) =>
-      invokeClient({
-        name: "create_tag",
-        args: newTag,
-      }),
-    onSuccess: () => {
-      showTagCreationModal = false;
-      queryClient.invalidateQueries({ queryKey: tagKeys.all });
-    },
-  }));
 
   // TODO: add closing mechanism (click outside, button with icon)
 </script>
@@ -69,17 +55,7 @@
     <div class="divider"></div>
     <h2 class="section-title">Settings</h2>
   </div>
-  <div class="modal-container">
-    <Modal bind:show={showTagCreationModal}>
-      {#snippet header()}
-        Create a new tag
-      {/snippet}
-      <TagForm
-        data={{ name: "", color: "" }}
-        onSubmit={(name, color) => createTag.mutate({ name, color })}
-      />
-    </Modal>
-  </div>
+  <TagUpsertModal bind:show={showTagCreationModal} />
 </section>
 
 <style lang="postcss">

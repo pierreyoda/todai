@@ -18,7 +18,13 @@
     {selectedTagId}
     onSelectedTagChanged={(tagId) => (selectedTagId = tagId)}
   />
-  <TodoPanel {day} />
+  {#if tags.isLoading}
+    Loading...
+  {:else if tags.error}
+    Error
+  {:else}
+  <TodoPanel {day} tags={tags.data ?? []} />
+  {/if}
 </main>
 
 <style lang="postcss">

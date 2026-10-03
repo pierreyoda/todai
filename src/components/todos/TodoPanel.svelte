@@ -2,15 +2,16 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { todosQueryOptions } from "../../client/queries";
-  import type { Day } from "../../client/types";
+  import type { Day, Tag } from "../../client/types";
   import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoList from "./TodoList.svelte";
 
   type TodoPanelProps = {
     day: Day;
+    tags: readonly Tag[];
   };
 
-  const { day }: TodoPanelProps = $props();
+  const { day, tags }: TodoPanelProps = $props();
 
   const todos = createQuery(() => todosQueryOptions(day));
 </script>
@@ -22,7 +23,7 @@
   {:else if todos.isError}
     <p class="error" role="alert">{String(todos.error)}</p>
   {:else}
-    <TodoList todos={todos.data} />
+    <TodoList todos={todos.data} {tags} />
   {/if}
 </section>
 
@@ -36,7 +37,6 @@
   .status {
     @apply p-2 text-sm text-slate-700;
   }
-
   .error {
     @apply p-2 text-sm text-red-700;
   }

@@ -109,19 +109,23 @@
     style?: "solid" | "outline" | "plain";
     color?: keyof typeof colors;
     class?: ClassValue;
+    /** Bindable: the inner `<button>` element. */
+    ref?: HTMLButtonElement;
   };
 
-  const {
+  let {
     type = "button",
     children,
     style = "solid",
     color = "fuchsia",
     class: extraClass,
+    ref = $bindable(),
     ...rest
   }: ButtonProps = $props();
 </script>
 
 <button
+  bind:this={ref}
   {...rest}
   {type}
   class={[style, colors[color], extraClass]}

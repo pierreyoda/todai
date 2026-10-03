@@ -26,6 +26,7 @@ export const queryClient = new QueryClient({
 
 export const todoKeys = {
   all: ["todos"] as const,
+  id: (id: UUID) => [...todoKeys.all, id] as const,
   day: (day: Day) => [...todoKeys.all, day] as const,
 };
 
