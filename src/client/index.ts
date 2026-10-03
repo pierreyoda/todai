@@ -24,6 +24,13 @@ type ClientInvocationCommand = {
     };
     returns: never;
   };
+  update_todo: {
+    args: {
+      id: UUID;
+      title?: string;
+    };
+    returns: never;
+  };
   list_tags: {
     args: Record<string, never>;
     returns: Tag[];

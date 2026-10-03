@@ -1,10 +1,13 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+  import { untrack } from "svelte";
 
   import type { Tag, Todo } from "../../client/types";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
+  import EditableText from "../common/EditableText.svelte";
   import { invokeClient } from "../../client";
   import { todoKeys } from "../../client/queries";
+  import { Debounced } from "../../utils/debounced.svelte";
   import {
     Dropdown,
     DropdownButton,
@@ -22,6 +25,9 @@
     tags: readonly Tag[];
   };
   const { item, tags }: TodoLineItemProps = $props();
+
+  // Resolved from the tags list, so they follow tag renames without refetching todos
+  const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
 
   // Follows the server state, but is checked/unchecked right away on click.
   let completed = $derived(item.completed);
@@ -43,6 +49,32 @@
     },
   }));
 
+  // svelte-ignore state_referenced_locally: edited locally, then saved
+  let editedTitle = $state(item.title);
+  const updateTitle = createMutation(() => ({
+    mutationFn: (title: string) =>
+      invokeClient({
+        name: "update_todo",
+        args: { id: item.id, title },
+      }),
+    onSuccess: () => {
+      return queryClient.invalidateQueries({
+        queryKey: todoKeys.day(item.day),
+      });
+    },
+    onError: () => {
+      editedTitle = item.title;
+    },
+  }));
+  const debouncedEditedTitle = new Debounced(() => editedTitle, 500);
+  $effect(() => {
+    const title = debouncedEditedTitle.current;
+    // Also runs on mount, with the unchanged title
+    if (title === item.title) return;
+    // `mutate` reads the mutation's state, which it then updates: untracked so the effect doesn't loop
+    untrack(() => updateTitle.mutate(title));
+  });
+
   let showTagCreationModal = $state(false);
 </script>
 
@@ -55,10 +87,15 @@
       onchange={(event) => toggleCompleted.mutate(event.currentTarget.checked)}
     />
     <div class="flex flex-col gap-1">
-      <h3 class="title">{item.title}</h3>
-      {#if item.tags.length > 0}
+      <EditableText
+        as="h3"
+        bind:value={editedTitle}
+        label={`Title of todo "${item.title}"`}
+        class="text-sm font-medium text-white wrap-break-word"
+      />
+      {#if itemTags.length > 0}
         <div class="flex items-center gap-4 overflow-x-auto">
-          {#each item.tags as itemTag (itemTag.id)}
+          {#each itemTags as itemTag (itemTag.id)}
             <div class="flex items-center gap-1">
               <div
                 class={["rounded-full w-2 h-2"]}
@@ -81,7 +118,7 @@
           <DropdownItem onclick={() => {}}>
             <TodoLineItemTagToggle
               todoId={item.id}
-              todoTagsIds={item.tags.map(({ id }) => id)}
+              todoTagsIds={item.tagIds}
               {tag}
             />
           </DropdownItem>
@@ -109,10 +146,6 @@
     @apply transition-colors hover:border-slate-400 hover:bg-slate-600;
     &.completed {
       @apply border-gray-700 bg-gray-900 hover:bg-gray-700;
-    }
-
-    .title {
-      @apply text-sm font-medium text-white wrap-break-word;
     }
   }
 </style>

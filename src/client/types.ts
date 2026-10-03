@@ -15,14 +15,16 @@ export interface Todo {
   updatedAt: Date;
   completedAt?: Date;
   deletedAt?: Date;
-  /** Associated tags, sorted by name. */
-  tags: readonly Tag[];
+  /** IDs of its non-deleted tags, to resolve against the tags list (`list_tags`). */
+  tagIds: readonly UUID[];
 }
 
 export interface Tag {
   /** UUID v7. */
   id: UUID;
   name: string;
+  /** Number of non-deleted todos with this tag. Only set by `list_tags`. */
+  linkedTodosCount?: number;
   /** RGB color code. Example: "#FF0000". */
   color: string;
   createdAt: Date;

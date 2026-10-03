@@ -1,9 +1,5 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-
   import type { Tag } from "../client/types";
-  import { invokeClient } from "../client";
-  import { tagKeys } from "../client/queries";
   import Button from "./common/Button.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";

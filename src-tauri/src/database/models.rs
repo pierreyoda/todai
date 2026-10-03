@@ -66,21 +66,4 @@ impl DbTag {
             deleted_at: row.get("deleted_at")?,
         })
     }
-
-    /// Reads a tag LEFT JOINed to another table, its columns prefixed with `tag_`.
-    ///
-    /// `None` when the join matched no tag.
-    pub fn from_joined_row(row: &Row) -> rusqlite::Result<Option<Self>> {
-        let Some(id) = row.get("tag_id")? else {
-            return Ok(None);
-        };
-        Ok(Some(Self {
-            id,
-            name: row.get("tag_name")?,
-            color: row.get("tag_color")?,
-            created_at: row.get("tag_created_at")?,
-            updated_at: row.get("tag_updated_at")?,
-            deleted_at: row.get("tag_deleted_at")?,
-        }))
-    }
 }

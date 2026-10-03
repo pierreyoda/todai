@@ -6,8 +6,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::{
-    commands::tags::Tag,
-    database::models::{DbDay, DbTag, DbTodo},
+    database::models::{DbDay, DbTodo},
     errors::{Result, TodaiError},
     state::AppState,
 };
@@ -57,8 +56,9 @@ pub struct Todo {
     pub updated_at: Timestamp,
     pub completed_at: Option<Timestamp>,
     pub deleted_at: Option<Timestamp>,
-    /// Associated tags, sorted by name.
-    pub tags: Vec<Tag>,
+    /// IDs of its non-deleted tags, to resolve against `list_tags`: tags have a single source of truth on the
+    /// frontend, so that renaming one doesn't require refetching todos.
+    pub tag_ids: Vec<String>,
 }
 
 impl TryFrom<DbTodo> for Todo {
@@ -76,38 +76,32 @@ impl TryFrom<DbTodo> for Todo {
             updated_at: Timestamp::from_second(todo.updated_at)?,
             completed_at: todo.completed_at.map(Timestamp::from_second).transpose()?,
             deleted_at: todo.deleted_at.map(Timestamp::from_second).transpose()?,
-            tags: Vec::new(),
+            tag_ids: Vec::new(),
         })
     }
 }
 
-/// Lists the non-deleted todos of `day`, in display order, with their non-deleted tags.
+/// Lists the non-deleted todos of `day`, in display order, with the IDs of their non-deleted tags.
 #[tauri::command]
 pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo>> {
     let db = state.db();
-    // One row per (todo, tag) pair, or a single row with NULL tag columns for an untagged todo.
-    // Sorting by `todos.id` after `position` keeps each todo's rows contiguous.
+    // One row per (todo, tag) pair, or a single row with a NULL tag ID for an untagged todo.
+    // Tags are only joined to skip deleted ones. Sorting by `todos.id` after `position` keeps each todo's rows contiguous.
     let mut statement = db.prepare_cached(
-        "SELECT todos.*,
-                tags.id AS tag_id,
-                tags.name AS tag_name,
-                tags.color AS tag_color,
-                tags.created_at AS tag_created_at,
-                tags.updated_at AS tag_updated_at,
-                tags.deleted_at AS tag_deleted_at
+        "SELECT todos.*, tags.id AS tag_id
          FROM todos
          LEFT JOIN todo_tags ON todo_tags.todo_id = todos.id
          LEFT JOIN tags ON tags.id = todo_tags.tag_id AND tags.deleted_at IS NULL
          WHERE todos.day = ?1 AND todos.deleted_at IS NULL
-         ORDER BY todos.position, todos.id, tags.name",
+         ORDER BY todos.position, todos.id",
     )?;
     let rows = statement.query_map([&day.raw], |row| {
-        Ok((DbTodo::from_row(row)?, DbTag::from_joined_row(row)?))
+        Ok((DbTodo::from_row(row)?, row.get::<_, Option<String>>("tag_id")?))
     })?;
 
     let mut todos: Vec<Todo> = Vec::new();
     for row in rows {
-        let (todo, tag) = row?;
+        let (todo, tag_id) = row?;
         let todo = match todos.last_mut() {
             Some(last) if last.id == todo.id => last,
             _ => {
@@ -115,8 +109,8 @@ pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo
                 todos.last_mut().expect("just pushed")
             }
         };
-        if let Some(tag) = tag {
-            todo.tags.push(tag.try_into()?);
+        if let Some(tag_id) = tag_id {
+            todo.tag_ids.push(tag_id);
         }
     }
     Ok(todos)
@@ -174,6 +168,32 @@ pub async fn create_todo(
             DbTodo::from_row,
         )?;
     todo.try_into()
+}
+
+/// Updates a non-deleted todo's `title`, trimmed and not empty, as in `create_todo`.
+#[tauri::command]
+pub async fn update_todo(state: State<'_, AppState>, id: String, title: Option<String>) -> Result<()> {
+    let title = title.as_deref().map(str::trim);
+    if title.is_some_and(str::is_empty) {
+        return Err(TodaiError::CommandError(
+            "Todo title cannot be empty".into(),
+        ));
+    }
+
+    let db = state.db();
+    let now = Timestamp::now().as_second();
+    let updated = db
+        .prepare_cached(
+            "UPDATE todos
+                 SET title = COALESCE(:title, title),
+                     updated_at = :now
+                 WHERE id = :id AND deleted_at IS NULL",
+        )?
+        .execute(named_params! { ":id": id, ":title": title, ":now": now })?;
+    if updated == 0 {
+        return Err(TodaiError::CommandError(format!("Todo {id} not found")));
+    }
+    Ok(())
 }
 
 /// Update a todo's completeness status.

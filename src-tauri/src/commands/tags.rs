@@ -69,6 +69,9 @@ pub struct Tag {
     pub id: String,
     pub name: String,
     pub color: Color,
+    /// Number of non-deleted todos with this tag. Only set by `list_tags`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub linked_todos_count: Option<u32>,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
     pub deleted_at: Option<Timestamp>,
@@ -82,6 +85,7 @@ impl TryFrom<DbTag> for Tag {
             id: tag.id,
             name: tag.name,
             color: tag.color.try_into()?,
+            linked_todos_count: None,
             created_at: Timestamp::from_second(tag.created_at)?,
             updated_at: Timestamp::from_second(tag.updated_at)?,
             deleted_at: tag.deleted_at.map(Timestamp::from_second).transpose()?,
@@ -98,35 +102,42 @@ fn validate_name(name: &str) -> Result<&str> {
     Ok(name)
 }
 
-/// Turns a violation of `idx_tags_name` into a readable error.
-fn map_name_conflict(name: &str) -> impl FnOnce(rusqlite::Error) -> TodaiError + '_ {
-    move |error| match error {
-        rusqlite::Error::SqliteFailure(failure, _)
-            if failure.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE =>
-        {
-            TodaiError::CommandError(format!("A tag named {name:?} already exists"))
-        }
-        error => error.into(),
-    }
-}
-
 fn tag_not_found(id: &str) -> TodaiError {
     TodaiError::CommandError(format!("Tag {id} not found"))
 }
 
-/// Lists the non-deleted tags, sorted by name.
+/// Lists the non-deleted tags, sorted by name, with their number of linked todos.
 #[tauri::command]
 pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<Tag>> {
     let db = state.db();
-    let mut statement =
-        db.prepare_cached("SELECT * FROM tags WHERE deleted_at IS NULL ORDER BY name")?;
-    let tags = statement
-        .query_map([], DbTag::from_row)?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    tags.into_iter().map(Tag::try_from).collect()
+    // Counted per tag through `idx_todo_tags_tag`; deleted todos keep their links, so they are excluded here.
+    let mut statement = db.prepare_cached(
+        "SELECT tags.*,
+                (SELECT COUNT(*)
+                     FROM todo_tags
+                     JOIN todos ON todos.id = todo_tags.todo_id
+                     WHERE todo_tags.tag_id = tags.id AND todos.deleted_at IS NULL
+                ) AS linked_todos_count
+         FROM tags
+         WHERE deleted_at IS NULL
+         ORDER BY name",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((DbTag::from_row(row)?, row.get("linked_todos_count")?))
+        })?
+        .collect::<rusqlite::Result<Vec<(DbTag, u32)>>>()?;
+    rows.into_iter()
+        .map(|(tag, linked_todos_count)| {
+            Ok(Tag {
+                linked_todos_count: Some(linked_todos_count),
+                ..tag.try_into()?
+            })
+        })
+        .collect()
 }
 
-/// Creates a tag. `name` is trimmed, and must be unique (regardless of case) among non-deleted tags.
+/// Creates a tag. `name` is trimmed, and cannot be empty.
 #[tauri::command]
 pub async fn create_tag(state: State<'_, AppState>, name: String, color: Color) -> Result<Tag> {
     let name = validate_name(&name)?;
@@ -147,8 +158,7 @@ pub async fn create_tag(state: State<'_, AppState>, name: String, color: Color) 
                 ":now": now,
             },
             DbTag::from_row,
-        )
-        .map_err(map_name_conflict(name))?;
+        )?;
     tag.try_into()
 }
 
@@ -182,8 +192,7 @@ pub async fn update_tag(
             },
             DbTag::from_row,
         )
-        .optional()
-        .map_err(map_name_conflict(name.unwrap_or_default()))?
+        .optional()?
         .ok_or_else(|| tag_not_found(&id))?;
     tag.try_into()
 }

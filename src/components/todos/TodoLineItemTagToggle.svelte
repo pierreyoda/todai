@@ -24,12 +24,11 @@
         args: { todoId, tagIds },
       }),
     onSuccess: () => {
+      // The todo's tags, and the tags' linked todos counts
       queryClient.invalidateQueries({
-        queryKey: [
-          todoKeys.day(dateToTodaiDate(new Date())),
-          tagKeys.id(tag.id),
-        ],
+        queryKey: todoKeys.day(dateToTodaiDate(new Date())),
       });
+      queryClient.invalidateQueries({ queryKey: tagKeys.all });
     },
   }));
 </script>
