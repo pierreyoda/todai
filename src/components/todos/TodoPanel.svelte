@@ -1,25 +1,25 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+  import type { CreateQueryResult } from "@tanstack/svelte-query";
 
-  import { todosQueryOptions } from "../../client/queries";
-  import type { Day, Tag } from "../../client/types";
+  import type { Day, Tag, Todo } from "../../client/types";
   import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoList from "./TodoList.svelte";
 
   type TodoPanelProps = {
     day: Day;
+    /** The todos of `day`, queried by the page, which also derives the tags' counts from them. */
+    todos: CreateQueryResult<Todo[]>;
     tags: readonly Tag[];
     selectedTagId: Tag["id"] | null;
   };
 
-  const { day, tags, selectedTagId }: TodoPanelProps = $props();
+  const { day, todos, tags, selectedTagId }: TodoPanelProps = $props();
 
-  const todos = createQuery(() => todosQueryOptions(day));
   const filteredTodos = $derived(
     selectedTagId
       ? (todos.data?.filter(({ tagIds }) => tagIds.includes(selectedTagId)) ??
           [])
-      : [...(todos?.data ?? [])],
+      : [...(todos.data ?? [])],
   );
 </script>
 
