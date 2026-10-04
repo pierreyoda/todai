@@ -1,6 +1,8 @@
 <script lang="ts">
+  import type { ClassValue } from "svelte/elements";
+
   type IconEllipsisVerticalProps = {
-    class?: string;
+    class?: ClassValue;
   };
   const { class: extraClass }: IconEllipsisVerticalProps = $props();
 </script>

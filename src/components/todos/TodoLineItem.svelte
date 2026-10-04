@@ -12,6 +12,8 @@
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
   import Button from "../common/Button.svelte";
   import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
+  import IconClock from "../common/icons/IconClock.svelte";
+  import { formatEstimates } from "../../utils";
 
   type TodoLineItemProps = {
     item: Todo;
@@ -90,21 +92,31 @@
     </div>
   </div>
   <div class="shrink-0">
-    <Button
-      style="plain"
-      bind:ref={menuButton}
-      aria-haspopup="menu"
-      aria-expanded={openedDropdownMenu}
-      onclick={() => (openedDropdownMenu = true)}
-    >
-      <IconEllipsisVertical />
-    </Button>
-    <TodoDropdownMenu
-      bind:open={openedDropdownMenu}
-      anchor={menuButton}
-      {item}
-      {tags}
-    />
+    <div class="flex items-center">
+      {#if item.estimate}
+        <div class="flex items-center gap-1 text-white">
+          {#if item.estimate.unit === "minutes"}
+            <IconClock />
+          {/if}
+          <span class="text-sm">{formatEstimates([item.estimate])}</span>
+        </div>
+      {/if}
+      <Button
+        style="plain"
+        bind:ref={menuButton}
+        aria-haspopup="menu"
+        aria-expanded={openedDropdownMenu}
+        onclick={() => (openedDropdownMenu = true)}
+      >
+        <IconEllipsisVertical />
+      </Button>
+      <TodoDropdownMenu
+        bind:open={openedDropdownMenu}
+        anchor={menuButton}
+        {item}
+        {tags}
+      />
+    </div>
   </div>
 </li>
 

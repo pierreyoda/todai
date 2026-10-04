@@ -19,6 +19,8 @@ pub enum TodaiError {
     InvalidColor(String),
     #[error("Invalid position {0:?}")]
     InvalidPosition(String),
+    #[error("Invalid estimate: {0}")]
+    InvalidEstimate(String),
     #[error("Command error: {0}")]
     CommandError(String),
 }

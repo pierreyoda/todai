@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Tag, Todo, TodoMonth } from "./types";
+import type { Day, Estimate, Tag, Todo, TodoMonth } from "./types";
 import type { UUID } from "node:crypto";
 
 type ClientInvocationCommand = {
@@ -27,6 +27,7 @@ type ClientInvocationCommand = {
       day: Day;
       title: string;
       description?: string;
+      estimate?: Estimate;
     };
     returns: Todo;
   };
@@ -47,6 +48,14 @@ type ClientInvocationCommand = {
     args: {
       id: UUID;
       title?: string;
+    };
+    returns: never;
+  };
+  /** Replaces the todo's estimate, whatever its unit, or removes it if `null`. */
+  set_todo_estimate: {
+    args: {
+      id: UUID;
+      estimate: Estimate | null;
     };
     returns: never;
   };

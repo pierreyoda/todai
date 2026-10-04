@@ -20,6 +20,10 @@ pub struct DbTodo {
     pub completed: i8,
     /// Fractional index key.
     pub position: String,
+    /// Positive; in `estimate_unit`.
+    pub estimate: Option<u32>,
+    /// `minutes` or `points`; set exactly when `estimate` is.
+    pub estimate_unit: Option<String>,
     pub created_at: DbTimestamp,
     pub updated_at: DbTimestamp,
     pub completed_at: Option<DbTimestamp>,
@@ -35,6 +39,8 @@ impl DbTodo {
             description: row.get("description")?,
             completed: row.get("completed")?,
             position: row.get("position")?,
+            estimate: row.get("estimate")?,
+            estimate_unit: row.get("estimate_unit")?,
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
             completed_at: row.get("completed_at")?,

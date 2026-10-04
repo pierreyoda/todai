@@ -9,6 +9,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/001_init.sql"),
     include_str!("../migrations/002_tags.sql"),
     include_str!("../migrations/003_tags_non_unique_name.sql"),
+    include_str!("../migrations/004_todo_estimate.sql"),
 ];
 
 pub fn open(path: impl AsRef<Path>) -> Result<Connection> {

@@ -9,7 +9,18 @@
   import type { Todo, Tag } from "../../client/types";
   import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
   import TagUpsertModal from "../tags/TagUpsertModal.svelte";
-  import { createDeleteTodoMutation } from "../../client/mutations";
+  import {
+    createDeleteTodoMutation,
+    createSetTodoEstimateMutation,
+  } from "../../client/mutations";
+  import {
+    TODO_ESTIMATE_MINUTES_PRESETS,
+    TODO_ESTIMATE_POINTS_PRESET,
+  } from "../../constants";
+  import { formatEstimates } from "../../utils";
+  import IconClock from "../common/icons/IconClock.svelte";
+  import IconTag from "../common/icons/IconTag.svelte";
+  import IconTrash from "../common/icons/IconTrash.svelte";
 
   type TodoDropdownMenuProps = {
     anchor?: HTMLElement;
@@ -29,6 +40,8 @@
 
   let showTagCreationModal = $state(false);
 
+  const setTodoEstimate = createSetTodoEstimateMutation(() => item);
+
   // Created during initialization, as it reads the query client from the context
   const deleteTodo = createDeleteTodoMutation(() => item);
   let confirmItemDeletion = $state(false);
@@ -39,7 +52,50 @@
 
 <Dropdown bind:open {anchor}>
   <DropdownMenu placement="bottom-end">
+    {@const estimateLabel = item.estimate
+      ? `Estimate (${formatEstimates([item.estimate])})`
+      : "Estimate"}
+    <DropdownSubmenu label={estimateLabel} keepOpenOnClick={false}>
+      {#snippet icon()}
+        <IconClock />
+      {/snippet}
+      <DropdownSubmenu label="Time">
+        {#each TODO_ESTIMATE_MINUTES_PRESETS as { value } (value)}
+          <DropdownItem
+            onclick={() =>
+              setTodoEstimate.mutate({
+                unit: "minutes",
+                value,
+              })}
+          >
+            {formatEstimates([{ unit: "minutes", value }])}
+          </DropdownItem>
+        {/each}
+      </DropdownSubmenu>
+      <DropdownSubmenu label="Story points">
+        {#each TODO_ESTIMATE_POINTS_PRESET as { value } (value)}
+          <DropdownItem
+            onclick={() =>
+              setTodoEstimate.mutate({
+                unit: "points",
+                value,
+              })}
+          >
+            {formatEstimates([{ unit: "points", value }])}
+          </DropdownItem>
+        {/each}
+      </DropdownSubmenu>
+      {#if item.estimate}
+        <DropdownDivider />
+        <DropdownItem onclick={() => setTodoEstimate.mutate(null)}>
+          Clear
+        </DropdownItem>
+      {/if}
+    </DropdownSubmenu>
     <DropdownSubmenu label="Toggle tags">
+      {#snippet icon()}
+        <IconTag />
+      {/snippet}
       {#each tags as tag (tag.id)}
         <DropdownItem onclick={() => {}}>
           <TodoLineItemTagToggle
@@ -62,6 +118,9 @@
         else confirmItemDeletion = true;
       }}
     >
+      {#snippet icon()}
+        <IconTrash class="text-red-400" />
+      {/snippet}
       <span class="text-red-400">
         {#if confirmItemDeletion}
           Confirm

@@ -11,7 +11,22 @@ export interface TodoMonth {
   month: Month;
   count: number;
   completedCount: number;
+  estimatedMinutes: number;
+  estimatedPoints: number;
 }
+
+/** A todo's estimate: either a duration or story points. */
+export type Estimate =
+  | {
+      unit: "minutes";
+      /** Positive integer, at most 24 × 60. */
+      value: number;
+    }
+  | {
+      unit: "points";
+      /** Positive integer, at most 100. */
+      value: number;
+    };
 
 export interface Todo {
   /** UUID v7. */
@@ -21,6 +36,7 @@ export interface Todo {
   description?: string;
   completed: boolean;
   position: string;
+  estimate?: Estimate;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
