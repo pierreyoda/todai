@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { Tag } from "../client/types";
   import Button from "./common/Button.svelte";
-  import IconCalendar from "./common/icons/IconCalendar.svelte";
-  import IconSun from "./common/icons/IconSun.svelte";
+  import Collapse from "./common/Collapse.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";
+  import IconSun from "./common/icons/IconSun.svelte";
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";
+  import IconCalendar from "./common/icons/IconCalendar.svelte";
 
   type SidePanelProps = {
     tags: readonly Tag[] | "error" | "loading";
@@ -38,34 +39,41 @@
         </div>
       </Button>
     </a>
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="section-title">Tags</h2>
-      <Button
-        size="xs"
-        style="outline"
-        onclick={() => {
-          if (!showTagCreationModal) {
-            showTagCreationModal = true;
-          }
-        }}>+</Button
-      >
-    </div>
-    {#if tags === "error"}
-      ERROR
-    {:else if tags === "loading"}
-      LOADING
-    {:else}
-      <ol class="flex flex-col gap-4 overflow-y-auto">
-        {#each tags as tag (tag.id)}
-          <SidePanelTag
-            {tag}
-            selected={tag.id === selectedTagId}
-            onSelectedChanged={(selected) =>
-              onSelectedTagChanged(selected ? tag.id : null)}
-          />
-        {/each}
-      </ol>
-    {/if}
+    <Collapse open>
+      {#snippet summary()}
+        <dkv class="flex items-center justify-between">
+          <h2 class="section-title">Tags</h2>
+          <Button
+            size="xs"
+            style="outline"
+            class="z-40"
+            onclick={() => {
+              if (!showTagCreationModal) {
+                showTagCreationModal = true;
+              }
+            }}>+</Button
+          >
+        </dkv>
+      {/snippet}
+      <div class="pt-4">
+        {#if tags === "error"}
+          ERROR
+        {:else if tags === "loading"}
+          LOADING
+        {:else}
+          <ol class="flex flex-col gap-4 overflow-y-auto">
+            {#each tags as tag (tag.id)}
+              <SidePanelTag
+                {tag}
+                selected={tag.id === selectedTagId}
+                onSelectedChanged={(selected) =>
+                  onSelectedTagChanged(selected ? tag.id : null)}
+              />
+            {/each}
+          </ol>
+        {/if}
+      </div>
+    </Collapse>
   </div>
   <div class="flex flex-col">
     <hr />
