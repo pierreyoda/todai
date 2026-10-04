@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" module>
   import type { Snippet } from "svelte";
   import type { ClassValue, HTMLButtonAttributes } from "svelte/elements";
 
@@ -104,7 +104,10 @@
   };
 
   /** Native button attributes (`aria-*`, `title`, `disabled`...) are forwarded to the inner `<button>` */
-  type ButtonProps = Omit<HTMLButtonAttributes, "style" | "color" | "class"> & {
+  export type ButtonProps = Omit<
+    HTMLButtonAttributes,
+    "style" | "color" | "class"
+  > & {
     children?: Snippet;
     style?: "solid" | "outline" | "plain";
     color?: keyof typeof colors;
@@ -113,7 +116,9 @@
     /** Bindable: the inner `<button>` element. */
     ref?: HTMLButtonElement;
   };
+</script>
 
+<script lang="ts">
   let {
     type = "button",
     children,

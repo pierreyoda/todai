@@ -75,14 +75,19 @@
         Create a new tag
       {/if}
     {/snippet}
-    <TagForm
-      {mode}
-      data={{ name: existingTag?.name ?? "", color: existingTag?.color ?? "" }}
-      onSubmit={(name, color) => {
-        if (existingTag) updateTag.mutate({ id: existingTag.id, name, color });
-        else createTag.mutate({ name, color });
-      }}
-      onDelete={() => deleteTag.mutate({ id: existingTag!.id })}
-    />
+    {#if existingTag}
+      <TagForm
+        {mode}
+        data={{ name: existingTag.name, color: existingTag.color }}
+        onSubmit={(name, color) =>
+          updateTag.mutate({ id: existingTag.id, name, color })}
+        onDelete={() => deleteTag.mutate({ id: existingTag.id })}
+      />
+    {:else}
+      <TagForm
+        mode="all"
+        onSubmit={(name, color) => createTag.mutate({ name, color })}
+      />
+    {/if}
   </Modal>
 </div>
