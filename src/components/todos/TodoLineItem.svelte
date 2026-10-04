@@ -2,24 +2,16 @@
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { untrack } from "svelte";
 
-  import type { Tag, Todo } from "../../client/types";
-  import FieldCheckbox from "../common/FieldCheckbox.svelte";
-  import EditableText from "../common/EditableText.svelte";
   import { invokeClient } from "../../client";
+  import type { Tag, Todo } from "../../client/types";
   import { invalidateTodosOf } from "../../client/queries";
   import { createToggleTodoMutation } from "../../client/mutations";
   import { Debounced } from "../../utils/debounced.svelte";
-  import {
-    Dropdown,
-    DropdownButton,
-    DropdownDivider,
-    DropdownItem,
-    DropdownMenu,
-    DropdownSubmenu,
-  } from "../common/dropdown";
-  import EllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
-  import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
-  import TagUpsertModal from "../tags/TagUpsertModal.svelte";
+  import EditableText from "../common/EditableText.svelte";
+  import FieldCheckbox from "../common/FieldCheckbox.svelte";
+  import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
+  import Button from "../common/Button.svelte";
+  import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
 
   type TodoLineItemProps = {
     item: Todo;
@@ -63,7 +55,8 @@
     untrack(() => updateTitle.mutate(title));
   });
 
-  let showTagCreationModal = $state(false);
+  let openedDropdownMenu = $state(false);
+  let menuButton = $state<HTMLButtonElement>();
 </script>
 
 <li class={["todo-item", item.completed && "completed"]}>
@@ -96,35 +89,24 @@
       {/if}
     </div>
   </div>
-  <Dropdown>
-    <DropdownButton style="plain">
-      <EllipsisVertical />
-    </DropdownButton>
-    <DropdownMenu placement="bottom-end">
-      <DropdownSubmenu label="Toggle tags">
-        {#each tags as tag (tag.id)}
-          <DropdownItem onclick={() => {}}>
-            <TodoLineItemTagToggle
-              todoId={item.id}
-              todoDay={item.day}
-              todoTagsIds={item.tagIds}
-              {tag}
-            />
-          </DropdownItem>
-        {/each}
-        <DropdownDivider />
-        <DropdownItem onclick={() => (showTagCreationModal = true)}>
-          + Add a new tag
-        </DropdownItem>
-      </DropdownSubmenu>
-      <DropdownDivider />
-      <DropdownItem onclick={console.log}>
-        <span class="text-red-400">Delete</span>
-      </DropdownItem>
-    </DropdownMenu>
-  </Dropdown>
+  <div class="shrink-0">
+    <Button
+      style="plain"
+      bind:ref={menuButton}
+      aria-haspopup="menu"
+      aria-expanded={openedDropdownMenu}
+      onclick={() => (openedDropdownMenu = true)}
+    >
+      <IconEllipsisVertical />
+    </Button>
+    <TodoDropdownMenu
+      bind:open={openedDropdownMenu}
+      anchor={menuButton}
+      {item}
+      {tags}
+    />
+  </div>
 </li>
-<TagUpsertModal bind:show={showTagCreationModal} />
 
 <style lang="postcss">
   @reference "tailwindcss";

@@ -29,6 +29,7 @@ pub fn run() {
             commands::todos::create_todo,
             commands::todos::toggle_todo,
             commands::todos::update_todo,
+            commands::todos::delete_todo,
             commands::tags::list_tags,
             commands::tags::create_tag,
             commands::tags::update_tag,

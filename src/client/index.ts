@@ -37,6 +37,12 @@ type ClientInvocationCommand = {
     };
     returns: never;
   };
+  delete_todo: {
+    args: {
+      id: UUID;
+    };
+    returns: never;
+  };
   update_todo: {
     args: {
       id: UUID;

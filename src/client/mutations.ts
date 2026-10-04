@@ -2,7 +2,7 @@ import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
 import type { Todo } from "./types";
-import { invalidateTodosOf } from "./queries";
+import { invalidateTodosOf, tagKeys } from "./queries";
 
 // TODO: migrate other mutations to this file
 
@@ -22,5 +22,23 @@ export const createToggleTodoMutation = (getTodo: () => Todo, onError?: () => vo
     // Returned so the mutation stays pending until the lists are refetched.
     onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
     onError,
+  }));
+};
+
+/** Deletes `getTodo()`. Must be called during component initialization. */
+export const createDeleteTodoMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: () =>
+      invokeClient({
+        name: "delete_todo",
+        args: { id: getTodo().id },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched; tags count their linked todos.
+    onSuccess: () =>
+      Promise.all([
+        invalidateTodosOf(queryClient, getTodo().day),
+        queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+      ]),
   }));
 };

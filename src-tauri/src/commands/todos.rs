@@ -276,3 +276,22 @@ pub async fn toggle_todo(state: State<'_, AppState>, id: String, completed: bool
     }
     Ok(())
 }
+
+/// Deletes a todo, keeping its row and links to tags so that it can be restored.
+#[tauri::command]
+pub async fn delete_todo(state: State<'_, AppState>, id: String) -> Result<()> {
+    let db = state.db();
+    let now = Timestamp::now().as_second();
+    let deleted = db
+        .prepare_cached(
+            "UPDATE todos
+                 SET deleted_at = :now,
+                     updated_at = :now
+                 WHERE id = :id AND deleted_at IS NULL",
+        )?
+        .execute(named_params! { ":id": id, ":now": now })?;
+    if deleted == 0 {
+        return Err(TodaiError::CommandError(format!("Todo {id} not found")));
+    }
+    Ok(())
+}

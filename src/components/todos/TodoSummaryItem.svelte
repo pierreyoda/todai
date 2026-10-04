@@ -2,8 +2,10 @@
   import type { Tag, Todo } from "../../client/types";
   import { createToggleTodoMutation } from "../../client/mutations";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
+  import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
+  import { contextMenu } from "../../utils/contextMenu";
 
-  /** Slimmed down `TodoLineItem`: completeness toggle, title and tags, without edition. */
+  /** Slimmed down `TodoLineItem`: completeness toggle, title and tags, edition on right click. */
   type TodoSummaryItemProps = {
     item: Todo;
     tags: readonly Tag[];
@@ -19,9 +21,16 @@
     () => item,
     () => (completed = item.completed),
   );
+
+  let lineRef = $state<HTMLLIElement>();
+  let openedDropdownMenu = $state(false);
 </script>
 
-<li class={["todo", completed && "completed"]}>
+<li
+  bind:this={lineRef}
+  class={["todo", completed && "completed"]}
+  {@attach contextMenu(() => (openedDropdownMenu = true))}
+>
   <FieldCheckbox
     label={`Completed: ${item.title}`}
     hideLabel
@@ -40,6 +49,13 @@
     </ul>
   {/if}
 </li>
+<TodoDropdownMenu
+  bind:open={openedDropdownMenu}
+  anchor={lineRef}
+  {item}
+  {tags}
+  inCalendar
+/>
 
 <style lang="postcss">
   @reference "tailwindcss";

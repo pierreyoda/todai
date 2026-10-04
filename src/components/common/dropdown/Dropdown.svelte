@@ -6,10 +6,15 @@
   type DropdownProps = {
     /** Bindable: lets the parent open or close the menu programmatically. */
     open?: boolean;
-    /** A `DropdownButton` followed by a `DropdownMenu`. */
+    /**
+     * Without a `DropdownButton`, e.g. when only opened programmatically: the element the menu is positioned against,
+     * and gives the focus back to when closing.
+     */
+    anchor?: HTMLElement;
+    /** A `DropdownButton` (unless `anchor` is set) followed by a `DropdownMenu`. */
     children: Snippet;
   };
-  let { open = $bindable(false), children }: DropdownProps = $props();
+  let { open = $bindable(false), anchor, children }: DropdownProps = $props();
 
   const id = $props.id();
   const menu = new MenuState({
@@ -18,6 +23,10 @@
     onOpenChange: (value) => (open = value),
   });
   setMenuContext(menu);
+
+  $effect.pre(() => {
+    if (anchor) menu.triggerEl = anchor;
+  });
 
   $effect(() => {
     const shouldOpen = open;
