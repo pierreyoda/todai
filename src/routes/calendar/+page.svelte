@@ -36,8 +36,8 @@
     @apply w-full h-full flex items-start;
   }
 
-  /* Scrolls on its own, so the side panel stays in place */
+  /* Takes the width left by the side panel, and scrolls on its own so the side panel stays in place */
   .calendar {
-    @apply h-full w-full max-w-3xl overflow-y-auto p-4;
+    @apply h-full min-w-0 flex-1 overflow-y-auto p-4;
   }
 </style>

@@ -99,7 +99,8 @@
   @reference "tailwindcss";
 
   .container {
-    @apply w-60 h-full bg-gray-800 shadow-lg z-50;
+    /* Never shrinks for the page's content, next to it */
+    @apply w-60 h-full shrink-0 bg-gray-800 shadow-lg z-50;
     @apply flex flex-col justify-between text-center p-4;
   }
 

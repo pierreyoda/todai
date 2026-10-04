@@ -56,7 +56,8 @@
   @reference "tailwindcss";
 
   .container {
-    @apply w-full h-full flex flex-col p-4;
+    /* Takes the width left by the side panel */
+    @apply min-w-0 flex-1 h-full flex flex-col p-4;
   }
 
   .status {
