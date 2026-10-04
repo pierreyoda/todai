@@ -2,8 +2,10 @@
   import type { CreateQueryResult } from "@tanstack/svelte-query";
 
   import type { Day, Tag, Todo } from "../../client/types";
-  import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoList from "./TodoList.svelte";
+  import TodoCreateSection from "./TodoCreateSection.svelte";
+  import TodoPanelFilters from "./TodoPanelFilters.svelte";
+  import { isDefined } from "../../utils";
 
   type TodoPanelProps = {
     day: Day;
@@ -11,9 +13,15 @@
     todos: CreateQueryResult<Todo[]>;
     tags: readonly Tag[];
     selectedTagId: Tag["id"] | null;
+    onSelectedTagChanged: (id: Tag["id"] | null) => void;
   };
-
-  const { day, todos, tags, selectedTagId }: TodoPanelProps = $props();
+  const {
+    day,
+    todos,
+    tags,
+    selectedTagId,
+    onSelectedTagChanged,
+  }: TodoPanelProps = $props();
 
   const filteredTodos = $derived(
     selectedTagId
@@ -21,9 +29,19 @@
           [])
       : [...(todos.data ?? [])],
   );
+
+  const filterSelectedTags = $derived(
+    [tags.find(({ id }) => id === selectedTagId) ?? null].filter(isDefined),
+  );
 </script>
 
 <section class="container">
+  <TodoPanelFilters
+    selectedTags={filterSelectedTags}
+    onDismissedTag={(id) => {
+      if (id === selectedTagId) onSelectedTagChanged(null);
+    }}
+  />
   <TodoCreateSection {day} />
   {#if todos.isPending}
     <p class="status">Loading…</p>

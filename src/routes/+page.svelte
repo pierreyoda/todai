@@ -42,7 +42,13 @@
   {:else if tags.error}
     Error
   {:else}
-    <TodoPanel {day} {todos} tags={dayTags} {selectedTagId} />
+    <TodoPanel
+      {day}
+      {todos}
+      tags={dayTags}
+      {selectedTagId}
+      onSelectedTagChanged={(id) => (selectedTagId = id)}
+    />
   {/if}
 </main>
 
