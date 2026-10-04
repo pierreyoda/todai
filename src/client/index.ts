@@ -19,7 +19,7 @@ type ClientInvocationCommand = {
   };
   /** Months having todos, most recent first. */
   list_todo_months: {
-    args: never;
+    args?: never;
     returns: TodoMonth[];
   };
   create_todo: {
@@ -44,10 +44,15 @@ type ClientInvocationCommand = {
     };
     returns: never;
   };
+  /** Fields left out are unchanged; moving a todo to another day puts it at the end of that day. */
   update_todo: {
     args: {
-      id: UUID;
-      title?: string;
+      params: {
+        id: UUID;
+        title?: string;
+        day?: Day;
+        completed?: boolean;
+      };
     };
     returns: never;
   };
@@ -60,7 +65,7 @@ type ClientInvocationCommand = {
     returns: never;
   };
   list_tags: {
-    args: never;
+    args?: never;
     returns: Tag[];
   };
   create_tag: {

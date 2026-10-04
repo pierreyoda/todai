@@ -55,7 +55,7 @@ export const monthTodosQueryOptions = (month: Month) =>
 
 export const todoMonthsQueryOptions = queryOptions({
   queryKey: todoKeys.months(),
-  queryFn: () => invokeClient({ name: "list_todo_months", args: {} }),
+  queryFn: () => invokeClient({ name: "list_todo_months" }),
 });
 
 /**

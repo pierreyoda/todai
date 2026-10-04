@@ -4,6 +4,9 @@
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
   import { contextMenu } from "../../utils/contextMenu";
+  import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
+  import Button from "../common/Button.svelte";
+  import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
   /** Slimmed down `TodoLineItem`: completeness toggle, title and tags, edition on right click. */
   type TodoSummaryItemProps = {
@@ -29,6 +32,8 @@
 
   let lineRef = $state<HTMLLIElement>();
   let openedDropdownMenu = $state(false);
+
+  let showEditDialog = $state(false);
 </script>
 
 <li
@@ -54,6 +59,11 @@
       {/each}
     </ul>
   {/if}
+  <div class="edit-action-container" title="Edit">
+    <Button style="plain" onclick={() => (showEditDialog = true)}>
+      <IconPencilSquare class="text-white hover:text-gray-300" />
+    </Button>
+  </div>
 </li>
 <TodoDropdownMenu
   bind:open={openedDropdownMenu}
@@ -62,12 +72,21 @@
   {tags}
   inCalendar
 />
+<TodoUpsertModal bind:show={showEditDialog} existing={item} />
 
 <style lang="postcss">
   @reference "tailwindcss";
 
   .todo {
     @apply flex min-w-0 items-center gap-2 rounded-md px-2 py-1 transition hover:bg-white/5;
+    .edit-action-container {
+      @apply flex items-center gap-1 opacity-0;
+    }
+    &:hover {
+      .edit-action-container {
+        @apply opacity-100;
+      }
+    }
   }
 
   /* Tinted with the selected tag's color, with a thin accent on the leading edge */

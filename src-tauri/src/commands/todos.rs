@@ -1,6 +1,6 @@
 use fractional_index::FractionalIndex;
 use jiff::{civil::Date, tz::TimeZone, Timestamp};
-use rusqlite::{named_params, Connection};
+use rusqlite::{named_params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
@@ -252,6 +252,20 @@ fn query_todos(db: &Connection, start: &Day, end: &Day) -> Result<Vec<Todo>> {
     Ok(todos)
 }
 
+/// A position after every todo of `day`, to add one at its end.
+fn position_after_last(db: &Connection, day: &Day) -> Result<FractionalIndex> {
+    // Includes deleted todos, so that restoring one never collides with a newer position.
+    let last_position: Option<String> = db
+        .prepare_cached("SELECT MAX(position) FROM todos WHERE day = ?1")?
+        .query_row([&day.raw], |row| row.get(0))?;
+    Ok(match last_position {
+        Some(last) => FractionalIndex::new_after(
+            &FractionalIndex::from_string(&last).map_err(|_| TodaiError::InvalidPosition(last))?,
+        ),
+        None => FractionalIndex::default(),
+    })
+}
+
 /// Creates a todo at the end of `day`.
 ///
 /// `title` and `description` are trimmed; an empty `description` is stored as `NULL`.
@@ -281,16 +295,7 @@ pub async fn create_todo(
         .unzip();
 
     let db = state.db();
-    // Includes deleted todos, so that restoring one never collides with a newer position.
-    let last_position: Option<String> = db
-        .prepare_cached("SELECT MAX(position) FROM todos WHERE day = ?1")?
-        .query_row([&day.raw], |row| row.get(0))?;
-    let position = match last_position {
-        Some(last) => FractionalIndex::new_after(
-            &FractionalIndex::from_string(&last).map_err(|_| TodaiError::InvalidPosition(last))?,
-        ),
-        None => FractionalIndex::default(),
-    };
+    let position = position_after_last(&db, &day)?;
 
     let now = Timestamp::now().as_second();
     let todo = db
@@ -315,32 +320,80 @@ pub async fn create_todo(
     todo.try_into()
 }
 
-/// Updates a non-deleted todo's `title`, trimmed and not empty, as in `create_todo`.
+/// The parameters of `update_todo`: fields left to `None` are unchanged.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTodoParams {
+    pub id: String,
+    /// Trimmed and not empty, as in `create_todo`.
+    pub title: Option<String>,
+    /// Moving a todo to another day puts it at the end of that day.
+    pub day: Option<Day>,
+    /// Sets or clears `completed_at`, as in `toggle_todo`, only if it changes.
+    pub completed: Option<bool>,
+}
+
+/// Updates a non-deleted todo's `title`, `day` and/or `completed`.
 #[tauri::command]
-pub async fn update_todo(
-    state: State<'_, AppState>,
-    id: String,
-    title: Option<String>,
-) -> Result<()> {
+pub async fn update_todo(state: State<'_, AppState>, params: UpdateTodoParams) -> Result<()> {
+    update_todo_row(&state.db(), params, Timestamp::now().as_second())
+}
+
+fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Result<()> {
+    let UpdateTodoParams {
+        id,
+        title,
+        day,
+        completed,
+    } = params;
     let title = title.as_deref().map(str::trim);
     if title.is_some_and(str::is_empty) {
         return Err(TodaiError::CommandError(
             "Todo title cannot be empty".into(),
         ));
     }
+    let not_found = || TodaiError::CommandError(format!("Todo {id} not found"));
 
-    let db = state.db();
-    let now = Timestamp::now().as_second();
+    // Only a todo moved to another day gets a new position.
+    let position = match &day {
+        None => None,
+        Some(day) => {
+            let current_day: DbDay = db
+                .prepare_cached("SELECT day FROM todos WHERE id = ?1 AND deleted_at IS NULL")?
+                .query_row([&id], |row| row.get(0))
+                .optional()?
+                .ok_or_else(not_found)?;
+            (current_day != day.raw)
+                .then(|| position_after_last(db, day))
+                .transpose()?
+        }
+    };
+
+    // Expressions in `SET` read the row's values from before the update.
     let updated = db
         .prepare_cached(
             "UPDATE todos
                  SET title = COALESCE(:title, title),
+                     day = COALESCE(:day, day),
+                     position = COALESCE(:position, position),
+                     completed = COALESCE(:completed, completed),
+                     completed_at = CASE
+                         WHEN :completed IS NULL OR :completed = completed THEN completed_at
+                         WHEN :completed THEN :now
+                     END,
                      updated_at = :now
-                 WHERE id = :id",
+                 WHERE id = :id AND deleted_at IS NULL",
         )?
-        .execute(named_params! { ":id": id, ":title": title, ":now": now })?;
+        .execute(named_params! {
+            ":id": id,
+            ":title": title,
+            ":day": day.map(DbDay::from),
+            ":position": position.map(|position| position.to_string()),
+            ":completed": completed,
+            ":now": now,
+        })?;
     if updated == 0 {
-        return Err(TodaiError::CommandError(format!("Todo {id} not found")));
+        return Err(not_found());
     }
     Ok(())
 }
@@ -429,6 +482,206 @@ pub async fn delete_todo(state: State<'_, AppState>, id: String) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const NOW: i64 = 1_791_000_000;
+
+    /// An in-memory, migrated database.
+    fn test_db() -> Connection {
+        crate::database::open(":memory:").unwrap()
+    }
+
+    fn day(raw: &str) -> Day {
+        raw.to_string().try_into().unwrap()
+    }
+
+    /// Adds a todo at the end of `day`, returning its ID.
+    fn insert_todo(db: &Connection, day_raw: &str, title: &str) -> String {
+        let id = Uuid::now_v7().to_string();
+        let position = position_after_last(db, &day(day_raw)).unwrap().to_string();
+        db.execute(
+            "INSERT INTO todos (id, day, title, position, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, 0, 0)",
+            (&id, day_raw, title, position),
+        )
+        .unwrap();
+        id
+    }
+
+    fn todo_row(db: &Connection, id: &str) -> DbTodo {
+        db.query_row("SELECT * FROM todos WHERE id = ?1", [id], DbTodo::from_row)
+            .unwrap()
+    }
+
+    fn params(id: &str) -> UpdateTodoParams {
+        UpdateTodoParams {
+            id: id.to_string(),
+            title: None,
+            day: None,
+            completed: None,
+        }
+    }
+
+    #[test]
+    fn update_todo_params_deserialize_from_camel_case_with_optional_fields() {
+        let params: UpdateTodoParams = serde_json::from_value(serde_json::json!({
+            "id": "a",
+            "day": "2026-10-04",
+            "completed": true,
+        }))
+        .unwrap();
+        assert_eq!(params.id, "a");
+        assert_eq!(params.title, None);
+        assert_eq!(params.day, Some(day("2026-10-04")));
+        assert_eq!(params.completed, Some(true));
+        assert!(serde_json::from_value::<UpdateTodoParams>(
+            serde_json::json!({ "id": "a", "day": "20261004" })
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn update_todo_trims_the_title_and_leaves_other_fields() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "Before");
+        let before = todo_row(&db, &id);
+        update_todo_row(
+            &db,
+            UpdateTodoParams {
+                title: Some("  After ".into()),
+                ..params(&id)
+            },
+            NOW,
+        )
+        .unwrap();
+        let after = todo_row(&db, &id);
+        assert_eq!(after.title, "After");
+        assert_eq!(after.day, before.day);
+        assert_eq!(after.position, before.position);
+        assert_eq!(after.completed, 0);
+        assert_eq!(after.updated_at, NOW);
+    }
+
+    #[test]
+    fn update_todo_rejects_an_empty_title() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        let result = update_todo_row(
+            &db,
+            UpdateTodoParams {
+                title: Some("   ".into()),
+                ..params(&id)
+            },
+            NOW,
+        );
+        assert!(result.is_err());
+        assert_eq!(todo_row(&db, &id).title, "Title");
+    }
+
+    #[test]
+    fn update_todo_moves_a_todo_to_the_end_of_another_day() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "Moved");
+        let other = insert_todo(&db, "2026-10-05", "Already there");
+        update_todo_row(
+            &db,
+            UpdateTodoParams {
+                day: Some(day("2026-10-05")),
+                ..params(&id)
+            },
+            NOW,
+        )
+        .unwrap();
+        let moved = todo_row(&db, &id);
+        assert_eq!(moved.day, "2026-10-05");
+        assert!(moved.position > todo_row(&db, &other).position);
+    }
+
+    #[test]
+    fn update_todo_keeps_the_position_on_the_same_day() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "First");
+        insert_todo(&db, "2026-10-04", "Second");
+        let before = todo_row(&db, &id);
+        update_todo_row(
+            &db,
+            UpdateTodoParams {
+                day: Some(day("2026-10-04")),
+                ..params(&id)
+            },
+            NOW,
+        )
+        .unwrap();
+        assert_eq!(todo_row(&db, &id).position, before.position);
+    }
+
+    #[test]
+    fn update_todo_sets_completed_at_only_when_completed_changes() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        let complete = |completed, now| {
+            update_todo_row(
+                &db,
+                UpdateTodoParams {
+                    completed: Some(completed),
+                    ..params(&id)
+                },
+                now,
+            )
+            .unwrap();
+            let todo = todo_row(&db, &id);
+            (todo.completed, todo.completed_at)
+        };
+        assert_eq!(complete(true, NOW), (1, Some(NOW)));
+        // Already completed: keeps the original completion time
+        assert_eq!(complete(true, NOW + 60), (1, Some(NOW)));
+        assert_eq!(complete(false, NOW + 120), (0, None));
+        assert_eq!(complete(false, NOW + 180), (0, None));
+    }
+
+    #[test]
+    fn update_todo_without_completed_keeps_completed_at() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        update_todo_row(
+            &db,
+            UpdateTodoParams {
+                completed: Some(true),
+                ..params(&id)
+            },
+            NOW,
+        )
+        .unwrap();
+        update_todo_row(
+            &db,
+            UpdateTodoParams {
+                title: Some("Renamed".into()),
+                ..params(&id)
+            },
+            NOW + 60,
+        )
+        .unwrap();
+        let todo = todo_row(&db, &id);
+        assert_eq!((todo.completed, todo.completed_at), (1, Some(NOW)));
+    }
+
+    #[test]
+    fn update_todo_ignores_deleted_and_unknown_todos() {
+        let db = test_db();
+        let id = insert_todo(&db, "2026-10-04", "Deleted");
+        db.execute("UPDATE todos SET deleted_at = 1 WHERE id = ?1", [&id])
+            .unwrap();
+        let rename = UpdateTodoParams {
+            title: Some("Renamed".into()),
+            ..params(&id)
+        };
+        assert!(update_todo_row(&db, rename, NOW).is_err());
+        let moved = UpdateTodoParams {
+            day: Some(day("2026-10-05")),
+            ..params(&id)
+        };
+        assert!(update_todo_row(&db, moved, NOW).is_err());
+        assert_eq!(todo_row(&db, &id).title, "Deleted");
+        assert!(update_todo_row(&db, params("unknown"), NOW).is_err());
+    }
 
     #[test]
     fn estimate_serializes_with_its_unit() {

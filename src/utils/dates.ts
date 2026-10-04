@@ -1,6 +1,8 @@
 import { utc } from "@date-fns/utc";
 import {
+  addDays as addDaysToDate,
   addMonths as addMonthsToDate,
+  eachDayOfInterval,
   eachMonthOfInterval,
   eachWeekOfInterval,
   endOfMonth,
@@ -58,16 +60,19 @@ export const dateToTodaiDate = (date: Date): Day => {
   return format(date, DAY_FORMAT);
 };
 
+/** Whether `date` is an existing date formatted as `YYYY-MM-DD`. */
+export const isTodaiDate = (date: string): boolean =>
+  // `parseISO` rejects non-existing dates, e.g. 2026-02-30
+  DAY_PATTERN.test(date) && isValid(parseISO(date, UTC));
+
 const toDay = (date: Date): Day => format(date, DAY_FORMAT, UTC);
 
 /** @throws {RangeError} If `day` isn't an existing date formatted as `YYYY-MM-DD`. */
 const parseDay = (day: Day): Date => {
-  // `parseISO` rejects non-existing dates, e.g. 2026-02-30
-  const date = DAY_PATTERN.test(day) ? parseISO(day, UTC) : undefined;
-  if (!date || !isValid(date)) {
+  if (!isTodaiDate(day)) {
     throw new RangeError(`Invalid day: ${JSON.stringify(day)}`);
   }
-  return date;
+  return parseISO(day, UTC);
 };
 
 /**
@@ -98,6 +103,22 @@ export const monthOf = (day: Day): Month => format(parseDay(day), MONTH_FORMAT, 
 export const monthBounds = (month: Month): [first: Day, last: Day] => {
   const first = parseMonth(month);
   return [toDay(first), toDay(endOfMonth(first, UTC))];
+};
+
+/**
+ * The day `count` days after `day` (before it if negative).
+ *
+ * @throws {RangeError} If `day` is invalid, or the result is outside 0000-9999.
+ */
+export const addDays = (day: Day, count: number): Day => {
+  const date = parseDay(day);
+  // date-fns would truncate a fractional `count`
+  const result = Number.isInteger(count) ? addDaysToDate(date, count, UTC) : undefined;
+  const year = result && getYear(result, UTC);
+  if (!result || !(year! >= MIN_YEAR && year! <= MAX_YEAR)) {
+    throw new RangeError(`Cannot add ${count} days to ${day}`);
+  }
+  return toDay(result);
 };
 
 /**
@@ -148,6 +169,25 @@ export const weeksOfMonth = (month: Month): Week[] => {
 };
 
 /**
+ * The weeks covering `month`, as displayed by a month calendar: full weeks from Monday to Sunday, in chronological
+ * order. Unlike in `weeksOfMonth`, the first and last ones include the adjacent months' days.
+ *
+ * @throws {RangeError} If `month` is invalid, or one of its weeks goes outside 0000-9999 (in 0000-01 and 9999-12).
+ */
+export const calendarWeeksOfMonth = (month: Month): Day[][] => {
+  const first = parseMonth(month);
+  const weeks = eachWeekOfInterval({ start: first, end: endOfMonth(first, UTC) }, WEEK).map((monday) =>
+    eachDayOfInterval({ start: monday, end: endOfWeek(monday, WEEK) }, UTC),
+  );
+  const firstYear = getYear(weeks[0][0], UTC);
+  const lastYear = getYear(weeks.at(-1)!.at(-1)!, UTC);
+  if (firstYear < MIN_YEAR || lastYear > MAX_YEAR) {
+    throw new RangeError(`Cannot list the calendar weeks of ${month}`);
+  }
+  return weeks.map((days) => days.map(toDay));
+};
+
+/**
  * The week of its month containing `day`, as in `weeksOfMonth`.
  *
  * @throws {RangeError} If `day` is invalid.
@@ -193,3 +233,10 @@ export const formatWeek = ({ start, end }: Week): string => {
  * @throws {RangeError} If `day` is invalid.
  */
 export const formatDay = (day: Day): string => format(parseDay(day), "EEE d", UTC);
+
+/**
+ * E.g. "Monday, October 5, 2026".
+ *
+ * @throws {RangeError} If `day` is invalid.
+ */
+export const formatFullDay = (day: Day): string => format(parseDay(day), "EEEE, MMMM d, y", UTC);

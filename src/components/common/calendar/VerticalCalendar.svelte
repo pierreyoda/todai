@@ -86,7 +86,7 @@
   @reference "tailwindcss";
 
   .calendar {
-    @apply flex flex-col gap-1;
+    @apply w-full flex flex-col gap-1;
   }
 
   .summary {

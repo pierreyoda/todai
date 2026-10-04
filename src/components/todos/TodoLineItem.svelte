@@ -39,7 +39,7 @@
     mutationFn: (title: string) =>
       invokeClient({
         name: "update_todo",
-        args: { id: item.id, title },
+        args: { params: { id: item.id, title } },
       }),
     onSuccess: () => {
       return invalidateTodosOf(queryClient, item.day);

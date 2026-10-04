@@ -1,11 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  addDays,
   addMonths,
+  calendarWeeksOfMonth,
   dateToTodaiDate,
   formatDay,
+  formatFullDay,
   formatMonth,
   formatWeek,
+  isTodaiDate,
   monthBounds,
   monthOf,
   monthsBetween,
@@ -309,6 +313,39 @@ const MONTHS_2000_2030 = monthsBetween("2030-12", "2000-01");
 /** Intl uses various spaces (e.g. thin ones around range dashes), depending on its version. */
 const normalizeSpaces = (text: string) => text.replace(/\s/g, " ");
 
+describe("isTodaiDate", () => {
+  it.each([
+    "2026-10-03",
+    "2026-01-01",
+    "2026-12-31",
+    "2028-02-29",
+    "2000-02-29",
+    "0000-01-01",
+    "0999-01-31",
+    "9999-12-31",
+  ])("accepts the day %j", (day) => {
+    expect(isTodaiDate(day)).toBe(true);
+  });
+
+  it.each([
+    ...INVALID_DAYS,
+    // Other ISO 8601 forms accepted by `parseISO`
+    "20261003",
+    "2026-10-03T12:00:00Z",
+    "2026-10-03 ",
+    // Divisible by 100 but not by 400: not a leap year
+    "2100-02-29",
+  ])("rejects the invalid day %j", (day) => {
+    expect(isTodaiDate(day)).toBe(false);
+  });
+
+  it("accepts the days formatted by dateToTodaiDate", () => {
+    for (const date of [new Date(2026, 9, 3), new Date(2028, 1, 29, 23, 59), new Date(2026, 11, 31, 23, 59)]) {
+      expect(isTodaiDate(dateToTodaiDate(date))).toBe(true);
+    }
+  });
+});
+
 describe("monthOf", () => {
   it("keeps the year and month of a day", () => {
     expect(monthOf("2026-10-03")).toBe("2026-10");
@@ -582,5 +619,136 @@ describe("formatDay", () => {
       expect(formatMonth("2026-10")).toBe("October 2026");
       expect(normalizeSpaces(formatWeek({ start: "2026-10-26", end: "2026-10-31" }))).toBe("Oct 26 – 31");
     });
+  });
+});
+
+describe("addDays", () => {
+  it.each([
+    ["2026-10-04", 1, "2026-10-05"],
+    ["2026-10-04", -1, "2026-10-03"],
+    ["2026-10-04", 0, "2026-10-04"],
+    ["2026-10-31", 1, "2026-11-01"],
+    ["2026-12-31", 1, "2027-01-01"],
+    ["2027-01-01", -1, "2026-12-31"],
+    ["2026-10-04", 7, "2026-10-11"],
+    ["2026-10-04", 365, "2027-10-04"],
+    ["2028-02-28", 1, "2028-02-29"],
+    ["2026-02-28", 1, "2026-03-01"],
+    // DST transitions in most time zones
+    ["2026-03-28", 2, "2026-03-30"],
+    ["2026-10-24", 2, "2026-10-26"],
+    ["0000-01-01", 0, "0000-01-01"],
+    ["9999-12-30", 1, "9999-12-31"],
+  ])("adds to %s %j days: %s", (day, count, expected) => {
+    expect(addDays(day, count)).toBe(expected);
+  });
+
+  it.each([
+    ["0000-01-01", -1],
+    ["9999-12-31", 1],
+    ["2026-10-04", 1.5],
+    ["2026-10-04", Number.NaN],
+  ])("rejects adding to %s %j days", (day, count) => {
+    expect(() => addDays(day, count)).toThrow(RangeError);
+  });
+
+  it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
+    expect(() => addDays(day, 1)).toThrow(RangeError);
+  });
+
+  describe.each(TIME_ZONES)("in %s", (timeZone) => {
+    useTimeZone(timeZone);
+
+    it("walks every day of 2026 one by one", () => {
+      let day = "2025-12-31";
+      for (const month of monthsBetween("2026-12", "2026-01").reverse()) {
+        for (const expected of daysOfMonth(month).map(toDay)) {
+          day = addDays(day, 1);
+          expect(day).toBe(expected);
+        }
+      }
+    });
+  });
+});
+
+describe("calendarWeeksOfMonth", () => {
+  it("includes the adjacent months' days in the first and last weeks", () => {
+    // Starts on a Thursday, ends on a Saturday
+    const weeks = calendarWeeksOfMonth("2026-10");
+    expect(weeks).toHaveLength(5);
+    expect(weeks[0]).toEqual([
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ]);
+    expect(weeks.at(-1)).toEqual([
+      "2026-10-26",
+      "2026-10-27",
+      "2026-10-28",
+      "2026-10-29",
+      "2026-10-30",
+      "2026-10-31",
+      "2026-11-01",
+    ]);
+  });
+
+  it("has six weeks for a month starting on a Sunday and ending on a Monday", () => {
+    const weeks = calendarWeeksOfMonth("2026-11");
+    expect(weeks).toHaveLength(6);
+    expect(weeks[0][6]).toBe("2026-11-01");
+    expect(weeks.at(-1)![0]).toBe("2026-11-30");
+  });
+
+  it("has only the month's days for a 28-day February starting on a Monday", () => {
+    expect(calendarWeeksOfMonth("2021-02").flat()).toEqual(daysOfMonth("2021-02").map(toDay));
+  });
+
+  it("matches the weeks of the month from 2000 to 2030", () => {
+    for (const month of MONTHS_2000_2030) {
+      const weeks = calendarWeeksOfMonth(month);
+      // Consecutive days, from Monday to Sunday
+      expect(weeks.every((week) => week.length === 7), month).toBe(true);
+      const days = weeks.flat();
+      days.slice(1).forEach((day, index) => expect(day, month).toBe(addDays(days[index], 1)));
+      // Cut at the month's bounds, they're its weeks
+      expect(
+        weeks.map((week) => {
+          const inMonth = week.filter((day) => monthOf(day) === month);
+          return { start: inMonth[0], end: inMonth.at(-1) };
+        }),
+        month,
+      ).toEqual(weeksOfMonth(month));
+    }
+  });
+
+  it.each(["0000-01", "9999-12"])("rejects %s, whose weeks go outside 0000-9999", (month) => {
+    expect(() => calendarWeeksOfMonth(month)).toThrow(RangeError);
+  });
+
+  it.each(["0000-02", "9999-11"])("accepts %s", (month) => {
+    expect(() => calendarWeeksOfMonth(month)).not.toThrow();
+  });
+
+  it.each(INVALID_MONTHS)("rejects the invalid month %j", (month) => {
+    expect(() => calendarWeeksOfMonth(month)).toThrow(RangeError);
+  });
+});
+
+describe("formatFullDay", () => {
+  it.each([
+    ["2026-10-05", "Monday, October 5, 2026"],
+    ["2026-11-01", "Sunday, November 1, 2026"],
+    ["2028-02-29", "Tuesday, February 29, 2028"],
+    ["0999-01-31", "Thursday, January 31, 999"],
+  ])("formats %s as %j", (day, label) => {
+    expect(formatFullDay(day)).toBe(label);
+  });
+
+  it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
+    expect(() => formatFullDay(day)).toThrow(RangeError);
   });
 });
