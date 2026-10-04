@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from "$app/state";
+
   import type { Tag } from "../client/types";
   import Button from "./common/Button.svelte";
   import Collapse from "./common/Collapse.svelte";
@@ -18,13 +20,21 @@
 
   let showTagCreationModal = $state(false);
 
+  type CurrentPage = "home" | "calendar" | "trash";
+  const currentPage = $derived<CurrentPage>(
+    page.route.id === "/calendar" ? "calendar" : "home",
+  );
+
   // TODO: add closing mechanism (click outside, button with icon)
 </script>
 
 <section class="container">
   <div class="flex flex-col gap-4">
     <a href="/">
-      <Button style="outline" class="w-full">
+      <Button
+        style="outline"
+        class={["page-link", currentPage === "home" && "current"]}
+      >
         <div class="w-full flex items-center justify-between">
           <h2>Today</h2>
           <IconSun class="text-white" />
@@ -32,7 +42,10 @@
       </Button>
     </a>
     <a href="/calendar">
-      <Button style="outline" class="w-full">
+      <Button
+        style="outline"
+        class={["page-link", currentPage === "calendar" && "current"]}
+      >
         <div class="w-full flex items-center justify-between">
           <IconCalendar class="text-white" />
           <h2>Calendar</h2>
@@ -88,6 +101,13 @@
   .container {
     @apply w-60 h-full bg-gray-800 shadow-lg z-50;
     @apply flex flex-col justify-between text-center p-4;
+  }
+
+  :global(.page-link) {
+    @apply w-full transition;
+    &.current {
+      @apply bg-gray-700 hover:bg-gray-500;
+    }
   }
 
   .section-title {
