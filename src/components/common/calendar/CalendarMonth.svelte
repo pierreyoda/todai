@@ -10,9 +10,10 @@
   type CalendarMonthProps = {
     month: Month;
     tags: readonly Tag[];
+    selectedTagId: Tag["id"] | null;
     today: Day;
   };
-  const { month, tags, today }: CalendarMonthProps = $props();
+  const { month, tags, selectedTagId, today }: CalendarMonthProps = $props();
 
   const todos = createQuery(() => monthTodosQueryOptions(month));
   const currentWeekStart = $derived(weekOf(today).start);
@@ -40,7 +41,13 @@
 {:else}
   <div class="weeks">
     {#each weeks as { week, todos } (week.start)}
-      <CalendarWeek {week} {todos} {tags} open={week.start === currentWeekStart} />
+      <CalendarWeek
+        {week}
+        {todos}
+        {tags}
+        {selectedTagId}
+        open={week.start === currentWeekStart}
+      />
     {/each}
   </div>
 {/if}

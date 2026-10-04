@@ -10,10 +10,17 @@
     /** The todos of `week`, by day then in display order. */
     todos: readonly Todo[];
     tags: readonly Tag[];
+    selectedTagId: Tag["id"] | null;
     /** Initial state. */
     open?: boolean;
   };
-  const { week, todos, tags, open: initiallyOpen = false }: CalendarWeekProps = $props();
+  const {
+    week,
+    todos,
+    tags,
+    selectedTagId,
+    open: initiallyOpen = false,
+  }: CalendarWeekProps = $props();
   // svelte-ignore state_referenced_locally: `open` is only the initial state
   let open = $state(initiallyOpen);
 
@@ -25,14 +32,34 @@
     }
     return [...todosByDay].reverse();
   });
-  const completedCount = $derived(todos.filter((todo) => todo.completed).length);
+  const completedCount = $derived(
+    todos.filter((todo) => todo.completed).length,
+  );
+
+  /** Shows which weeks have todos with the selected tag, even collapsed. */
+  const selectedTag = $derived(tags.find((tag) => tag.id === selectedTagId));
+  const selectedTagCount = $derived(
+    selectedTag
+      ? todos.filter((todo) => todo.tagIds.includes(selectedTag.id)).length
+      : 0,
+  );
 </script>
 
 <Collapse bind:open headingLevel={3}>
   {#snippet summary()}
     <span class="summary">
       <span>{formatWeek(week)}</span>
-      <span class="counts">{formatTodoCounts(todos.length, completedCount)}</span>
+      <span class="counts">
+        {#if selectedTag && selectedTagCount > 0}
+          <span class="tagged" style:--tag-color={selectedTag.color}>
+            <span class="tagged-dot" aria-hidden="true"></span>
+            {selectedTagCount}<span class="sr-only">
+              tagged {selectedTag.name}</span
+            >
+          </span>
+        {/if}
+        {formatTodoCounts(todos.length, completedCount)}
+      </span>
     </span>
   {/snippet}
   <div class="days">
@@ -41,7 +68,7 @@
         <h4 class="day">{formatDay(day)}</h4>
         <ul>
           {#each dayTodos as item (item.id)}
-            <TodoSummaryItem {item} {tags} />
+            <TodoSummaryItem {item} {tags} {selectedTagId} />
           {/each}
         </ul>
       </section>
@@ -57,7 +84,14 @@
   }
 
   .counts {
-    @apply shrink-0 text-xs font-medium text-slate-400 tabular-nums;
+    @apply flex shrink-0 items-center gap-2 text-xs font-medium text-slate-400 tabular-nums;
+  }
+
+  .tagged {
+    @apply flex items-center gap-1 text-white;
+    .tagged-dot {
+      @apply size-1.5 rounded-full bg-(--tag-color);
+    }
   }
 
   .days {

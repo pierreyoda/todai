@@ -9,11 +9,16 @@
   type TodoSummaryItemProps = {
     item: Todo;
     tags: readonly Tag[];
+    /** Todos with this tag are highlighted in its color. */
+    selectedTagId?: Tag["id"] | null;
   };
-  const { item, tags }: TodoSummaryItemProps = $props();
+  const { item, tags, selectedTagId = null }: TodoSummaryItemProps = $props();
 
   // Resolved from the tags list, so they follow tag renames without refetching todos
   const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
+  const highlightTag = $derived(
+    itemTags.find((tag) => tag.id === selectedTagId),
+  );
 
   // Follows the server state, but is checked/unchecked right away on click.
   let completed = $derived(item.completed);
@@ -28,7 +33,8 @@
 
 <li
   bind:this={lineRef}
-  class={["todo", completed && "completed"]}
+  class={["todo", completed && "completed", highlightTag && "highlighted"]}
+  style:--tag-color={highlightTag?.color}
   {@attach contextMenu(() => (openedDropdownMenu = true))}
 >
   <FieldCheckbox
@@ -41,7 +47,7 @@
   {#if itemTags.length > 0}
     <ul class="tags" aria-label="Tags">
       {#each itemTags as tag (tag.id)}
-        <li class="tag">
+        <li class={["tag", tag.id === selectedTagId && "selected"]}>
           <span class="tag-color" style:background-color={tag.color}></span>
           {tag.name}
         </li>
@@ -61,7 +67,13 @@
   @reference "tailwindcss";
 
   .todo {
-    @apply flex min-w-0 items-center gap-2 rounded-md px-2 py-1 hover:bg-white/5;
+    @apply flex min-w-0 items-center gap-2 rounded-md px-2 py-1 transition hover:bg-white/5;
+  }
+
+  /* Tinted with the selected tag's color, with a thin accent on the leading edge */
+  .highlighted {
+    @apply bg-[color-mix(in_oklab,var(--tag-color)_12%,transparent)] shadow-[inset_2px_0_0_var(--tag-color)];
+    @apply hover:bg-[color-mix(in_oklab,var(--tag-color)_20%,transparent)];
   }
 
   .title {
@@ -78,6 +90,9 @@
 
   .tag {
     @apply flex items-center gap-1 text-xs text-slate-400;
+    &.selected {
+      @apply text-white;
+    }
   }
 
   .tag-color {

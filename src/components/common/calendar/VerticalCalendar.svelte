@@ -21,10 +21,15 @@
    */
   type VerticalCalendarProps = {
     tags: readonly Tag[];
+    selectedTagId: Tag["id"] | null;
     /** Fixed once mounted, like the day of the todos panel. */
     today?: Day;
   };
-  const { tags, today = dateToTodaiDate(new Date()) }: VerticalCalendarProps = $props();
+  const {
+    tags,
+    selectedTagId,
+    today = dateToTodaiDate(new Date()),
+  }: VerticalCalendarProps = $props();
 
   // svelte-ignore state_referenced_locally: fixed once mounted
   const currentMonth = monthOf(today);
@@ -32,11 +37,14 @@
 
   const todoMonths = createQuery(() => todoMonthsQueryOptions);
 
-  const statsByMonth = $derived(new Map((todoMonths.data ?? []).map((stats) => [stats.month, stats])));
+  const statsByMonth = $derived(
+    new Map((todoMonths.data ?? []).map((stats) => [stats.month, stats])),
+  );
   /** Future months are left out; the current and previous ones are always listed, even without todos. */
   const months = $derived.by(() => {
     const earliest = todoMonths.data?.at(-1)?.month;
-    const oldest = earliest && earliest < previousMonth ? earliest : previousMonth;
+    const oldest =
+      earliest && earliest < previousMonth ? earliest : previousMonth;
     return monthsBetween(currentMonth, oldest);
   });
 </script>
@@ -57,12 +65,14 @@
           <span class="summary">
             <span>{formatMonth(month)}</span>
             <span class="counts">
-              {stats ? formatTodoCounts(stats.count, stats.completedCount) : "No todos"}
+              {stats
+                ? formatTodoCounts(stats.count, stats.completedCount)
+                : "No todos"}
             </span>
           </span>
         {/snippet}
         {#if stats}
-          <CalendarMonth {month} {tags} {today} />
+          <CalendarMonth {month} {tags} {selectedTagId} {today} />
         {:else}
           <!-- Nothing to load -->
           <p class="status">No todos</p>

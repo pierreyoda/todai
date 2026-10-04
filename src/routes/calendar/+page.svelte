@@ -24,7 +24,7 @@
     Error
   {:else}
     <section class="calendar">
-      <VerticalCalendar tags={tags.data ?? []} today={day} />
+      <VerticalCalendar tags={tags.data ?? []} {selectedTagId} today={day} />
     </section>
   {/if}
 </main>

@@ -45,9 +45,13 @@
 <!-- TODO: fix a11y warning -->
 <li
   class={["tag-item", selected && "selected"]}
+  style:--tag-color={tag.color}
   onclick={(event) => {
     // Editing the name or the color doesn't toggle the selection (clicks in the modal bubble up here too)
-    if ((event.target as Element).closest("button, input, .color-marker, dialog")) return;
+    if (
+      (event.target as Element).closest("button, input, .color-marker, dialog")
+    )
+      return;
     onSelectedChanged(!selected);
   }}
 >
@@ -63,7 +67,6 @@
   <div
     title="Edit color"
     class="color-marker"
-    style:background-color={tag.color}
     onclick={() => (showTagEditionModal = true)}
   ></div>
   <TagUpsertModal
@@ -77,9 +80,15 @@
   @reference "tailwindcss";
 
   .tag-item {
-    @apply w-full flex items-center justify-between gap-2;
+    @apply w-full flex items-center justify-between gap-2 rounded-md px-2 py-1;
+    @apply transition hover:bg-white/5;
+    /* Tinted with the tag's color, with a thin accent on the leading edge, like the todos it highlights */
     &.selected {
-      @apply bg-pink-700;
+      @apply bg-[color-mix(in_oklab,var(--tag-color)_15%,transparent)] shadow-[inset_2px_0_0_var(--tag-color)];
+      @apply hover:bg-[color-mix(in_oklab,var(--tag-color)_22%,transparent)];
+      .count-badge {
+        @apply text-white ring-(--tag-color);
+      }
     }
     .count-badge {
       /* Layout: fixed minimum width so single and double digits line up */
@@ -94,7 +103,7 @@
       @apply transition hover:ring-1 hover:ring-pink-500;
     }
     .color-marker {
-      @apply w-4 h-4 shrink-0 rounded-full hover:ring-1 hover:ring-pink-500 transition;
+      @apply w-4 h-4 shrink-0 rounded-full bg-(--tag-color) hover:ring-1 hover:ring-pink-500 transition;
     }
   }
 </style>
