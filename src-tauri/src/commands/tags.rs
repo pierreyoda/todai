@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use jiff::Timestamp;
-use rusqlite::{named_params, OptionalExtension};
+use rusqlite::named_params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
@@ -109,7 +109,7 @@ fn tag_not_found(id: &str) -> TodaiError {
 /// Lists the non-deleted tags, sorted by name, with their number of linked todos.
 #[tauri::command]
 pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<Tag>> {
-    let db = state.db();
+    let db = state.db()?;
     // Counted per tag through `idx_todo_tags_tag`; deleted todos keep their links, so they are excluded here.
     let mut statement = db.prepare_cached(
         "SELECT tags.*,
@@ -123,10 +123,10 @@ pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<Tag>> {
          ORDER BY name",
     )?;
     let rows = statement
-        .query_map([], |row| {
+        .query_and_then([], |row| {
             Ok((DbTag::from_row(row)?, row.get("linked_todos_count")?))
         })?
-        .collect::<rusqlite::Result<Vec<(DbTag, u32)>>>()?;
+        .collect::<Result<Vec<(DbTag, u32)>>>()?;
     rows.into_iter()
         .map(|(tag, linked_todos_count)| {
             Ok(Tag {
@@ -142,7 +142,7 @@ pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<Tag>> {
 pub async fn create_tag(state: State<'_, AppState>, name: String, color: Color) -> Result<Tag> {
     let name = validate_name(&name)?;
 
-    let db = state.db();
+    let db = state.db()?;
     let now = Timestamp::now().as_second();
     let tag = db
         .prepare_cached(
@@ -150,7 +150,7 @@ pub async fn create_tag(state: State<'_, AppState>, name: String, color: Color) 
              VALUES (:id, :name, :color, :now, :now)
              RETURNING *",
         )?
-        .query_row(
+        .query_and_then(
             named_params! {
                 ":id": Uuid::now_v7().to_string(),
                 ":name": name,
@@ -158,7 +158,10 @@ pub async fn create_tag(state: State<'_, AppState>, name: String, color: Color) 
                 ":now": now,
             },
             DbTag::from_row,
-        )?;
+        )?
+        .next()
+        .transpose()?
+        .ok_or(rusqlite::Error::QueryReturnedNoRows)?;
     tag.try_into()
 }
 
@@ -172,7 +175,7 @@ pub async fn update_tag(
 ) -> Result<Tag> {
     let name = name.as_deref().map(validate_name).transpose()?;
 
-    let db = state.db();
+    let db = state.db()?;
     let now = Timestamp::now().as_second();
     let tag = db
         .prepare_cached(
@@ -183,7 +186,7 @@ pub async fn update_tag(
                  WHERE id = :id AND deleted_at IS NULL
                  RETURNING *",
         )?
-        .query_row(
+        .query_and_then(
             named_params! {
                 ":id": id,
                 ":name": name,
@@ -191,8 +194,9 @@ pub async fn update_tag(
                 ":now": now,
             },
             DbTag::from_row,
-        )
-        .optional()?
+        )?
+        .next()
+        .transpose()?
         .ok_or_else(|| tag_not_found(&id))?;
     tag.try_into()
 }
@@ -200,7 +204,7 @@ pub async fn update_tag(
 /// Deletes a tag, keeping its row and links to todos so that it can be restored.
 #[tauri::command]
 pub async fn delete_tag(state: State<'_, AppState>, id: String) -> Result<()> {
-    let db = state.db();
+    let db = state.db()?;
     let now = Timestamp::now().as_second();
     let deleted = db
         .prepare_cached(
@@ -227,7 +231,7 @@ pub async fn set_todo_tags(
 ) -> Result<()> {
     let tag_ids: HashSet<String> = tag_ids.into_iter().collect();
 
-    let mut db = state.db();
+    let mut db = state.db()?;
     let tx = db.transaction()?;
     let now = Timestamp::now().as_second();
     let touched = tx

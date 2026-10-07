@@ -1,5 +1,4 @@
-use rusqlite::Row;
-use serde::Serialize;
+use rusqlite::{Result, Row};
 
 /// Format: YYYY-MM-DD
 pub type DbDay = String;
@@ -9,8 +8,7 @@ pub type DbColor = u32;
 /// Unix timestamp, in seconds.
 pub type DbTimestamp = i64;
 
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct DbTodo {
     /// UUIDv7.
     pub id: String,
@@ -31,7 +29,7 @@ pub struct DbTodo {
 }
 
 impl DbTodo {
-    pub fn from_row(row: &Row) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &Row) -> Result<Self> {
         Ok(Self {
             id: row.get("id")?,
             day: row.get("day")?,
@@ -49,8 +47,7 @@ impl DbTodo {
     }
 }
 
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct DbTag {
     /// UUIDv7.
     pub id: String,
@@ -62,7 +59,7 @@ pub struct DbTag {
 }
 
 impl DbTag {
-    pub fn from_row(row: &Row) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &Row) -> Result<Self> {
         Ok(Self {
             id: row.get("id")?,
             name: row.get("name")?,
@@ -70,6 +67,30 @@ impl DbTag {
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
             deleted_at: row.get("deleted_at")?,
+        })
+    }
+}
+
+/// A workspace, in the app database.
+#[derive(Debug)]
+pub struct DbWorkspace {
+    /// UUIDv7.
+    pub id: String,
+    pub name: String,
+    /// Absolute and canonical path of its database.
+    pub path: String,
+    pub created_at: DbTimestamp,
+    pub last_opened_at: Option<DbTimestamp>,
+}
+
+impl DbWorkspace {
+    pub fn from_row(row: &Row) -> Result<Self> {
+        Ok(Self {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            path: row.get("path")?,
+            created_at: row.get("created_at")?,
+            last_opened_at: row.get("last_opened_at")?,
         })
     }
 }

@@ -5,21 +5,26 @@ pub mod database;
 pub mod errors;
 pub mod logging;
 pub mod state;
+pub mod workspaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             logging::init(&app.path().app_log_dir()?)?;
             log::info!("Starting todai v{}", app.package_info().version);
 
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            let db_path = data_dir.join("todai.sqlite3");
-            log::info!("Opening database {}", db_path.display());
-            let db = database::open(db_path)?;
-            app.manage(state::AppState::new(db));
+            let app_db_path = data_dir.join(workspaces::APP_DATABASE_FILE_NAME);
+            log::info!("Opening app database {}", app_db_path.display());
+            let app_db = database::open(app_db_path, &database::APP)?;
+
+            // If there is none or it cannot be opened, the frontend lets the user create or pick one.
+            let db = workspaces::open_active(&app_db, jiff::Timestamp::now().as_second())?;
+            app.manage(state::AppState::new(app_db, db));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -36,6 +41,11 @@ pub fn run() {
             commands::tags::update_tag,
             commands::tags::delete_tag,
             commands::tags::set_todo_tags,
+            commands::workspaces::list_workspaces,
+            commands::workspaces::get_active_workspace,
+            commands::workspaces::create_workspace,
+            commands::workspaces::switch_to_workspace,
+            commands::workspaces::rename_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
