@@ -1,3 +1,5 @@
+export type AppPage = "home" | "calendar" | "settings-workspace";
+
 /** Format: "#RRGGBB" */
 export const RGB_TAG_COLOR_PRESETS: readonly {
   label: string;
