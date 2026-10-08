@@ -1,4 +1,4 @@
-use rusqlite::{Connection, ErrorCode};
+use rusqlite::{Connection, ErrorCode, OpenFlags};
 use std::path::Path;
 
 use crate::errors::{Result, TodaiError};
@@ -41,8 +41,25 @@ pub const APP: DatabaseKind = DatabaseKind {
 /// Fails without writing to it if it's not a `kind` database, or comes from a newer version of todai.
 pub fn open(path: impl AsRef<Path>, kind: &DatabaseKind) -> Result<Connection> {
     let path = path.as_ref();
-    let mut conn = Connection::open(path)?;
-    check_kind(&conn, path, kind)?;
+    let conn = Connection::open(path)?;
+    check_kind(&conn, path, kind, true)?;
+    init(conn, kind)
+}
+
+/// Opens the existing `kind` database at `path`, and migrates it if it comes from an older version of todai.
+///
+/// Unlike [`open`], fails without writing to it if it's blank (an empty file, or SQLite without any table), and
+/// without creating it if it's missing.
+pub fn open_existing(path: impl AsRef<Path>, kind: &DatabaseKind) -> Result<Connection> {
+    let path = path.as_ref();
+    let flags = OpenFlags::default().difference(OpenFlags::SQLITE_OPEN_CREATE);
+    let conn = Connection::open_with_flags(path, flags)?;
+    check_kind(&conn, path, kind, false)?;
+    init(conn, kind)
+}
+
+/// Configures `conn`, checked to be a `kind` database, and migrates it.
+fn init(mut conn: Connection, kind: &DatabaseKind) -> Result<Connection> {
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
     migrate(&mut conn, kind)?;
@@ -55,7 +72,8 @@ pub fn open_test_database(kind: &DatabaseKind) -> Connection {
     open(":memory:", kind).unwrap()
 }
 
-fn check_kind(conn: &Connection, path: &Path, kind: &DatabaseKind) -> Result<()> {
+/// Accepts a blank database if `allow_blank`, to be initialized as a `kind` one.
+fn check_kind(conn: &Connection, path: &Path, kind: &DatabaseKind, allow_blank: bool) -> Result<()> {
     let invalid = || {
         TodaiError::InvalidDatabase(format!(
             "{} is not a todai {} database",
@@ -81,9 +99,17 @@ fn check_kind(conn: &Connection, path: &Path, kind: &DatabaseKind) -> Result<()>
         id if id == kind.application_id => true,
         // A new database, unless another application created tables in it.
         0 if version == 0 => {
-            conn.query_row("SELECT COUNT(*) FROM sqlite_schema", [], |r| {
+            let blank = conn.query_row("SELECT COUNT(*) FROM sqlite_schema", [], |r| {
                 r.get::<_, i64>(0)
-            })? == 0
+            })? == 0;
+            if blank && !allow_blank {
+                return Err(TodaiError::InvalidDatabase(format!(
+                    "{} is blank, not yet a todai {} database",
+                    path.display(),
+                    kind.name
+                )));
+            }
+            blank
         }
         _ => false,
     };
@@ -178,6 +204,76 @@ mod tests {
         ));
         // Unchanged.
         assert_eq!(header(&Connection::open(&other).unwrap()), (0, 0));
+    }
+
+    #[test]
+    fn open_existing_rejects_blank_and_missing_files_without_creating_them() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let empty = dir.path().join("empty.sqlite3");
+        std::fs::write(&empty, "").unwrap();
+        assert!(matches!(
+            open_existing(&empty, &WORKSPACE),
+            Err(TodaiError::InvalidDatabase(_))
+        ));
+        assert_eq!(std::fs::metadata(&empty).unwrap().len(), 0);
+
+        let blank = dir.path().join("blank.sqlite3");
+        // A valid SQLite file, without any table.
+        Connection::open(&blank)
+            .unwrap()
+            .execute_batch("CREATE TABLE things (id INTEGER PRIMARY KEY); DROP TABLE things;")
+            .unwrap();
+        assert!(std::fs::metadata(&blank).unwrap().len() > 0);
+        assert!(matches!(
+            open_existing(&blank, &WORKSPACE),
+            Err(TodaiError::InvalidDatabase(_))
+        ));
+        assert_eq!(header(&Connection::open(&blank).unwrap()), (0, 0));
+
+        let missing = dir.path().join("missing.sqlite3");
+        assert!(open_existing(&missing, &WORKSPACE).is_err());
+        assert!(!missing.exists());
+    }
+
+    #[test]
+    fn open_existing_rejects_other_kinds_and_applications() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = dir.path().join("app.sqlite3");
+        open(&app, &APP).unwrap();
+        assert!(matches!(
+            open_existing(&app, &WORKSPACE),
+            Err(TodaiError::InvalidDatabase(_))
+        ));
+
+        let other = dir.path().join("other.sqlite3");
+        Connection::open(&other)
+            .unwrap()
+            .execute_batch("CREATE TABLE things (id INTEGER PRIMARY KEY)")
+            .unwrap();
+        assert!(matches!(
+            open_existing(&other, &WORKSPACE),
+            Err(TodaiError::InvalidDatabase(_))
+        ));
+        assert_eq!(header(&Connection::open(&other).unwrap()), (0, 0));
+    }
+
+    #[test]
+    fn open_existing_migrates_a_database_from_an_older_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(WORKSPACE.migrations[0]).unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+        }
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(
+            header(&conn),
+            (WORKSPACE.application_id, WORKSPACE.migrations.len() as i64)
+        );
     }
 
     #[test]

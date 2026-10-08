@@ -2,6 +2,7 @@ import type { UUID } from "node:crypto";
 
 import { invoke } from "@tauri-apps/api/core";
 import { parseResponse } from "../utils/client";
+import type { Invocation } from ".";
 
 /** A workspace, with its own database. */
 export interface Workspace {
@@ -30,7 +31,7 @@ export type ClientInvocationAppCommand = {
     returns: Workspace | null;
   };
   /**
-   * Creates a workspace with a new database at `path`, switching to it if `activate`.
+   * Creates a workspace with a new database at `path`, switching to it.
    *
    * Fails if anything but an empty file already exists at `path`.
    */
@@ -39,8 +40,21 @@ export type ClientInvocationAppCommand = {
       name: string;
       /** Absolute; its directory is created if needed. */
       path: string;
-      /** Switch to the new workspace once created. */
-      activate: boolean;
+    };
+    returns: Workspace;
+  };
+  /**
+   * Registers a workspace whose database already exists at `path`, switching to it. Its database is migrated if it
+   * comes from an older version of todai.
+   *
+   * Fails if it's not a todai workspace database (blank ones included), comes from a newer version, or is already
+   * registered.
+   */
+  import_workspace: {
+    args: {
+      name: string;
+      /** Absolute. */
+      path: string;
     };
     returns: Workspace;
   };
@@ -63,7 +77,7 @@ export type ClientInvocationAppCommand = {
 
 export type ClientAppCommandName = keyof ClientInvocationAppCommand;
 
-export const invokeApiClient = async <N extends ClientAppCommandName, R = ClientInvocationAppCommand[N]["returns"]>(c: { name: N; args: ClientInvocationAppCommand[N]["args"] }): Promise<R> =>
+export const invokeApiClient = async <N extends ClientAppCommandName, R = ClientInvocationAppCommand[N]["returns"]>(c: Invocation<ClientInvocationAppCommand, N>): Promise<R> =>
   invoke(c.name, c.args).then(parseResponse<R>).catch((e) => {
     console.error(`Error invoking app command ${c.name}:`, e);
     throw e;

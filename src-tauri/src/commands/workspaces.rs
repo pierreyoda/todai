@@ -49,7 +49,7 @@ fn workspace(state: &AppState, app_db: &Connection, entry: DbWorkspace) -> Resul
     Workspace::new(entry, is_active, available)
 }
 
-/// Makes `entry`, whose database is `db`, the active workspace if `activate`.
+/// Makes `entry`, whose database is `db`, the active workspace.
 fn open_and_activate(
     state: &AppState,
     app_db: &Connection,
@@ -99,6 +99,22 @@ pub async fn create_workspace(
 ) -> Result<Workspace> {
     let app_db = state.app_db();
     let (entry, db) = workspaces::create(&app_db, &name, &path, Timestamp::now().as_second())?;
+    open_and_activate(&state, &app_db, entry, db)
+}
+
+/// Registers the workspace named `name` (trimmed, not empty), whose database already exists at `path`, and switches
+/// to it. Its database is migrated if it comes from an older version of todai.
+///
+/// `path` must be absolute. Fails without writing to it if it's not a todai workspace database (blank ones included),
+/// comes from a newer version, or is already registered.
+#[tauri::command]
+pub async fn import_workspace(
+    state: State<'_, AppState>,
+    name: String,
+    path: PathBuf,
+) -> Result<Workspace> {
+    let app_db = state.app_db();
+    let (entry, db) = workspaces::import(&app_db, &name, &path, Timestamp::now().as_second())?;
     open_and_activate(&state, &app_db, entry, db)
 }
 

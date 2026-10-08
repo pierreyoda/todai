@@ -2,6 +2,7 @@ import type { UUID } from "node:crypto";
 import { QueryClient, queryOptions } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
+import { invokeApiClient } from "./app";
 import type { Day, Month } from "./types";
 import { monthBounds, monthOf } from "../utils/dates";
 
@@ -75,5 +76,47 @@ export const tagKeys = {
 
 export const tagsQueryOptions = queryOptions({
   queryKey: tagKeys.all,
-  queryFn: () => invokeClient({ name: "list_tags", args: {} }),
+  queryFn: () => invokeClient({ name: "list_tags" }),
 });
+
+/**
+ * The active workspace is nested in the list, so that invalidating the list also refreshes it.
+ * Ids are UUIDs, so they never collide with `"active"`.
+ */
+export const workspaceKeys = {
+  all: ["workspaces"] as const,
+  active: () => [...workspaceKeys.all, "active"] as const,
+  id: (id: UUID) => [...workspaceKeys.all, id] as const,
+};
+
+/**
+ * Refreshes the workspaces (with the active one) and, as they come from its database, the todos and tags: after
+ * switching to another workspace. Awaitable, so that a mutation can stay pending until then.
+ */
+export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
+    queryClient.invalidateQueries({ queryKey: todoKeys.all }),
+    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+  ]);
+
+/** Sorted by name. */
+export const workspacesQueryOptions = queryOptions({
+  queryKey: workspaceKeys.all,
+  queryFn: () => invokeApiClient({ name: "list_workspaces" }),
+});
+
+export const activeWorkspaceQueryOptions = queryOptions({
+  queryKey: workspaceKeys.active(),
+  queryFn: () => invokeApiClient({ name: "get_active_workspace" }),
+});
+
+/** Found in the list, as there is no command for a single workspace; `null` if there is none with `id`. */
+export const workspaceQueryOptions = (id: UUID) =>
+  queryOptions({
+    queryKey: workspaceKeys.id(id),
+    queryFn: async () => {
+      const workspaces = await queryClient.query(workspacesQueryOptions);
+      return workspaces.find((workspace) => workspace.id === id) ?? null;
+    },
+  });

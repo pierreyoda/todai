@@ -44,6 +44,7 @@ pub fn run() {
             commands::workspaces::list_workspaces,
             commands::workspaces::get_active_workspace,
             commands::workspaces::create_workspace,
+            commands::workspaces::import_workspace,
             commands::workspaces::switch_to_workspace,
             commands::workspaces::rename_workspace,
         ])

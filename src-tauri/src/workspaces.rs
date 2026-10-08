@@ -39,6 +39,17 @@ fn path_to_db(path: &Path) -> Result<&str> {
         .ok_or_else(|| TodaiError::InvalidPath(format!("{} is not valid UTF-8", path.display())))
 }
 
+/// Fails if `path` is relative.
+fn ensure_absolute(path: &Path) -> Result<()> {
+    if !path.is_absolute() {
+        return Err(TodaiError::InvalidPath(format!(
+            "{} is not absolute",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
 /// `path`, canonical, if a file exists there.
 fn existing_file(path: &Path) -> Result<PathBuf> {
     if !path.is_file() {
@@ -51,12 +62,7 @@ fn existing_file(path: &Path) -> Result<PathBuf> {
 ///
 /// Fails if anything but an empty file already exists there.
 fn new_file(path: &Path) -> Result<PathBuf> {
-    if !path.is_absolute() {
-        return Err(TodaiError::InvalidPath(format!(
-            "{} is not absolute",
-            path.display()
-        )));
-    }
+    ensure_absolute(path)?;
     let (Some(parent), Some(file_name)) = (path.parent(), path.file_name()) else {
         return Err(TodaiError::InvalidPath(format!(
             "{} is not a file path",
@@ -101,6 +107,17 @@ fn find_by_path(app_db: &Connection, path: &str) -> Result<Option<DbWorkspace>> 
         .prepare_cached("SELECT * FROM workspaces WHERE path = ?1")?
         .query_row([path], DbWorkspace::from_row)
         .optional()?)
+}
+
+/// Fails if `path` is already the database of a registered workspace.
+fn ensure_unregistered(app_db: &Connection, path: &str) -> Result<()> {
+    if let Some(entry) = find_by_path(app_db, path)? {
+        return Err(TodaiError::CommandError(format!(
+            "{path} is already the database of workspace {:?}",
+            entry.name
+        )));
+    }
+    Ok(())
 }
 
 /// The registered workspace `id`.
@@ -218,13 +235,28 @@ pub fn create(
     let name = validate_name(name)?;
     let path = new_file(path)?;
     let path_db = path_to_db(&path)?;
-    if let Some(entry) = find_by_path(app_db, path_db)? {
-        return Err(TodaiError::CommandError(format!(
-            "{path_db} is already the database of workspace {:?}",
-            entry.name
-        )));
-    }
+    ensure_unregistered(app_db, path_db)?;
     let workspace_db = database::open(&path, &database::WORKSPACE)?;
+    Ok((insert(app_db, name, path_db, now)?, workspace_db))
+}
+
+/// Registers the workspace named `name`, whose database already exists at `path`, and opens it: migrated if it
+/// comes from an older version of todai.
+///
+/// Fails without writing to it if it's not a todai workspace database (blank ones included: create a workspace there
+/// instead), or comes from a newer version.
+pub fn import(
+    app_db: &Connection,
+    name: &str,
+    path: &Path,
+    now: DbTimestamp,
+) -> Result<(DbWorkspace, Connection)> {
+    let name = validate_name(name)?;
+    ensure_absolute(path)?;
+    let path = existing_file(path)?;
+    let path_db = path_to_db(&path)?;
+    ensure_unregistered(app_db, path_db)?;
+    let workspace_db = database::open_existing(&path, &database::WORKSPACE)?;
     Ok((insert(app_db, name, path_db, now)?, workspace_db))
 }
 
@@ -325,6 +357,59 @@ mod tests {
         let setup = Setup::new();
         fs::write(setup.path("empty.sqlite3"), "").unwrap();
         assert_eq!(setup.create("Work", "empty.sqlite3").name, "Work");
+    }
+
+    #[test]
+    fn import_registers_an_existing_workspace() {
+        let setup = Setup::new();
+        let path = setup.path("work.sqlite3");
+        database::open(&path, &database::WORKSPACE).unwrap();
+
+        let (work, _) = import(&setup.app_db, "  Work ", &path, NOW).unwrap();
+        assert_eq!(work.name, "Work");
+        assert_eq!(work.path, path.to_str().unwrap());
+        assert_eq!(get(&setup.app_db, &work.id).unwrap().name, "Work");
+        // Not activated.
+        assert_eq!(active_id(&setup.app_db).unwrap(), None);
+    }
+
+    #[test]
+    fn import_refuses_an_already_registered_workspace() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        assert!(import(&setup.app_db, "Again", Path::new(&work.path), NOW).is_err());
+        assert_eq!(list(&setup.app_db).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn import_refuses_invalid_paths_and_databases() {
+        let setup = Setup::new();
+        let workspace = setup.path("work.sqlite3");
+        database::open(&workspace, &database::WORKSPACE).unwrap();
+        assert!(import(&setup.app_db, " ", &workspace, NOW).is_err());
+        assert!(import(&setup.app_db, "Work", Path::new("work.sqlite3"), NOW).is_err());
+
+        let missing = setup.path("missing.sqlite3");
+        assert!(matches!(
+            import(&setup.app_db, "Work", &missing, NOW),
+            Err(TodaiError::WorkspaceUnavailable(_))
+        ));
+        assert!(!missing.exists());
+
+        let empty = setup.path("empty.sqlite3");
+        fs::write(&empty, "").unwrap();
+        let text = setup.path("notes.txt");
+        fs::write(&text, "Not a database, but long enough to have a header.".repeat(10)).unwrap();
+        let app = setup.path("app.sqlite3");
+        database::open(&app, &database::APP).unwrap();
+        for path in [&empty, &text, &app] {
+            assert!(matches!(
+                import(&setup.app_db, "Work", path, NOW),
+                Err(TodaiError::InvalidDatabase(_))
+            ));
+        }
+        assert_eq!(fs::metadata(&empty).unwrap().len(), 0);
+        assert!(list(&setup.app_db).unwrap().is_empty());
     }
 
     #[test]

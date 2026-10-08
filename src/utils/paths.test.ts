@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { basename } from "./paths";
+import { basename, isValidPath } from "./paths";
 
 describe("basename", () => {
   it.each([
@@ -34,4 +34,31 @@ describe("basename", () => {
   it.each(["", "/", "//", "\\"])("is empty for the empty or root path %j", (path) => {
     expect(basename(path)).toBe("");
   });
+});
+
+describe("isValidPath", () => {
+  it.each([
+    "/Users/me/todai.sqlite3",
+    "/Users/me/My Todos",
+    "/todai.sqlite3",
+    "C:\\Users\\me\\todai.sqlite3",
+    "C:/Users/me/todai.sqlite3",
+    "\\\\server\\share\\todai.sqlite3",
+  ])("accepts the absolute file path %j", (path) => {
+    expect(isValidPath(path)).toBe(true);
+  });
+
+  it.each(["", "todai.sqlite3", "relative/todai.sqlite3", "./todai.sqlite3", "~/todai.sqlite3", "C:todai.sqlite3"])(
+    "rejects the relative path %j",
+    (path) => {
+      expect(isValidPath(path)).toBe(false);
+    },
+  );
+
+  it.each(["/", "C:\\", "\\\\server\\share", "\\\\server\\share\\", "/Users/me/", "C:\\Users\\me\\", "/Users/me/.", "/Users/me/.."])(
+    "rejects the path %j, which has no file name",
+    (path) => {
+      expect(isValidPath(path)).toBe(false);
+    },
+  );
 });
