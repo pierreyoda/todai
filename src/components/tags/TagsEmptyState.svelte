@@ -59,7 +59,7 @@
 
   .icon-wrapper {
     @apply relative isolate flex size-12 items-center justify-center rounded-full;
-    @apply bg-white/5 text-gray-300 ring-1 ring-white/10 ring-inset transition duration-200;
+    @apply bg-white/5 text-slate-300 ring-1 ring-white/10 ring-inset transition duration-200;
     /* Soft halo, breathing outwards (kept within the section's padding, which clips overflow) */
     &::before {
       content: "";
@@ -71,7 +71,8 @@
 
   .plus-badge {
     @apply absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full;
-    @apply bg-pink-500 text-white shadow-md ring-2 ring-gray-800 transition-transform duration-300;
+    /* Cut out of the side panel by a ring of its color */
+    @apply bg-pink-500 text-white shadow-md ring-2 ring-(--side-panel-bg) transition-transform duration-300;
   }
 
   .title {
@@ -79,7 +80,7 @@
   }
 
   .hint {
-    @apply text-xs text-gray-400;
+    @apply text-xs text-slate-400;
   }
 
   @keyframes float {

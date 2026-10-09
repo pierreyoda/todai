@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
 
   type EditableTextProps = {
     as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span";
@@ -7,6 +7,8 @@
     /** Accessible label of the text field, visually hidden. */
     label: string;
     class?: string;
+    /** Bindable: whether the text field is shown, e.g. to start editing from a menu rather than a click on the text. */
+    editing?: boolean;
   };
 
   let {
@@ -14,18 +16,20 @@
     value = $bindable(),
     label,
     class: extraClass = "",
+    editing = $bindable(false),
   }: EditableTextProps = $props();
 
-  let editing = $state(false);
   let draft = $state("");
   let trigger = $state<HTMLButtonElement>();
 
   const invalid = $derived(draft.trim() === "");
 
-  const startEditing = () => {
-    draft = value;
-    editing = true;
-  };
+  // Started from the text or by the parent: either way, the draft starts from the current text
+  $effect.pre(() => {
+    if (editing) draft = untrack(() => value);
+  });
+
+  const startEditing = () => (editing = true);
 
   const stopEditing = async (save: boolean) => {
     // The input can blur right after Enter/Escape already closed it.

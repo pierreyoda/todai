@@ -7,11 +7,11 @@
     /** Bindable: lets the parent open or close the menu programmatically. */
     open?: boolean;
     /**
-     * Without a `DropdownButton`, e.g. when only opened programmatically: the element the menu is positioned against,
-     * and gives the focus back to when closing.
+     * Without a `DropdownButton` or `DropdownTrigger`, e.g. when only opened programmatically: the element the menu is
+     * positioned against, and gives the focus back to when closing.
      */
     anchor?: HTMLElement;
-    /** A `DropdownButton` (unless `anchor` is set) followed by a `DropdownMenu`. */
+    /** A `DropdownButton` or `DropdownTrigger` (unless `anchor` is set), possibly nested, and a `DropdownMenu`. */
     children: Snippet;
   };
   let { open = $bindable(false), anchor, children }: DropdownProps = $props();

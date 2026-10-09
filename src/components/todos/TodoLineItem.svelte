@@ -1,12 +1,10 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
 
   import { invokeClient } from "../../client";
   import type { Tag, Todo } from "../../client/types";
   import { invalidateTodosOf } from "../../client/queries";
   import { createToggleTodoMutation } from "../../client/mutations";
-  import { Debounced } from "../../utils/debounced.svelte";
   import EditableText from "../common/EditableText.svelte";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
@@ -48,14 +46,11 @@
       editedTitle = item.title;
     },
   }));
-  const debouncedEditedTitle = new Debounced(() => editedTitle, 500);
-  $effect(() => {
-    const title = debouncedEditedTitle.current;
-    // Also runs on mount, with the unchanged title
-    if (title === item.title) return;
-    // `mutate` reads the mutation's state, which it then updates: untracked so the effect doesn't loop
-    untrack(() => updateTitle.mutate(title));
-  });
+  const saveTitle = (title: string) => {
+    editedTitle = title;
+    // Also called when confirming the unchanged title
+    if (title !== item.title) updateTitle.mutate(title);
+  };
 
   let openedDropdownMenu = $state(false);
   let menuButton = $state<HTMLButtonElement>();
@@ -72,7 +67,7 @@
     <div class="flex flex-col gap-1">
       <EditableText
         as="h3"
-        bind:value={editedTitle}
+        bind:value={() => editedTitle, saveTitle}
         label={`Title of todo "${item.title}"`}
         class="text-sm font-medium text-white wrap-break-word"
       />
