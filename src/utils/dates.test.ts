@@ -8,6 +8,7 @@ import {
   formatDay,
   formatFullDay,
   formatMonth,
+  formatShortDay,
   formatWeek,
   isTodaiDate,
   monthBounds,
@@ -750,5 +751,20 @@ describe("formatFullDay", () => {
 
   it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
     expect(() => formatFullDay(day)).toThrow(RangeError);
+  });
+});
+
+describe("formatShortDay", () => {
+  it.each([
+    ["2026-10-05", "Mon, Oct 5, 2026"],
+    ["2026-09-30", "Wed, Sep 30, 2026"],
+    ["2028-02-29", "Tue, Feb 29, 2028"],
+    ["0999-01-31", "Thu, Jan 31, 999"],
+  ])("formats %s as %j", (day, label) => {
+    expect(formatShortDay(day)).toBe(label);
+  });
+
+  it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
+    expect(() => formatShortDay(day)).toThrow(RangeError);
   });
 });

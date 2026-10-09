@@ -40,9 +40,9 @@
       bind:checked={editedCompleted}
       class="w-1/2"
     />
-    <DatePicker bind:day={editedDay} label="Day" />
+    <DatePicker bind:day={editedDay} label="Day" class="ml-auto" />
   </div>
-  <div class="flex items-centerr">
+  <div class="flex items-center">
     <div class="w-1/2 px-2"></div>
     <div class="w-1/2 px-2"></div>
   </div>

@@ -9,6 +9,7 @@
     dateToTodaiDate,
     formatFullDay,
     formatMonth,
+    formatShortDay,
     monthBounds,
     monthOf,
   } from "../../utils/dates";
@@ -143,7 +144,7 @@
   class={extraClass}
 >
   <IconCalendar class="self-center" />
-  {day ? formatFullDay(day) : label}
+  {day ? formatShortDay(day) : label}
 </Button>
 
 <div class="modal-container">

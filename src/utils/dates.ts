@@ -240,3 +240,10 @@ export const formatDay = (day: Day): string => format(parseDay(day), "EEE d", UT
  * @throws {RangeError} If `day` is invalid.
  */
 export const formatFullDay = (day: Day): string => format(parseDay(day), "EEEE, MMMM d, y", UTC);
+
+/**
+ * E.g. "Mon, Oct 5, 2026": `formatFullDay` with abbreviated names, for a bounded width.
+ *
+ * @throws {RangeError} If `day` is invalid.
+ */
+export const formatShortDay = (day: Day): string => format(parseDay(day), "EEE, MMM d, y", UTC);
