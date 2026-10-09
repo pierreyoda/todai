@@ -5,6 +5,7 @@
   import TodoList from "./TodoList.svelte";
   import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoPanelFilters from "./TodoPanelFilters.svelte";
+  import TodosEmptyState from "./TodosEmptyState.svelte";
   import { isDefined } from "../../utils";
 
   type TodoPanelProps = {
@@ -33,6 +34,10 @@
   const filterSelectedTags = $derived(
     [tags.find(({ id }) => id === selectedTagId) ?? null].filter(isDefined),
   );
+  /** Only when the filter is what empties the list: otherwise, the day has no todos at all. */
+  const emptyFilterTag = $derived(
+    (todos.data?.length ?? 0) > 0 ? (filterSelectedTags[0] ?? null) : null,
+  );
 </script>
 
 <section class="container">
@@ -48,7 +53,17 @@
   {:else if todos.isError}
     <p class="error" role="alert">{String(todos.error)}</p>
   {:else}
-    <TodoList todos={filteredTodos} {tags} />
+    {#if filteredTodos.length > 0}
+      <TodoList todos={filteredTodos} {tags} />
+    {:else}
+      <!-- Keyed, so switching between the two cases replays the entrance -->
+      {#key emptyFilterTag?.id}
+        <TodosEmptyState
+          filterTag={emptyFilterTag}
+          onClearFilter={() => onSelectedTagChanged(null)}
+        />
+      {/key}
+    {/if}
   {/if}
 </section>
 
