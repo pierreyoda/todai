@@ -47,6 +47,7 @@ pub fn run() {
             commands::workspaces::import_workspace,
             commands::workspaces::switch_to_workspace,
             commands::workspaces::rename_workspace,
+            commands::workspaces::remove_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

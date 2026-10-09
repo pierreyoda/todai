@@ -1,6 +1,8 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+  import { untrack } from "svelte";
 
+  import ErrorBanner from "../../common/ErrorBanner.svelte";
   import Modal from "../../common/Modal.svelte";
   import { invokeApiClient, type Workspace } from "../../../client/app";
   import { invalidateActiveWorkspace, workspaceKeys } from "../../../client/queries";
@@ -46,6 +48,17 @@
       return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
     },
   }));
+
+  const failed = $derived(existing ? updateWorkspace : createWorkspace);
+  // A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
+  $effect(() => {
+    if (!show) {
+      untrack(() => {
+        createWorkspace.reset();
+        updateWorkspace.reset();
+      });
+    }
+  });
 </script>
 
 <div class="modal-container">
@@ -57,6 +70,17 @@
         Create a new Workspace
       {/if}
     {/snippet}
+    {#if failed.isError}
+      <div class="mb-4">
+        <ErrorBanner
+          title={existing
+            ? "Could not rename the workspace"
+            : "Could not create the workspace"}
+          error={failed.error}
+          onDismiss={() => failed.reset()}
+        />
+      </div>
+    {/if}
     {#if existing}
       <WorkspaceForm
         data={{ name: existing.name, path: existing.path }}

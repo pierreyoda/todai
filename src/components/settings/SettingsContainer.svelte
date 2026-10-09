@@ -19,7 +19,7 @@
   @reference "tailwindcss";
 
   section {
-    @apply w-full h-full flex flex-col;
+    @apply w-full h-full flex flex-col p-4;
   }
 
   .title {

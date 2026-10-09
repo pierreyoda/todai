@@ -5,26 +5,30 @@
   import type { Tag } from "../client/types";
   import { dateToTodaiDate } from "../utils/dates";
   import {
+    activeWorkspaceQueryOptions,
     tagsQueryOptions,
     todosQueryOptions,
-    workspacesQueryOptions,
   } from "../client/queries";
   import LoadingState from "../components/common/LoadingState.svelte";
   import SidePanel from "../components/SidePanel.svelte";
   import TodoPanel from "../components/todos/TodoPanel.svelte";
 
-  // Empty workspace management
-  const workspaces = createQuery(() => workspacesQueryOptions);
-  const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
+  // Without a usable active workspace (none yet, removed, or its database could not be opened), the user picks or
+  // creates one. Until then, there is no database to query the todos and tags from.
+  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+  const ready = $derived(activeWorkspace.data?.available === true);
   $effect(() => {
-    if (workspaces.isSuccess && !hasWorkspaces) {
+    if (activeWorkspace.isSuccess && !ready) {
       goto("/settings/workspace");
     }
   });
 
   const day = dateToTodaiDate(new Date());
-  const tags = createQuery(() => tagsQueryOptions);
-  const todos = createQuery(() => todosQueryOptions(day));
+  const tags = createQuery(() => ({ ...tagsQueryOptions, enabled: ready }));
+  const todos = createQuery(() => ({
+    ...todosQueryOptions(day),
+    enabled: ready,
+  }));
   let selectedTagId = $state<Tag["id"] | null>(null);
 
   /** The tags, with `linkedTodosCount` scoped to the todos of `day` (unknown until they're loaded). */
@@ -47,7 +51,7 @@
 </script>
 
 <main>
-  {#if hasWorkspaces}
+  {#if ready}
     <SidePanel
       tags={tags.isLoading ? "loading" : tags.error ? "error" : dayTags}
       {selectedTagId}
@@ -67,7 +71,7 @@
       />
     {/if}
   {:else}
-    <LoadingState state={workspaces.isError ? "error" : "loading"}>
+    <LoadingState state={activeWorkspace.isError ? "error" : "loading"}>
       {#snippet loading()}
         Loading the Workspaces...
       {/snippet}

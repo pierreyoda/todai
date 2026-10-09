@@ -100,6 +100,17 @@ export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: tagKeys.all }),
   ]);
 
+/**
+ * Refreshes the workspaces and drops the todos and tags, which came from the active workspace's database: after
+ * closing it without opening another one, so there is nothing to refetch them from. Awaitable, so that a mutation can
+ * stay pending until then.
+ */
+export const clearActiveWorkspace = (queryClient: QueryClient) => {
+  queryClient.removeQueries({ queryKey: todoKeys.all });
+  queryClient.removeQueries({ queryKey: tagKeys.all });
+  return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+};
+
 /** Sorted by name. */
 export const workspacesQueryOptions = queryOptions({
   queryKey: workspaceKeys.all,

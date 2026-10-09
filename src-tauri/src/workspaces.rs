@@ -177,12 +177,15 @@ pub fn set_active(app_db: &Connection, id: &str, now: DbTimestamp) -> Result<()>
     Ok(())
 }
 
-/// Unregisters the workspace `id`, which cannot be the active one. Its database is kept.
-pub fn remove(app_db: &Connection, id: &str) -> Result<()> {
-    if active_id(app_db)?.as_deref() == Some(id) {
-        return Err(TodaiError::CommandError(
-            "The active workspace cannot be removed: switch to another one first".into(),
-        ));
+/// Unregisters the workspace `id`, keeping its database. Returns whether it was the active one: there is then no
+/// active workspace anymore.
+pub fn remove(app_db: &Connection, id: &str) -> Result<bool> {
+    let was_active = active_id(app_db)?.as_deref() == Some(id);
+    // Explicit, rather than relying on the foreign key's `ON DELETE SET NULL`.
+    if was_active {
+        app_db
+            .prepare_cached("UPDATE app_state SET active_workspace_id = NULL WHERE id = 1")?
+            .execute([])?;
     }
     let deleted = app_db
         .prepare_cached("DELETE FROM workspaces WHERE id = ?1")?
@@ -190,7 +193,7 @@ pub fn remove(app_db: &Connection, id: &str) -> Result<()> {
     if deleted == 0 {
         return Err(workspace_not_found(id));
     }
-    Ok(())
+    Ok(was_active)
 }
 
 // Both.
@@ -423,19 +426,32 @@ mod tests {
     }
 
     #[test]
-    fn remove_keeps_the_database_and_refuses_the_active_workspace() {
+    fn remove_keeps_the_database() {
         let setup = Setup::new();
         let work = setup.create("Work", "work.sqlite3");
         let personal = setup.create("Personal", "personal.sqlite3");
         set_active(&setup.app_db, &personal.id, NOW).unwrap();
 
-        assert!(remove(&setup.app_db, &personal.id).is_err());
-        remove(&setup.app_db, &work.id).unwrap();
+        assert!(!remove(&setup.app_db, &work.id).unwrap());
         assert!(Path::new(&work.path).is_file());
         let workspaces = list(&setup.app_db).unwrap();
         assert_eq!(workspaces.len(), 1);
         assert_eq!(workspaces[0].id, personal.id);
+        assert_eq!(active_id(&setup.app_db).unwrap(), Some(personal.id));
         assert!(remove(&setup.app_db, &work.id).is_err());
+    }
+
+    #[test]
+    fn remove_clears_the_active_workspace() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        set_active(&setup.app_db, &work.id, NOW).unwrap();
+
+        assert!(remove(&setup.app_db, &work.id).unwrap());
+        assert!(Path::new(&work.path).is_file());
+        assert!(list(&setup.app_db).unwrap().is_empty());
+        assert_eq!(active_id(&setup.app_db).unwrap(), None);
+        assert!(open_active(&setup.app_db, NOW).unwrap().is_none());
     }
 
     #[test]

@@ -73,6 +73,16 @@ export type ClientInvocationAppCommand = {
     };
     returns: Workspace;
   };
+  /**
+   * Unregisters it, keeping its database: it can be imported again. If it was the active one, there is no active
+   * workspace anymore.
+   */
+  remove_workspace: {
+    args: {
+      id: UUID;
+    };
+    returns: never;
+  };
 };
 
 export type ClientAppCommandName = keyof ClientInvocationAppCommand;

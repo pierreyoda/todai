@@ -8,12 +8,14 @@
   import Table from "../../common/table/Table.svelte";
   import { invokeApiClient, type Workspace } from "../../../client/app";
   import { invalidateActiveWorkspace } from "../../../client/queries";
+  import IconTrash from "../../common/icons/IconTrash.svelte";
 
   type WorkspacesTableProps = {
     workspaces: readonly Workspace[];
     onEdit: (workspace: Workspace) => void;
+    onRemove: (workspace: Workspace) => void;
   };
-  const { workspaces, onEdit }: WorkspacesTableProps = $props();
+  const { workspaces, onEdit, onRemove }: WorkspacesTableProps = $props();
 
   const queryClient = useQueryClient();
   const switchWorkspace = createMutation(() => ({
@@ -63,6 +65,15 @@
       onclick={() => onEdit(workspace)}
     >
       <IconPencilSquare />
+    </Button>
+    <Button
+      style="plain"
+      size="sm"
+      title="Remove"
+      aria-label={`Remove ${workspace.name}`}
+      onclick={() => onRemove(workspace)}
+    >
+      <IconTrash class="text-red-500" />
     </Button>
   </div>
 {/snippet}

@@ -3,13 +3,19 @@
   import { open } from "@tauri-apps/plugin-dialog";
 
   import { invokeApiClient, type Workspace } from "../../../client/app";
-  import { invalidateActiveWorkspace } from "../../../client/queries";
+  import {
+    clearActiveWorkspace,
+    invalidateActiveWorkspace,
+    workspaceKeys,
+  } from "../../../client/queries";
   import { basename } from "../../../utils";
+  import ErrorBanner from "../../common/ErrorBanner.svelte";
   import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
   import IconPlus from "../../common/icons/IconPlus.svelte";
   import SettingsContainer from "../SettingsContainer.svelte";
   import WorkspacesTable from "./WorkspacesTable.svelte";
   import WorkspaceUpsertModal from "./WorkspaceUpsertModal.svelte";
+  import WorkspaceRemoveModal from "./WorkspaceRemoveModal.svelte";
 
   type WorkspaceSettingsProps = {
     activeWorkspace: Workspace | null;
@@ -18,16 +24,7 @@
   const { activeWorkspace, workspaces }: WorkspaceSettingsProps = $props();
   const onlyNew = $derived(!activeWorkspace || workspaces.length === 0);
 
-  let showUpsertDialog = $state(false);
-  /** Created if `null`. */
-  let editedWorkspace = $state<Workspace | null>(null);
-  const openUpsertDialog = (workspace: Workspace | null) => {
-    editedWorkspace = workspace;
-    showUpsertDialog = true;
-  };
-
   const queryClient = useQueryClient();
-
   // Importing a workspace switches to it. Named after its file, without the extension.
   const importWorkspaceMutation = createMutation(() => ({
     mutationFn: (path: string) =>
@@ -37,6 +34,29 @@
       }),
     onSuccess: () => invalidateActiveWorkspace(queryClient),
   }));
+  // Unregisters a workspace, keeping its database. Removing the active one leaves none active: its todos and tags
+  // are dropped, and the user picks or creates another one here.
+  const removeWorkspaceMutation = createMutation(() => ({
+    mutationFn: ({ id }: Workspace) =>
+      invokeApiClient({
+        name: "remove_workspace",
+        args: { id },
+      }),
+    onSuccess: (_, { isActive }) => {
+      showRemoveDialog = false;
+      return isActive
+        ? clearActiveWorkspace(queryClient)
+        : queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+    },
+  }));
+
+  let showUpsertDialog = $state(false);
+  /** Created if `null`. */
+  let editedWorkspace = $state<Workspace | null>(null);
+  const openUpsertDialog = (workspace: Workspace | null) => {
+    editedWorkspace = workspace;
+    showUpsertDialog = true;
+  };
 
   let importingWorkspace = $state(false);
   const importWorkspace = async () => {
@@ -48,6 +68,14 @@
     importingWorkspace = false;
     if (!path) return;
     importWorkspaceMutation.mutate(path);
+  };
+
+  let showRemoveDialog = $state(false);
+  /** Kept once closed, so that the modal doesn't lose its content while closing. */
+  let removedWorkspace = $state<Workspace | null>(null);
+  const openRemoveDialog = (workspace: Workspace) => {
+    removedWorkspace = workspace;
+    showRemoveDialog = true;
   };
 </script>
 
@@ -80,12 +108,31 @@
         </span>
         Import
       </button>
+      {#if importWorkspaceMutation.isError}
+        <ErrorBanner
+          title="Could not import the workspace"
+          error={importWorkspaceMutation.error}
+          onDismiss={() => importWorkspaceMutation.reset()}
+        />
+      {/if}
     </div>
   </div>
   {#if workspaces.length > 0}
-    <WorkspacesTable {workspaces} onEdit={openUpsertDialog} />
+    <WorkspacesTable
+      {workspaces}
+      onEdit={openUpsertDialog}
+      onRemove={openRemoveDialog}
+    />
   {/if}
 </SettingsContainer>
+{#if removedWorkspace}
+  {@const workspace = removedWorkspace}
+  <WorkspaceRemoveModal
+    bind:show={showRemoveDialog}
+    {workspace}
+    onDelete={() => removeWorkspaceMutation.mutate(workspace)}
+  />
+{/if}
 <!-- Recreated for each workspace, as the form only reads its initial data -->
 {#key editedWorkspace}
   {#if editedWorkspace}
@@ -101,8 +148,9 @@
 <style lang="postcss">
   @reference "tailwindcss";
 
+  /* Fixed width: otherwise an error banner's long message would widen it, leaving the buttons on its left */
   .choices {
-    @apply self-center my-auto flex flex-col gap-3;
+    @apply self-center my-auto flex w-72 flex-col gap-3;
   }
 
   .add-area {
