@@ -3,6 +3,7 @@ import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 import { invokeClient } from ".";
 import type { Estimate, Todo } from "./types";
 import { invalidateTodosOf, tagKeys } from "./queries";
+import { playTodoCompletedSound } from "../utils/sounds";
 
 // TODO: migrate other mutations to this file
 
@@ -19,6 +20,10 @@ export const createToggleTodoMutation = (getTodo: () => Todo, onError?: () => vo
         name: "toggle_todo",
         args: { id: getTodo().id, completed },
       }),
+    // Right away, like the optimistic check, rather than once the lists are refetched
+    onMutate: (completed) => {
+      if (completed) playTodoCompletedSound();
+    },
     // Returned so the mutation stays pending until the lists are refetched.
     onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
     onError,
