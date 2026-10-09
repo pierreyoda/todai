@@ -10,7 +10,12 @@
     disabled?: boolean;
     /** Called before the whole dropdown closes, if it does (see `keepOpen`). */
     onclick?: (event: MouseEvent) => void;
-    /** Whether clicking the item leaves the dropdown open. Defaults to its menu's `keepOpenOnClick`. */
+    /**
+     * Whether clicking the item leaves the dropdown open. Defaults to its menu's `keepOpenOnClick`.
+     *
+     * Must be `false` for items opening a modal: WebKit's `showModal()` hides the menu without a `toggle` event,
+     * which leaves it open in state, and impossible to reopen.
+     */
     keepOpen?: boolean;
     /** Leading `<svg>`, sized and colored by the item. */
     icon?: Snippet;

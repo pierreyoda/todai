@@ -107,7 +107,11 @@
         </DropdownItem>
       {/each}
       <DropdownDivider />
-      <DropdownItem onclick={() => (showTagCreationModal = true)}>
+      <!-- Opens a modal: the menu must close first, see `keepOpen` -->
+      <DropdownItem
+        keepOpen={false}
+        onclick={() => (showTagCreationModal = true)}
+      >
         + Add a new tag
       </DropdownItem>
     </DropdownSubmenu>
