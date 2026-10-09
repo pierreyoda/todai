@@ -8,6 +8,7 @@
   import IconSun from "./common/icons/IconSun.svelte";
   import SidePanelLink from "./layout/SidePanelLink.svelte";
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";
+  import TagsEmptyState from "./tags/TagsEmptyState.svelte";
   import IconCalendar from "./common/icons/IconCalendar.svelte";
   import IconFolderOpen from "./common/icons/IconFolderOpen.svelte";
 
@@ -21,6 +22,8 @@
     $props();
 
   let showTagCreationModal = $state(false);
+  // The header's "+" button then gives way to a more inviting one, in the section's body
+  const hasNoTags = $derived(Array.isArray(tags) && tags.length === 0);
 
   type CurrentPage = "home" | "calendar" | "trash";
   const currentPage = $derived<CurrentPage>(
@@ -45,25 +48,25 @@
     {#if tags}
       <Collapse open>
         {#snippet summary()}
-          <dkv class="flex items-center justify-between">
+          <div class="flex items-center justify-between">
             <h2 class="section-title">Tags</h2>
-            <Button
-              size="xs"
-              style="outline"
-              class="z-40"
-              onclick={() => {
-                if (!showTagCreationModal) {
-                  showTagCreationModal = true;
-                }
-              }}>+</Button
-            >
-          </dkv>
+            {#if !hasNoTags}
+              <Button
+                size="xs"
+                style="outline"
+                class="z-40"
+                onclick={() => (showTagCreationModal = true)}>+</Button
+              >
+            {/if}
+          </div>
         {/snippet}
         <div class="pt-4">
           {#if tags === "error"}
             ERROR
           {:else if tags === "loading"}
             LOADING
+          {:else if hasNoTags}
+            <TagsEmptyState onCreate={() => (showTagCreationModal = true)} />
           {:else}
             <ol class="flex flex-col gap-4 overflow-y-auto">
               {#each tags as tag (tag.id)}
