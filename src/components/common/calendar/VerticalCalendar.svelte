@@ -40,11 +40,10 @@
   const statsByMonth = $derived(
     new Map((todoMonths.data ?? []).map((stats) => [stats.month, stats])),
   );
-  /** Future months are left out; the current and previous ones are always listed, even without todos. */
+  /** Future months are left out; the current one is always listed, even without todos. */
   const months = $derived.by(() => {
     const earliest = todoMonths.data?.at(-1)?.month;
-    const oldest =
-      earliest && earliest < previousMonth ? earliest : previousMonth;
+    const oldest = earliest && earliest < currentMonth ? earliest : currentMonth;
     return monthsBetween(currentMonth, oldest);
   });
 </script>
