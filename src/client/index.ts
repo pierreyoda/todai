@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Day, Estimate, Tag, Todo, TodoMonth } from "./types";
 import type { UUID } from "node:crypto";
 
+import { parseResponse } from "../utils/client";
+
 type ClientInvocationCommand = {
   list_todos: {
     args: {
@@ -103,8 +105,13 @@ type ClientInvocationCommand = {
 
 export type ClientCommandName = keyof ClientInvocationCommand;
 
-export const invokeClient = async <N extends ClientCommandName, R = ClientInvocationCommand[N]["returns"]>(c: { name: N; args: ClientInvocationCommand[N]["args"] }): Promise<R> =>
-  invoke<R>(c.name, c.args).catch((e) => {
+/** `args` can be left out for the commands taking none. */
+export type Invocation<C extends Record<string, { args?: unknown }>, N extends keyof C> = { name: N } & (undefined extends C[N]["args"]
+  ? { args?: C[N]["args"] }
+  : { args: C[N]["args"] });
+
+export const invokeClient = async <N extends ClientCommandName, R = ClientInvocationCommand[N]["returns"]>(c: Invocation<ClientInvocationCommand, N>): Promise<R> =>
+  invoke(c.name, c.args).then(parseResponse<R>).catch((e) => {
     console.error(`Error invoking command ${c.name}:`, e);
     throw e;
   });

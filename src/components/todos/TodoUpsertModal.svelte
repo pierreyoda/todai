@@ -1,9 +1,10 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-  import type { Todo } from "../../client/types";
+
   import Modal from "../common/Modal.svelte";
-  import TodoForm, { type TodoFormData } from "./TodoForm.svelte";
   import { invokeClient } from "../../client";
+  import type { Todo } from "../../client/types";
+  import TodoForm, { type TodoFormData } from "./TodoForm.svelte";
   import { invalidateTodosOf } from "../../client/queries";
 
   type TodoUpsertModalProps = {

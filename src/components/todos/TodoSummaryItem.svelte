@@ -33,7 +33,7 @@
   let lineRef = $state<HTMLLIElement>();
   let openedDropdownMenu = $state(false);
 
-  let showEditDialog = $state(false);
+  let showUpsertDialog = $state(false);
 </script>
 
 <li
@@ -60,7 +60,7 @@
     </ul>
   {/if}
   <div class="edit-action-container" title="Edit">
-    <Button style="plain" onclick={() => (showEditDialog = true)}>
+    <Button style="plain" onclick={() => (showUpsertDialog = true)}>
       <IconPencilSquare class="text-white hover:text-gray-300" />
     </Button>
   </div>
@@ -72,7 +72,7 @@
   {tags}
   inCalendar
 />
-<TodoUpsertModal bind:show={showEditDialog} existing={item} />
+<TodoUpsertModal bind:show={showUpsertDialog} existing={item} />
 
 <style lang="postcss">
   @reference "tailwindcss";

@@ -167,7 +167,8 @@ pub struct TodoMonth {
 /// Lists the non-deleted todos of `day`, in display order, with the IDs of their non-deleted tags.
 #[tauri::command]
 pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo>> {
-    query_todos(&state.db(), &day, &day)
+    let db = state.db()?;
+    query_todos(&db, &day, &day)
 }
 
 /// Lists the non-deleted todos from `start` to `end` (inclusive), by day then in display order, as `list_todos`.
@@ -183,13 +184,14 @@ pub async fn list_todos_between(
             start.raw, end.raw
         )));
     }
-    query_todos(&state.db(), &start, &end)
+    let db = state.db()?;
+    query_todos(&db, &start, &end)
 }
 
 /// Lists the months having non-deleted todos, most recent first, with their statistics.
 #[tauri::command]
 pub async fn list_todo_months(state: State<'_, AppState>) -> Result<Vec<TodoMonth>> {
-    let db = state.db();
+    let db = state.db()?;
     // `day` is YYYY-MM-DD: its first 7 characters are the month. Covered by `idx_todos_day`.
     let mut statement = db.prepare_cached(
         "SELECT substr(day, 1, 7) AS month,
@@ -294,7 +296,7 @@ pub async fn create_todo(
         .map(Estimate::to_db)
         .unzip();
 
-    let db = state.db();
+    let db = state.db()?;
     let position = position_after_last(&db, &day)?;
 
     let now = Timestamp::now().as_second();
@@ -336,7 +338,8 @@ pub struct UpdateTodoParams {
 /// Updates a non-deleted todo's `title`, `day` and/or `completed`.
 #[tauri::command]
 pub async fn update_todo(state: State<'_, AppState>, params: UpdateTodoParams) -> Result<()> {
-    update_todo_row(&state.db(), params, Timestamp::now().as_second())
+    let db = state.db()?;
+    update_todo_row(&db, params, Timestamp::now().as_second())
 }
 
 fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Result<()> {
@@ -413,7 +416,7 @@ pub async fn set_todo_estimate(
         .map(Estimate::to_db)
         .unzip();
 
-    let db = state.db();
+    let db = state.db()?;
     let now = Timestamp::now().as_second();
     let updated = db
         .prepare_cached(
@@ -438,7 +441,7 @@ pub async fn set_todo_estimate(
 /// Update a todo's completeness status.
 #[tauri::command]
 pub async fn toggle_todo(state: State<'_, AppState>, id: String, completed: bool) -> Result<()> {
-    let db = state.db();
+    let db = state.db()?;
     let now = Timestamp::now().as_second();
     let updated = db
         .prepare_cached(
@@ -463,7 +466,7 @@ pub async fn toggle_todo(state: State<'_, AppState>, id: String, completed: bool
 /// Deletes a todo, keeping its row and links to tags so that it can be restored.
 #[tauri::command]
 pub async fn delete_todo(state: State<'_, AppState>, id: String) -> Result<()> {
-    let db = state.db();
+    let db = state.db()?;
     let now = Timestamp::now().as_second();
     let deleted = db
         .prepare_cached(
@@ -482,13 +485,9 @@ pub async fn delete_todo(state: State<'_, AppState>, id: String) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::{open_test_database, WORKSPACE};
 
     const NOW: i64 = 1_791_000_000;
-
-    /// An in-memory, migrated database.
-    fn test_db() -> Connection {
-        crate::database::open(":memory:").unwrap()
-    }
 
     fn day(raw: &str) -> Day {
         raw.to_string().try_into().unwrap()
@@ -540,7 +539,7 @@ mod tests {
 
     #[test]
     fn update_todo_trims_the_title_and_leaves_other_fields() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "Before");
         let before = todo_row(&db, &id);
         update_todo_row(
@@ -562,7 +561,7 @@ mod tests {
 
     #[test]
     fn update_todo_rejects_an_empty_title() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "Title");
         let result = update_todo_row(
             &db,
@@ -578,7 +577,7 @@ mod tests {
 
     #[test]
     fn update_todo_moves_a_todo_to_the_end_of_another_day() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "Moved");
         let other = insert_todo(&db, "2026-10-05", "Already there");
         update_todo_row(
@@ -597,7 +596,7 @@ mod tests {
 
     #[test]
     fn update_todo_keeps_the_position_on_the_same_day() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "First");
         insert_todo(&db, "2026-10-04", "Second");
         let before = todo_row(&db, &id);
@@ -615,7 +614,7 @@ mod tests {
 
     #[test]
     fn update_todo_sets_completed_at_only_when_completed_changes() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "Title");
         let complete = |completed, now| {
             update_todo_row(
@@ -639,7 +638,7 @@ mod tests {
 
     #[test]
     fn update_todo_without_completed_keeps_completed_at() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "Title");
         update_todo_row(
             &db,
@@ -665,7 +664,7 @@ mod tests {
 
     #[test]
     fn update_todo_ignores_deleted_and_unknown_todos() {
-        let db = test_db();
+        let db = open_test_database(&WORKSPACE);
         let id = insert_todo(&db, "2026-10-04", "Deleted");
         db.execute("UPDATE todos SET deleted_at = 1 WHERE id = ?1", [&id])
             .unwrap();

@@ -21,6 +21,14 @@ pub enum TodaiError {
     InvalidPosition(String),
     #[error("Invalid estimate: {0}")]
     InvalidEstimate(String),
+    #[error("Invalid database: {0}")]
+    InvalidDatabase(String),
+    #[error("Invalid path: {0}")]
+    InvalidPath(String),
+    #[error("No workspace database at {0}")]
+    WorkspaceUnavailable(String),
+    #[error("No workspace is open")]
+    NoActiveWorkspace,
     #[error("Command error: {0}")]
     CommandError(String),
 }
