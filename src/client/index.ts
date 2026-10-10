@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Estimate, Tag, Todo, TodoMonth } from "./types";
+import type { Day, Estimate, Note, Tag, Todo, TodoMonth } from "./types";
 import type { UUID } from "node:crypto";
 
 import { parseResponse } from "../utils/client";
@@ -100,6 +100,24 @@ type ClientInvocationCommand = {
       tagIds: readonly UUID[];
     };
     returns: never;
+  };
+  /** `null` if the day has no note. */
+  get_note: {
+    args: {
+      day: Day;
+    };
+    returns: Note | null;
+  };
+  /**
+   * Saves `content` as the note of `day`, as typed (not trimmed). A blank `content` deletes the note instead, returning
+   * `null`. Saving the same content again leaves its `updatedAt` unchanged.
+   */
+  save_note: {
+    args: {
+      day: Day;
+      content: string;
+    };
+    returns: Note | null;
   };
 };
 

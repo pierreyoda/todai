@@ -11,17 +11,25 @@
     routeId: RouteId;
     /** Short trailing text, e.g. a date. */
     hint?: string;
+    /** A sub-page of the link above it: slimmer, to sit in its indented list. */
+    nested?: boolean;
+    /** Shown as a dot after the label, e.g. "Today has a note": the text is for screen readers only. */
+    indicator?: string;
   };
-  const { label, icon, routeId, hint }: SidePanelLinkProps = $props();
+  const { label, icon, routeId, hint, nested = false, indicator }: SidePanelLinkProps = $props();
 
   const current = $derived((page.route.id ?? "/") === routeId);
 </script>
 
-<a href={routeId} class="link" aria-current={current ? "page" : undefined}>
+<a href={routeId} class={["link", nested && "nested"]} aria-current={current ? "page" : undefined}>
   <span class="icon">{@render icon()}</span>
   <span class="label">{label}</span>
   {#if hint}
     <span class="hint">{hint}</span>
+  {/if}
+  {#if indicator}
+    <span class="indicator" title={indicator}></span>
+    <span class="sr-only">({indicator})</span>
   {/if}
 </a>
 
@@ -29,8 +37,8 @@
   @reference "tailwindcss";
 
   .link {
-    /* Layout: icons and labels line up with the tags below */
-    @apply flex items-center gap-3 rounded-lg px-2.5 py-1.5;
+    /* Layout: icons and labels line up with the tags below. Positioned, to hold its text for screen readers. */
+    @apply relative flex items-center gap-3 rounded-lg px-2.5 py-1.5;
     /* Typography */
     @apply text-sm/6 font-medium text-slate-300;
     /* States */
@@ -48,6 +56,10 @@
         @apply text-pink-400;
       }
     }
+
+    &.nested {
+      @apply py-1;
+    }
   }
 
   .icon {
@@ -60,5 +72,10 @@
 
   .hint {
     @apply shrink-0 text-xs font-medium text-slate-500 tabular-nums;
+  }
+
+  /* Where the hint would be, in the accent color */
+  .indicator {
+    @apply mr-1 size-1.5 shrink-0 rounded-full bg-pink-400;
   }
 </style>

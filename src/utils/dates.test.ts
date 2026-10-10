@@ -13,6 +13,7 @@ import {
   formatRelativeTime,
   formatShortDate,
   formatShortDay,
+  formatTime,
   formatWeek,
   isTodaiDate,
   monthBounds,
@@ -847,5 +848,17 @@ describe("formatShortDate", () => {
     [[2025, 5, 30, 19, 40], "Jun 30, 2025"],
   ])("formats %j as %j", (date, label) => {
     expect(formatShortDate(localDateTime(date), localDateTime(NOW))).toBe(label);
+  });
+});
+
+describe("formatTime", () => {
+  useTimeZone("Europe/Paris");
+
+  it.each<[LocalDateTime, string]>([
+    [[2026, 9, 10, 14, 32, 59], "14:32"],
+    [[2026, 9, 10, 0, 5], "00:05"],
+    [[2026, 9, 10, 23, 59], "23:59"],
+  ])("formats %j as %j, in local time", (date, label) => {
+    expect(formatTime(localDateTime(date))).toBe(label);
   });
 });

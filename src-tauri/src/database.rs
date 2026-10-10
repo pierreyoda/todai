@@ -21,7 +21,7 @@ pub struct DatabaseKind {
     migrations: &'static [&'static str],
 }
 
-/// A workspace's todos and tags.
+/// A workspace's todos, tags and notes.
 pub const WORKSPACE: DatabaseKind = DatabaseKind {
     name: "workspace",
     // "TDWS" (ToDai WorkSpace).
@@ -31,6 +31,7 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/002_tags.sql"),
         include_str!("../migrations/003_tags_non_unique_name.sql"),
         include_str!("../migrations/004_todo_estimate.sql"),
+        include_str!("../migrations/005_notes.sql"),
     ],
 };
 
@@ -625,6 +626,35 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM workspace_backups", [], |r| r.get(0))
             .unwrap();
         assert_eq!(backups, 0);
+    }
+
+    #[test]
+    fn open_existing_adds_notes_to_a_workspace_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without notes.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..4] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 4).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('w', 'Work', 0, 0, 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, 5);
+        assert_eq!(tag_names(&conn), ["Work"]);
+        let notes: i64 = conn
+            .query_row("SELECT COUNT(*) FROM notes", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(notes, 0);
     }
 
     #[test]

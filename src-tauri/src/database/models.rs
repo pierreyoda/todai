@@ -71,6 +71,27 @@ impl DbTag {
     }
 }
 
+/// A day's note. Days without a note have no row.
+#[derive(Debug)]
+pub struct DbNote {
+    pub day: DbDay,
+    /// Markdown, never empty.
+    pub content: String,
+    pub created_at: DbTimestamp,
+    pub updated_at: DbTimestamp,
+}
+
+impl DbNote {
+    pub fn from_row(row: &Row) -> Result<Self> {
+        Ok(Self {
+            day: row.get("day")?,
+            content: row.get("content")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
+}
+
 /// A workspace, in the app database.
 #[derive(Debug)]
 pub struct DbWorkspace {

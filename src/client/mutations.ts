@@ -2,7 +2,7 @@ import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
 import type { Day, Estimate, Todo } from "./types";
-import { invalidateTodosOf, tagKeys } from "./queries";
+import { invalidateTodosOf, noteKeys, tagKeys } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 
 // TODO: migrate other mutations to this file
@@ -79,5 +79,21 @@ export const createDeleteTodoMutation = (getTodo: () => Todo) => {
         invalidateTodosOf(queryClient, getTodo().day),
         queryClient.invalidateQueries({ queryKey: tagKeys.all }),
       ]),
+  }));
+};
+
+/**
+ * Saves `content` as the note of `day`, as typed, or deletes it if blank. Must be called during component
+ * initialization.
+ *
+ * The day is passed with each save, rather than read once saved: a slow save still updates the note it was made for.
+ */
+export const createSaveNoteMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({ day, content }: { day: Day; content: string }) =>
+      invokeClient({ name: "save_note", args: { day, content } }),
+    // The saved note (or `null`, once deleted) replaces the cached one, rather than being refetched.
+    onSuccess: (note, { day }) => queryClient.setQueryData(noteKeys.day(day), note),
   }));
 };
