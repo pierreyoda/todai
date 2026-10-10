@@ -55,6 +55,8 @@ pub fn run() {
             commands::backups::delete_workspace_backup,
             commands::backups::export_workspace,
             commands::backups::open_workspace_backups_folder,
+            commands::backups::restore_workspace_backup,
+            commands::backups::restore_workspace_backup_as_new,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

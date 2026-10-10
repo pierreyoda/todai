@@ -12,6 +12,8 @@
   import Button from "../../common/Button.svelte";
   import ConfirmButton from "../../common/ConfirmButton.svelte";
   import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
+  import IconArrowUturnLeft from "../../common/icons/IconArrowUturnLeft.svelte";
+  import IconDocumentDuplicate from "../../common/icons/IconDocumentDuplicate.svelte";
   import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
   import IconTrash from "../../common/icons/IconTrash.svelte";
   import Table from "../../common/table/Table.svelte";
@@ -22,9 +24,18 @@
     backups: readonly WorkspaceBackup[];
     /** Of the workspace they're the backups of. */
     workspaceName: string;
+    /** Into its workspace's database. */
+    onRestore: (backup: WorkspaceBackup) => void;
+    onRestoreAsNew: (backup: WorkspaceBackup) => void;
     onDelete: (backup: WorkspaceBackup) => void;
   };
-  const { backups, workspaceName, onDelete }: BackupsTableProps = $props();
+  const {
+    backups,
+    workspaceName,
+    onRestore,
+    onRestoreAsNew,
+    onDelete,
+  }: BackupsTableProps = $props();
 </script>
 
 {#snippet createdAtCell({ createdAt, path }: WorkspaceBackup)}
@@ -52,6 +63,26 @@
 {#snippet actionsCell(backup: WorkspaceBackup)}
   {@const label = `backup of ${formatDateTime(backup.createdAt)}`}
   <div class="actions">
+    <Button
+      style="plain"
+      size="sm"
+      title="Restore"
+      aria-label={`Restore the ${label}`}
+      disabled={!backup.available}
+      onclick={() => onRestore(backup)}
+    >
+      <IconArrowUturnLeft />
+    </Button>
+    <Button
+      style="plain"
+      size="sm"
+      title="Restore as a new workspace"
+      aria-label={`Restore the ${label} as a new workspace`}
+      disabled={!backup.available}
+      onclick={() => onRestoreAsNew(backup)}
+    >
+      <IconDocumentDuplicate />
+    </Button>
     <Button
       style="plain"
       size="sm"

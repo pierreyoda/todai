@@ -53,7 +53,11 @@ impl Workspace {
 }
 
 /// `entry`, as seen by the frontend. `app_db` is `state`'s, already locked.
-fn workspace(state: &AppState, app_db: &Connection, entry: DbWorkspace) -> Result<Workspace> {
+pub(crate) fn workspace(
+    state: &AppState,
+    app_db: &Connection,
+    entry: DbWorkspace,
+) -> Result<Workspace> {
     let is_active = workspaces::active_id(app_db)?.as_deref() == Some(entry.id.as_str());
     let available = if is_active {
         state.has_db()
@@ -65,7 +69,7 @@ fn workspace(state: &AppState, app_db: &Connection, entry: DbWorkspace) -> Resul
 }
 
 /// Makes `entry`, whose database is `db`, the active workspace.
-fn open_and_activate(
+pub(crate) fn open_and_activate(
     state: &AppState,
     app_db: &Connection,
     entry: DbWorkspace,
@@ -104,8 +108,8 @@ pub async fn get_active_workspace(state: State<'_, AppState>) -> Result<Option<W
 /// Creates a workspace named `name` (trimmed, not empty), with a new database at `path`, and switches to it if
 /// `activate`.
 ///
-/// `path` must be absolute; its directory is created if needed. Fails if anything but an empty file already exists
-/// there.
+/// `path` must be absolute, outside of the backups directory; its directory is created if needed. Fails if anything but
+/// an empty file already exists there.
 #[tauri::command]
 pub async fn create_workspace(
     state: State<'_, AppState>,
@@ -113,6 +117,7 @@ pub async fn create_workspace(
     path: PathBuf,
 ) -> Result<Workspace> {
     let app_db = state.app_db();
+    backups::ensure_outside(state.backups_dir(), &path)?;
     let (entry, db) = workspaces::create(&app_db, &name, &path, Timestamp::now().as_second())?;
     open_and_activate(&state, &app_db, entry, db)
 }
@@ -120,8 +125,9 @@ pub async fn create_workspace(
 /// Registers the workspace named `name` (trimmed, not empty), whose database already exists at `path`, and switches
 /// to it. Its database is migrated if it comes from an older version of todai.
 ///
-/// `path` must be absolute. Fails without writing to it if it's not a todai workspace database (blank ones included),
-/// comes from a newer version, or is already registered.
+/// `path` must be absolute, outside of the backups directory: a backup is restored as a new workspace instead. Fails
+/// without writing to it if it's not a todai workspace database (blank ones included), comes from a newer version, or
+/// is already registered.
 #[tauri::command]
 pub async fn import_workspace(
     state: State<'_, AppState>,
@@ -129,6 +135,7 @@ pub async fn import_workspace(
     path: PathBuf,
 ) -> Result<Workspace> {
     let app_db = state.app_db();
+    backups::ensure_outside(state.backups_dir(), &path)?;
     let (entry, db) = workspaces::import(&app_db, &name, &path, Timestamp::now().as_second())?;
     open_and_activate(&state, &app_db, entry, db)
 }

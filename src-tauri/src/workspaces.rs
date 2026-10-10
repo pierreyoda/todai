@@ -263,6 +263,33 @@ pub fn import(
     Ok((insert(app_db, name, path_db, now)?, workspace_db))
 }
 
+/// Creates a workspace named `name`, whose new database at `path` is a copy of the workspace database at `source`
+/// (e.g. a backup), left untouched, and registers it. The copy is migrated if it comes from an older version of todai.
+///
+/// Fails if anything but an empty file already exists at `path`, or if `source` is not a todai workspace database or
+/// comes from a newer version.
+pub fn create_from_copy(
+    app_db: &Connection,
+    name: &str,
+    path: &Path,
+    source: &Path,
+    now: DbTimestamp,
+) -> Result<(DbWorkspace, Connection)> {
+    let name = validate_name(name)?;
+    let source = database::open_read_only(source, &database::WORKSPACE)?;
+    let path = new_file(path)?;
+    let path_db = path_to_db(&path)?;
+    ensure_unregistered(app_db, path_db)?;
+    database::snapshot(&source, &path)?;
+    let created = database::open_existing(&path, &database::WORKSPACE)
+        .and_then(|workspace_db| Ok((insert(app_db, name, path_db, now)?, workspace_db)));
+    if created.is_err() {
+        // Best effort: the error worth reporting is the creation's.
+        let _ = fs::remove_file(&path);
+    }
+    created
+}
+
 /// Renames the registered workspace `id`. `name` is trimmed, and cannot be empty.
 pub fn rename(app_db: &Connection, id: &str, name: &str) -> Result<DbWorkspace> {
     let name = validate_name(name)?;
@@ -413,6 +440,64 @@ mod tests {
         }
         assert_eq!(fs::metadata(&empty).unwrap().len(), 0);
         assert!(list(&setup.app_db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn create_from_copy_registers_a_copy_of_the_source() {
+        let setup = Setup::new();
+        let source = setup.path("backup.sqlite3");
+        database::open(&source, &database::WORKSPACE)
+            .unwrap()
+            .execute(
+                "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('t', 'Work', 0, 0, 0)",
+                [],
+            )
+            .unwrap();
+        let source_bytes = fs::read(&source).unwrap();
+
+        let (copy, db) = create_from_copy(
+            &setup.app_db,
+            " Restored ",
+            &setup.path("a/restored.sqlite3"),
+            &source,
+            NOW,
+        )
+        .unwrap();
+        assert_eq!(copy.name, "Restored");
+        assert_eq!(
+            copy.path,
+            setup.path("a/restored.sqlite3").to_str().unwrap()
+        );
+        let name: String = db
+            .query_row("SELECT name FROM tags", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(name, "Work");
+        assert_eq!(get(&setup.app_db, &copy.id).unwrap().name, "Restored");
+        assert_eq!(fs::read(&source).unwrap(), source_bytes);
+        // Not activated.
+        assert_eq!(active_id(&setup.app_db).unwrap(), None);
+    }
+
+    #[test]
+    fn create_from_copy_refuses_invalid_sources_and_targets() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        let app = setup.path("app.sqlite3");
+        database::open(&app, &database::APP).unwrap();
+        let existing = setup.path("existing.sqlite3");
+        fs::write(&existing, "data").unwrap();
+
+        let target = setup.path("copy.sqlite3");
+        for source in [&app, &setup.path("missing.sqlite3")] {
+            assert!(create_from_copy(&setup.app_db, "Copy", &target, source, NOW).is_err());
+        }
+        assert!(!target.exists());
+        let source = Path::new(&work.path);
+        for target in [existing.as_path(), Path::new(&work.path)] {
+            assert!(create_from_copy(&setup.app_db, "Copy", target, source, NOW).is_err());
+        }
+        assert_eq!(fs::read_to_string(&existing).unwrap(), "data");
+        assert_eq!(list(&setup.app_db).unwrap().len(), 1);
     }
 
     #[test]

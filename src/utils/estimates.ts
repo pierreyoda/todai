@@ -34,7 +34,7 @@ export const formatEstimate = ({ unit, value }: Estimate): string => {
  *
  * @throws {RangeError} If an estimate's value isn't a positive integer.
  */
-export const formatEstimates = (estimates: (Estimate | null | undefined)[]): string | undefined => {
+export const formatEstimates = (estimates: Iterable<Estimate | null | undefined>): string | undefined => {
   let minutes = 0;
   let points = 0;
   for (const estimate of estimates) {

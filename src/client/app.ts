@@ -149,6 +149,35 @@ export type ClientInvocationAppCommand = {
     };
     returns: never;
   };
+  /**
+   * Restores it into its workspace's database, after backing up its current state as a `pre_restore` backup:
+   * restoring the latter undoes this. If its workspace's database is missing, it's recreated from it instead: the
+   * workspace is then available again.
+   *
+   * Fails without changing anything if it can't be restored, or if its workspace's database is there but can't be
+   * opened (so neither backed up first).
+   */
+  restore_workspace_backup: {
+    args: {
+      id: UUID;
+    };
+    returns: Workspace;
+  };
+  /**
+   * Creates a workspace named `name` with a copy of it as its database, at `path`, then switches to it. The backup and
+   * its workspace are left as they are.
+   *
+   * Fails if anything but an empty file already exists at `path`, or if it's in the backups directory.
+   */
+  restore_workspace_backup_as_new: {
+    args: {
+      id: UUID;
+      name: string;
+      /** Absolute; its directory is created if needed. */
+      path: string;
+    };
+    returns: Workspace;
+  };
 };
 
 export type ClientAppCommandName = keyof ClientInvocationAppCommand;

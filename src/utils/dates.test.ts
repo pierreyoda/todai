@@ -11,6 +11,7 @@ import {
   formatFullDay,
   formatMonth,
   formatRelativeTime,
+  formatShortDate,
   formatShortDay,
   formatWeek,
   isTodaiDate,
@@ -823,5 +824,19 @@ describe("formatRelativeTime", () => {
     [new Date(2026, 9, 10, 18, 0), "in 2 hours"],
   ])("formats %s as %j", (date, label) => {
     expect(formatRelativeTime(date, now)).toBe(label);
+  });
+});
+
+describe("formatShortDate", () => {
+  useTimeZone("Europe/Paris");
+
+  const now = new Date(2026, 9, 10, 16, 0);
+
+  it.each([
+    [new Date(2026, 9, 9, 8, 47), "Oct 9"],
+    [new Date(2026, 0, 1, 0, 0), "Jan 1"],
+    [new Date(2025, 5, 30, 19, 40), "Jun 30, 2025"],
+  ])("formats %s as %j", (date, label) => {
+    expect(formatShortDate(date, now)).toBe(label);
   });
 });

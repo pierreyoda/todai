@@ -264,6 +264,10 @@ export const formatDateTime = (date: Date, now: Date = new Date()): string => {
   return format(date, isSameYear(date, now) ? "MMM d, HH:mm" : "MMM d, y, HH:mm");
 };
 
+/** E.g. "Oct 9", or "Jun 30, 2025" in another year than `now`'s. */
+export const formatShortDate = (date: Date, now: Date = new Date()): string =>
+  format(date, isSameYear(date, now) ? "MMM d" : "MMM d, y");
+
 /** E.g. "Saturday, October 10, 2026, 14:32:05". */
 export const formatFullDateTime = (date: Date): string => format(date, "EEEE, MMMM d, y, HH:mm:ss");
 

@@ -10,6 +10,7 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     backups::{self, BackupKind},
+    commands::workspaces::{open_and_activate, workspace, Workspace},
     database::{
         self,
         models::{DbWorkspace, DbWorkspaceBackup},
@@ -143,6 +144,83 @@ pub async fn export_workspace(
     Ok(())
 }
 
+/// Restores the backup `id` into its workspace's database, after backing up its current state: restoring this "pre
+/// restore" backup undoes it. If its database is missing, it's recreated from the backup instead. Returns the workspace,
+/// available again if it wasn't.
+///
+/// Fails without changing anything if the backup can't be restored (its file missing, not a todai workspace database,
+/// or from a newer version), or if its workspace's database is there but can't be opened, so neither backed up first.
+#[tauri::command]
+pub async fn restore_workspace_backup(state: State<'_, AppState>, id: String) -> Result<Workspace> {
+    restore_backup(&state, &id, &Zoned::now())
+}
+
+fn restore_backup(state: &AppState, id: &str, now: &Zoned) -> Result<Workspace> {
+    let app_db = state.app_db();
+    let backup = backups::get(&app_db, id)?;
+    let entry = workspaces::get(&app_db, &backup.workspace_id)?;
+    let is_active = workspaces::active_id(&app_db)?.as_deref() == Some(entry.id.as_str());
+
+    // The active workspace's open database is restored in place, and stays open. Its lock is released before
+    // describing the workspace, which reads it.
+    if let Some(mut db) = is_active.then(|| state.db().ok()).flatten() {
+        backups::restore(&app_db, state.backups_dir(), &entry, &mut db, &backup, now)?;
+    } else {
+        let db = if Path::new(&entry.path).exists() {
+            let mut db = database::open_existing(&entry.path, &database::WORKSPACE)?;
+            backups::restore(&app_db, state.backups_dir(), &entry, &mut db, &backup, now)?;
+            db
+        } else {
+            backups::recreate(&entry, &backup)?
+        };
+        // The active workspace, whose database could not be opened: usable again.
+        if is_active {
+            state.replace_db(Some(db));
+        }
+    }
+    log::info!(
+        "Restored workspace {:?} from backup {}",
+        entry.name,
+        backup.path
+    );
+    workspace(state, &app_db, entry)
+}
+
+/// Creates a workspace named `name` (trimmed, not empty) from the backup `id`: its database, at `path`, is a copy of
+/// the backup, migrated if it comes from an older version of todai. Then switches to it.
+///
+/// `path` must be absolute, outside of the backups directory; its directory is created if needed. Fails if anything but
+/// an empty file already exists there, or if the backup can't be restored.
+#[tauri::command]
+pub async fn restore_workspace_backup_as_new(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    path: PathBuf,
+) -> Result<Workspace> {
+    restore_backup_as_new(&state, &id, &name, &path)
+}
+
+fn restore_backup_as_new(state: &AppState, id: &str, name: &str, path: &Path) -> Result<Workspace> {
+    let app_db = state.app_db();
+    let backup = backups::get(&app_db, id)?;
+    backups::ensure_outside(state.backups_dir(), path)?;
+    let (entry, db) = workspaces::create_from_copy(
+        &app_db,
+        name,
+        path,
+        Path::new(&backup.path),
+        Timestamp::now().as_second(),
+    )?;
+    log::info!(
+        "Restored backup {} as workspace {:?} at {}",
+        backup.path,
+        entry.name,
+        entry.path
+    );
+    open_and_activate(state, &app_db, entry, db)
+}
+
 /// Opens the directory of the workspace `workspace_id`'s backups in the file manager, created if needed.
 #[tauri::command]
 pub async fn open_workspace_backups_folder(
@@ -234,5 +312,146 @@ mod tests {
             Err(TodaiError::WorkspaceUnavailable(_))
         ));
         assert!(!Path::new(&setup.other.path).exists());
+    }
+
+    fn now() -> Zoned {
+        Zoned::now()
+    }
+
+    /// Adds the tag `name` to `entry`'s database.
+    fn insert_tag(setup: &Setup, entry: &DbWorkspace, name: &str) {
+        let insert = |db: &Connection| {
+            db.execute(
+                "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES (?1, ?1, 0, 0, 0)",
+                [name],
+            )
+            .unwrap()
+        };
+        if entry.id == setup.active.id {
+            insert(&setup.state.db().unwrap());
+        } else {
+            insert(&database::open_existing(&entry.path, &database::WORKSPACE).unwrap());
+        }
+    }
+
+    /// The tags of `entry`'s database.
+    fn tag_names(setup: &Setup, entry: &DbWorkspace) -> Vec<String> {
+        let app_db = setup.state.app_db();
+        with_workspace_db(&setup.state, &app_db, entry, |db| {
+            Ok(db
+                .prepare("SELECT name FROM tags ORDER BY name")?
+                .query_map([], |r| r.get(0))?
+                .collect::<rusqlite::Result<_>>()?)
+        })
+        .unwrap()
+    }
+
+    fn manual_backup(setup: &Setup, entry: &DbWorkspace) -> DbWorkspaceBackup {
+        let app_db = setup.state.app_db();
+        with_workspace_db(&setup.state, &app_db, entry, |db| {
+            backups::create(
+                &app_db,
+                setup.state.backups_dir(),
+                entry,
+                db,
+                BackupKind::Manual,
+                &now(),
+            )
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn restore_backup_restores_the_open_database_of_the_active_workspace() {
+        let setup = setup();
+        insert_tag(&setup, &setup.active, "Before");
+        let backup = manual_backup(&setup, &setup.active);
+        insert_tag(&setup, &setup.active, "After");
+
+        let restored = restore_backup(&setup.state, &backup.id, &now()).unwrap();
+        assert!(restored.is_active && restored.available);
+        assert_eq!(tag_names(&setup, &setup.active), ["Before"]);
+        // Still the same connection.
+        assert_eq!(describe(&setup.state.db().unwrap()).unwrap(), (true, false));
+        let kinds: Vec<_> = backups::list(&setup.state.app_db(), &setup.active.id)
+            .unwrap()
+            .into_iter()
+            .map(|backup| backup.kind)
+            .collect();
+        assert_eq!(kinds, ["pre_restore", "manual"]);
+    }
+
+    #[test]
+    fn restore_backup_restores_the_database_of_another_workspace() {
+        let setup = setup();
+        insert_tag(&setup, &setup.other, "Before");
+        let backup = manual_backup(&setup, &setup.other);
+        insert_tag(&setup, &setup.other, "After");
+
+        let restored = restore_backup(&setup.state, &backup.id, &now()).unwrap();
+        assert!(!restored.is_active && restored.available);
+        assert_eq!(tag_names(&setup, &setup.other), ["Before"]);
+        // The active workspace's is left as is.
+        assert_eq!(describe(&setup.state.db().unwrap()).unwrap(), (true, false));
+    }
+
+    #[test]
+    fn restore_backup_recreates_a_missing_database() {
+        let setup = setup();
+        insert_tag(&setup, &setup.other, "Before");
+        let backup = manual_backup(&setup, &setup.other);
+        fs::remove_file(&setup.other.path).unwrap();
+
+        let restored = restore_backup(&setup.state, &backup.id, &now()).unwrap();
+        assert!(restored.available);
+        assert_eq!(tag_names(&setup, &setup.other), ["Before"]);
+    }
+
+    #[test]
+    fn restore_backup_makes_the_active_workspace_available_again() {
+        let setup = setup();
+        insert_tag(&setup, &setup.active, "Before");
+        let backup = manual_backup(&setup, &setup.active);
+        // Closed, then gone: as if missing when the app started.
+        setup.state.replace_db(None);
+        fs::remove_file(&setup.active.path).unwrap();
+
+        let restored = restore_backup(&setup.state, &backup.id, &now()).unwrap();
+        assert!(restored.is_active && restored.available);
+        assert!(setup.state.has_db());
+        assert_eq!(tag_names(&setup, &setup.active), ["Before"]);
+    }
+
+    #[test]
+    fn restore_backup_as_new_switches_to_a_copy() {
+        let setup = setup();
+        insert_tag(&setup, &setup.active, "Before");
+        let backup = manual_backup(&setup, &setup.active);
+        let path = setup._dir.path().join("copy.sqlite3");
+
+        let copy = restore_backup_as_new(&setup.state, &backup.id, "Copy", &path).unwrap();
+        assert!(copy.is_active && copy.available);
+        assert_eq!(copy.name, "Copy");
+        // A new connection, to the copy.
+        assert_eq!(
+            describe(&setup.state.db().unwrap()).unwrap(),
+            (false, false)
+        );
+        let copy = workspaces::get(&setup.state.app_db(), &copy.id).unwrap();
+        assert_eq!(tag_names(&setup, &copy), ["Before"]);
+        // Its source is left as is.
+        assert_eq!(tag_names(&setup, &setup.active), ["Before"]);
+    }
+
+    #[test]
+    fn restore_backup_as_new_refuses_paths_in_the_backups_directory() {
+        let setup = setup();
+        let backup = manual_backup(&setup, &setup.active);
+        let path = setup.state.backups_dir().join("copy.sqlite3");
+        assert!(matches!(
+            restore_backup_as_new(&setup.state, &backup.id, "Copy", &path),
+            Err(TodaiError::InvalidPath(_))
+        ));
+        assert!(!path.exists());
     }
 }

@@ -273,13 +273,101 @@ pub fn export(app_db: &Connection, backups_dir: &Path, db: &Connection, to: &Pat
     // Canonical, like the paths in the app database.
     let to = fs::canonicalize(dir)?.join(file_name);
     workspaces::ensure_unregistered(app_db, workspaces::path_to_db(&to)?)?;
-    if fs::canonicalize(backups_dir).is_ok_and(|backups_dir| to.starts_with(backups_dir)) {
+    ensure_outside(backups_dir, &to)?;
+    database::snapshot(db, &to)
+}
+
+/// Fails if `path`, absolute, is in `backups_dir`, which only the app manages: e.g. a backup must not become a
+/// workspace's database, which deleting the backup would delete.
+pub fn ensure_outside(backups_dir: &Path, path: &Path) -> Result<()> {
+    workspaces::ensure_absolute(path)?;
+    // Nothing to protect yet.
+    let Ok(backups_dir) = fs::canonicalize(backups_dir) else {
+        return Ok(());
+    };
+    // Canonical up to its closest existing ancestor: it may not exist yet.
+    let mut existing = path;
+    let mut missing = Vec::new();
+    while !existing.exists() {
+        let (Some(parent), Some(name)) = (existing.parent(), existing.file_name()) else {
+            break;
+        };
+        missing.push(name);
+        existing = parent;
+    }
+    let mut canonical = fs::canonicalize(existing)?;
+    canonical.extend(missing.iter().rev());
+    if canonical.starts_with(&backups_dir) {
         return Err(TodaiError::InvalidPath(format!(
             "{} is in the backups directory, managed by todai",
-            to.display()
+            path.display()
         )));
     }
-    database::snapshot(db, &to)
+    Ok(())
+}
+
+/// Fails if `backup` is not one of `workspace`'s backups.
+fn ensure_backup_of(workspace: &DbWorkspace, backup: &DbWorkspaceBackup) -> Result<()> {
+    if backup.workspace_id != workspace.id {
+        return Err(TodaiError::CommandError(format!(
+            "Backup {} is not a backup of workspace {:?}",
+            backup.id, workspace.name
+        )));
+    }
+    Ok(())
+}
+
+/// Replaces the content of `db`, the database of `workspace`, with the one of `backup`, one of its backups, after backing
+/// up its current state at `now`: restoring this `pre_restore` backup, returned, undoes it.
+///
+/// Fails without changing anything if `backup`'s file is missing, isn't a todai workspace database or comes from a
+/// newer version.
+pub fn restore(
+    app_db: &Connection,
+    backups_dir: &Path,
+    workspace: &DbWorkspace,
+    db: &mut Connection,
+    backup: &DbWorkspaceBackup,
+    now: &Zoned,
+) -> Result<DbWorkspaceBackup> {
+    ensure_backup_of(workspace, backup)?;
+    // Checked first, so that a backup that can't be restored doesn't leave a useless one behind.
+    database::open_read_only(&backup.path, &database::WORKSPACE)?;
+    let pre_restore = create(
+        app_db,
+        backups_dir,
+        workspace,
+        db,
+        BackupKind::PreRestore,
+        now,
+    )?;
+    database::restore(db, Path::new(&backup.path), &database::WORKSPACE)?;
+    Ok(pre_restore)
+}
+
+/// Recreates the missing database of `workspace` at its path from `backup`, one of its backups, and opens it: migrated
+/// if the backup comes from an older version of todai.
+///
+/// Fails if a file is at its path, whose content would be lost, or if its directory is missing (e.g. on a disconnected
+/// drive), rather than creating it.
+pub fn recreate(workspace: &DbWorkspace, backup: &DbWorkspaceBackup) -> Result<Connection> {
+    ensure_backup_of(workspace, backup)?;
+    let path = Path::new(&workspace.path);
+    if path.exists() {
+        return Err(TodaiError::CommandError(format!(
+            "A file is already at {}: move it away first, or restore the backup as a new workspace",
+            path.display()
+        )));
+    }
+    if !path.parent().is_some_and(Path::is_dir) {
+        return Err(TodaiError::CommandError(format!(
+            "The directory of {} is missing: reconnect its drive, or restore the backup as a new workspace",
+            path.display()
+        )));
+    }
+    let source = database::open_read_only(&backup.path, &database::WORKSPACE)?;
+    database::snapshot(&source, path)?;
+    database::open_existing(path, &database::WORKSPACE)
 }
 
 #[cfg(test)]
@@ -588,5 +676,179 @@ mod tests {
             last_created_at(&setup.app_db, &setup.workspace.id).unwrap(),
             Some(latest.timestamp().as_second())
         );
+    }
+
+    #[test]
+    fn ensure_outside_refuses_paths_in_the_backups_directory() {
+        let setup = Setup::new();
+        let backups_dir = setup.backups_dir();
+        let inside = backups_dir.join("new/workspace.sqlite3");
+        // Without any backup yet, there's nothing to protect.
+        assert!(ensure_outside(&backups_dir, &inside).is_ok());
+
+        let backup = setup.backup(BackupKind::Manual, &at(10, 9, 0));
+        for path in [
+            inside.as_path(),
+            Path::new(&backup.path),
+            &backups_dir.join(&setup.workspace.id).join("new.sqlite3"),
+            // Through a non-canonical path.
+            &setup
+                .dir
+                .path()
+                .join(".")
+                .join(BACKUPS_DIR_NAME)
+                .join("x.sqlite3"),
+        ] {
+            assert!(
+                matches!(
+                    ensure_outside(&backups_dir, path),
+                    Err(TodaiError::InvalidPath(_))
+                ),
+                "{path:?}"
+            );
+        }
+        for path in [
+            setup.dir.path().join("outside.sqlite3"),
+            setup.dir.path().join("backups-not/x.sqlite3"),
+        ] {
+            assert!(ensure_outside(&backups_dir, &path).is_ok(), "{path:?}");
+        }
+    }
+
+    #[test]
+    fn restore_replaces_the_content_after_backing_it_up() {
+        let mut setup = Setup::new();
+        let backups_dir = setup.backups_dir();
+        setup.insert_tag("Before");
+        let backup = setup.backup(BackupKind::Manual, &at(10, 9, 0));
+        setup.insert_tag("After");
+
+        let pre_restore = restore(
+            &setup.app_db,
+            &backups_dir,
+            &setup.workspace,
+            &mut setup.db,
+            &backup,
+            &at(10, 10, 0),
+        )
+        .unwrap();
+        assert_eq!(pre_restore.kind, "pre_restore");
+        assert_eq!(tag_names(&setup.workspace.path), ["Before"]);
+        assert_eq!(tag_names(&pre_restore.path), ["After", "Before"]);
+        assert_eq!(setup.listed(), [pre_restore.id.clone(), backup.id]);
+
+        // Undone by restoring the backup of the state before.
+        restore(
+            &setup.app_db,
+            &backups_dir,
+            &setup.workspace,
+            &mut setup.db,
+            &pre_restore,
+            &at(10, 11, 0),
+        )
+        .unwrap();
+        assert_eq!(tag_names(&setup.workspace.path), ["After", "Before"]);
+    }
+
+    #[test]
+    fn restore_refuses_missing_and_foreign_backups_without_changes() {
+        let mut setup = Setup::new();
+        let backups_dir = setup.backups_dir();
+        setup.insert_tag("Work");
+        let missing = setup.backup(BackupKind::Manual, &at(10, 9, 0));
+        fs::remove_file(&missing.path).unwrap();
+        let (other, other_db) = workspaces::create(
+            &setup.app_db,
+            "Other",
+            &setup.dir.path().join("other.sqlite3"),
+            NOW,
+        )
+        .unwrap();
+        let foreign = create(
+            &setup.app_db,
+            &backups_dir,
+            &other,
+            &other_db,
+            BackupKind::Manual,
+            &at(10, 9, 0),
+        )
+        .unwrap();
+
+        for backup in [&missing, &foreign] {
+            assert!(restore(
+                &setup.app_db,
+                &backups_dir,
+                &setup.workspace,
+                &mut setup.db,
+                backup,
+                &at(10, 10, 0),
+            )
+            .is_err());
+        }
+        assert_eq!(tag_names(&setup.workspace.path), ["Work"]);
+        // Without a useless backup of the state before.
+        assert_eq!(setup.listed(), [missing.id]);
+    }
+
+    /// A workspace with a tag, and a backup of it: its database closed, as if it wasn't the active one.
+    fn closed_workspace_with_backup(setup: &Setup) -> (DbWorkspace, DbWorkspaceBackup) {
+        let (workspace, db) = workspaces::create(
+            &setup.app_db,
+            "Archive",
+            &setup.dir.path().join("archive/archive.sqlite3"),
+            NOW,
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('t', 'Archived', 0, 0, 0)",
+            [],
+        )
+        .unwrap();
+        let backup = create(
+            &setup.app_db,
+            &setup.backups_dir(),
+            &workspace,
+            &db,
+            BackupKind::Automatic,
+            &at(10, 9, 0),
+        )
+        .unwrap();
+        (workspace, backup)
+    }
+
+    #[test]
+    fn recreate_rebuilds_a_missing_database() {
+        let setup = Setup::new();
+        let (workspace, backup) = closed_workspace_with_backup(&setup);
+        fs::remove_file(&workspace.path).unwrap();
+
+        let db = recreate(&workspace, &backup).unwrap();
+        let name: String = db
+            .query_row("SELECT name FROM tags", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(name, "Archived");
+        let journal_mode: String = db
+            .pragma_query_value(None, "journal_mode", |r| r.get(0))
+            .unwrap();
+        assert_eq!(journal_mode, "wal");
+    }
+
+    #[test]
+    fn recreate_refuses_existing_files_and_missing_directories() {
+        let setup = Setup::new();
+        let (workspace, backup) = closed_workspace_with_backup(&setup);
+        // Not a database anymore, but maybe worth keeping.
+        fs::write(&workspace.path, "Corrupted").unwrap();
+        assert!(recreate(&workspace, &backup).is_err());
+        assert_eq!(fs::read_to_string(&workspace.path).unwrap(), "Corrupted");
+
+        // E.g. on a disconnected drive.
+        let dir = Path::new(&workspace.path).parent().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+        assert!(recreate(&workspace, &backup).is_err());
+        assert!(!dir.exists());
+
+        // Another workspace's backup.
+        assert!(recreate(&setup.workspace, &backup).is_err());
     }
 }

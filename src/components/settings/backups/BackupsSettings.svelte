@@ -25,6 +25,8 @@
   } from "../../../utils";
   import Button from "../../common/Button.svelte";
   import BackupsTable from "./BackupsTable.svelte";
+  import BackupRestoreModal from "./BackupRestoreModal.svelte";
+  import BackupRestoreAsNewModal from "./BackupRestoreAsNewModal.svelte";
   import ErrorBanner from "../../common/ErrorBanner.svelte";
   import SettingsContainer from "../SettingsContainer.svelte";
   import BackupsWorkspacePicker from "./BackupsWorkspacePicker.svelte";
@@ -103,6 +105,12 @@
     if (!path) return;
     exportWorkspace.mutate({ workspace, path });
   };
+
+  // Kept once closed, so that the modals don't lose their content while closing
+  let showRestoreDialog = $state(false);
+  let restoredBackup = $state<WorkspaceBackup | null>(null);
+  let showRestoreAsNewDialog = $state(false);
+  let restoredAsNewBackup = $state<WorkspaceBackup | null>(null);
 </script>
 
 <SettingsContainer>
@@ -179,6 +187,14 @@
       <BackupsTable
         backups={backups.data}
         workspaceName={workspace.name}
+        onRestore={(backup) => {
+          restoredBackup = backup;
+          showRestoreDialog = true;
+        }}
+        onRestoreAsNew={(backup) => {
+          restoredAsNewBackup = backup;
+          showRestoreAsNewDialog = true;
+        }}
         onDelete={(backup) => deleteBackup.mutate(backup)}
       />
     {:else}
@@ -186,6 +202,24 @@
     {/if}
   </div>
 </SettingsContainer>
+{#if restoredBackup}
+  <BackupRestoreModal
+    bind:show={showRestoreDialog}
+    {workspace}
+    backup={restoredBackup}
+  />
+{/if}
+<!-- Recreated for each backup, as the form only reads its initial data -->
+{#key restoredAsNewBackup}
+  {#if restoredAsNewBackup}
+    <BackupRestoreAsNewModal
+      bind:show={showRestoreAsNewDialog}
+      {workspace}
+      backup={restoredAsNewBackup}
+      onRestored={({ id }) => goto(`?workspace=${id}`, { replace: true })}
+    />
+  {/if}
+{/key}
 
 <style lang="postcss">
   @reference "tailwindcss";
