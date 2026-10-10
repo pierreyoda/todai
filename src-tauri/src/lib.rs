@@ -48,6 +48,8 @@ pub fn run() {
             commands::tags::update_tag,
             commands::tags::delete_tag,
             commands::tags::set_todo_tags,
+            commands::notes::get_note,
+            commands::notes::save_note,
             commands::workspaces::list_workspaces,
             commands::workspaces::get_active_workspace,
             commands::workspaces::create_workspace,

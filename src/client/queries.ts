@@ -79,6 +79,18 @@ export const tagsQueryOptions = queryOptions({
   queryFn: () => invokeClient({ name: "list_tags" }),
 });
 
+export const noteKeys = {
+  all: ["notes"] as const,
+  day: (day: Day) => [...noteKeys.all, day] as const,
+};
+
+/** `null` if `day` has no note. */
+export const noteQueryOptions = (day: Day) =>
+  queryOptions({
+    queryKey: noteKeys.day(day),
+    queryFn: () => invokeClient({ name: "get_note", args: { day } }),
+  });
+
 /**
  * The active workspace and each workspace's backups are nested in the list, so that invalidating the list also
  * refreshes them (e.g. a workspace's last backup, shown in the list). Ids are UUIDs, so they never collide with
@@ -92,7 +104,7 @@ export const workspaceKeys = {
 };
 
 /**
- * Refreshes the workspaces (with the active one) and, as they come from its database, the todos and tags: after
+ * Refreshes the workspaces (with the active one) and, as they come from its database, the todos, tags and notes: after
  * switching to another workspace. Awaitable, so that a mutation can stay pending until then.
  */
 export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
@@ -100,16 +112,18 @@ export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
     queryClient.invalidateQueries({ queryKey: todoKeys.all }),
     queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+    queryClient.invalidateQueries({ queryKey: noteKeys.all }),
   ]);
 
 /**
- * Refreshes the workspaces and drops the todos and tags, which came from the active workspace's database: after
+ * Refreshes the workspaces and drops the todos, tags and notes, which came from the active workspace's database: after
  * closing it without opening another one, so there is nothing to refetch them from. Awaitable, so that a mutation can
  * stay pending until then.
  */
 export const clearActiveWorkspace = (queryClient: QueryClient) => {
   queryClient.removeQueries({ queryKey: todoKeys.all });
   queryClient.removeQueries({ queryKey: tagKeys.all });
+  queryClient.removeQueries({ queryKey: noteKeys.all });
   return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
 };
 
