@@ -12,8 +12,10 @@
   type NoteEditorProps = {
     /** Bindable: the note's Markdown. */
     value: string;
+    /** When scrolled, e.g. to scroll the preview along: see `scrollRatio`. */
+    onScroll?: () => void;
   };
-  let { value = $bindable() }: NoteEditorProps = $props();
+  let { value = $bindable(), onScroll }: NoteEditorProps = $props();
 
   let textarea = $state<HTMLTextAreaElement>();
 
@@ -97,6 +99,47 @@
     if (action === "blur") textarea.blur();
     else if (action) apply(textarea, action);
   };
+
+  /** Where `offset` is once `edit` is made: moved with the text after it, or to the end of the text replacing it. */
+  const offsetAfter = (offset: number, { from, to, insert }: TextEdit) =>
+    offset <= from ? offset : offset >= to ? offset + insert.length - (to - from) : from + insert.length;
+
+  /**
+   * Makes `edit` from outside of the editor (e.g. a task checked in the preview), undoable like the others, leaving
+   * the selection, the scroll position and the focus as they were.
+   */
+  export const applyExternalEdit = (edit: TextEdit) => {
+    if (!textarea) return;
+    const { selectionStart, selectionEnd, scrollTop } = textarea;
+    const focused = document.activeElement;
+    // Editing commands only apply to the focused element
+    textarea.focus({ preventScroll: true });
+    apply(textarea, {
+      ...edit,
+      selection: {
+        start: offsetAfter(selectionStart, edit),
+        end: offsetAfter(selectionEnd, edit),
+      },
+    });
+    textarea.scrollTop = scrollTop;
+    if (focused === textarea) return;
+    if (focused instanceof HTMLElement && focused !== document.body && focused.isConnected) {
+      focused.focus({ preventScroll: true });
+    } else {
+      textarea.blur();
+    }
+  };
+
+  /**
+   * How far the note is scrolled, from 0 (its top shown) to 1 (its bottom shown). While it all fits, where the caret
+   * is in it instead: as it's written.
+   */
+  export const scrollRatio = (): number => {
+    if (!textarea) return 0;
+    const scrollable = textarea.scrollHeight - textarea.clientHeight;
+    if (scrollable > 0) return textarea.scrollTop / scrollable;
+    return textarea.value.length > 0 ? textarea.selectionEnd / textarea.value.length : 0;
+  };
 </script>
 
 <FieldTextArea
@@ -108,4 +151,5 @@
   placeholder={"Write about your day…\n\n# Headings, **bold**, - lists, - [ ] tasks"}
   spellcheck
   {onkeydown}
+  onscroll={onScroll}
 />

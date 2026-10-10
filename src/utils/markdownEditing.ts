@@ -1,5 +1,6 @@
 /*
- * Keyboard helpers of the Markdown editor, as pure functions: from a text and its selection, the edit to make.
+ * Helpers of the Markdown editor, as pure functions: from a text and its selection (or a task checked in the preview),
+ * the edit to make.
  */
 
 /** A selection in a text, as offsets: `start` equals `end` for a caret. */
@@ -158,5 +159,79 @@ export const toggleWrap = (text: string, selection: TextSelection, marker: strin
     to: end,
     insert: marker + selected + marker,
     selection: { start: start + length, end: end + length },
+  };
+};
+
+/**
+ * A task list item's line: its prefix (blockquotes, indentation, marker), its box, then its text. Marked only makes
+ * an item a task when its box is followed by spaces and text.
+ */
+const TASK_LINE = /^((?:[ \t]*>[ \t]?)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\] +(\S.*)$/;
+
+/** A task list item of a Markdown text. */
+export type Task = {
+  /** Of its box's `[`. */
+  offset: number;
+  checked: boolean;
+  /** The first line of its text, trimmed. */
+  text: string;
+};
+
+/**
+ * The task list items of `text`, in order, outside of fenced code blocks.
+ *
+ * Can find more than the preview shows (e.g. in an indented code block, or a paragraph's line starting like an item),
+ * never fewer.
+ */
+export const findTasks = (text: string): Task[] => {
+  const tasks: Task[] = [];
+  let inCodeBlock = false;
+  let lineStart = 0;
+  for (const line of text.split("\n")) {
+    if (CODE_FENCE.test(line)) {
+      inCodeBlock = !inCodeBlock;
+    } else if (!inCodeBlock) {
+      const match = TASK_LINE.exec(line);
+      if (match) {
+        tasks.push({
+          offset: lineStart + match[1].length,
+          checked: match[2] !== " ",
+          text: match[3].trim(),
+        });
+      }
+    }
+    lineStart += line.length + 1;
+  }
+  return tasks;
+};
+
+/**
+ * Checks or unchecks the task shown `index`-th in the preview, `checked` before, with `task.text` as its text: among
+ * the tasks of `text` with the same state and the same first line of text, the one closest to that position. The rest
+ * of the text, and its selection, are left as they are.
+ *
+ * `null` if no task matches, e.g. if the text changed meanwhile.
+ */
+export const toggleTask = (
+  text: string,
+  task: { index: number; checked: boolean; text: string },
+): TextEdit | null => {
+  const wanted = task.text.split("\n", 1)[0].trim();
+  let closest: Task | null = null;
+  let closestDistance = Infinity;
+  for (const [index, candidate] of findTasks(text).entries()) {
+    const distance = Math.abs(index - task.index);
+    if (candidate.checked === task.checked && candidate.text === wanted && distance < closestDistance) {
+      closest = candidate;
+      closestDistance = distance;
+    }
+  }
+  if (!closest) return null;
+  const { offset } = closest;
+  return {
+    from: offset + 1,
+    to: offset + 2,
+    insert: task.checked ? " " : "x",
+    selection: caret(offset + 2),
   };
 };

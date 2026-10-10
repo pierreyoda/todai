@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   continueList,
+  findTasks,
   indent,
   outdent,
+  toggleTask,
   toggleWrap,
   type TextEdit,
   type TextSelection,
@@ -174,5 +176,91 @@ describe("toggleWrap", () => {
 
   it("keeps bold and italic apart", () => {
     expect(run((text, selection) => toggleWrap(text, selection, "_"), "**«bold»**")).toBe("**_«bold»_**");
+  });
+});
+
+describe("findTasks", () => {
+  it("finds the tasks of every kind of list, nested or quoted", () => {
+    const text = [
+      "- [ ] Bullet",
+      "  - [x] Nested",
+      "* [X] Star",
+      "+ [ ] Plus",
+      "1. [ ] Ordered",
+      "2) [x] Parenthesis",
+      "> - [ ] Quoted",
+      "-\t[ ] Tab",
+    ].join("\n");
+    expect(findTasks(text).map(({ checked, text }) => [checked, text])).toEqual([
+      [false, "Bullet"],
+      [true, "Nested"],
+      [true, "Star"],
+      [false, "Plus"],
+      [false, "Ordered"],
+      [true, "Parenthesis"],
+      [false, "Quoted"],
+      [false, "Tab"],
+    ]);
+  });
+
+  it("locates each box", () => {
+    const text = "# Day\n\n- [ ] One\n  - [x] Two";
+    for (const { offset } of findTasks(text)) {
+      expect(text.slice(offset, offset + 3)).toMatch(/^\[[ x]\]$/);
+    }
+  });
+
+  it("only keeps tasks with text, as the preview does", () => {
+    expect(findTasks("- [ ]\n- [ ]   \n- [] No\n- [ ]No space\n-[ ] No space")).toEqual([]);
+  });
+
+  it("skips fenced code blocks", () => {
+    const text = "```\n- [ ] Code\n```\n~~~\n- [ ] Code\n~~~\n- [ ] Task";
+    expect(findTasks(text).map(({ text }) => text)).toEqual(["Task"]);
+  });
+});
+
+describe("toggleTask", () => {
+  /** `text` once its task shown `index`-th, `checked` and with `taskText`, is toggled; `null` if none matches. */
+  const toggle = (text: string, index: number, checked: boolean, taskText: string) => {
+    const edit = toggleTask(text, { index, checked, text: taskText });
+    return edit && text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
+  };
+
+  it("checks and unchecks a task, leaving the rest of the text", () => {
+    const text = "- [ ] Milk\n- [x] Eggs\n- [ ] Bread";
+    expect(toggle(text, 0, false, "Milk")).toBe("- [x] Milk\n- [x] Eggs\n- [ ] Bread");
+    expect(toggle(text, 1, true, "Eggs")).toBe("- [ ] Milk\n- [ ] Eggs\n- [ ] Bread");
+  });
+
+  it("toggles nested and quoted tasks", () => {
+    expect(toggle("- [ ] Call\n  - [ ] about the boiler", 1, false, "about the boiler")).toBe(
+      "- [ ] Call\n  - [x] about the boiler",
+    );
+    expect(toggle("> 1. [X] Quoted", 0, true, "Quoted")).toBe("> 1. [ ] Quoted");
+  });
+
+  it("tells identical tasks apart by their position", () => {
+    const text = "- [ ] Same\n- [ ] Same\n- [ ] Same";
+    expect(toggle(text, 1, false, "Same")).toBe("- [ ] Same\n- [x] Same\n- [ ] Same");
+  });
+
+  it("skips what looks like a task but isn't shown as one", () => {
+    // An indented code block: found, but not shown in the preview
+    const text = "Code:\n\n    - [ ] Not a task\n\n- [ ] A task";
+    expect(toggle(text, 0, false, "A task")).toBe("Code:\n\n    - [ ] Not a task\n\n- [x] A task");
+  });
+
+  it("changes nothing without a task in the same state and with the same text", () => {
+    const text = "- [ ] Milk";
+    expect(toggle(text, 0, true, "Milk")).toBeNull();
+    expect(toggle(text, 0, false, "Eggs")).toBeNull();
+    expect(toggle("", 0, false, "Milk")).toBeNull();
+  });
+
+  it("compares the text's first line only, trimmed", () => {
+    expect(toggle("- [ ] Call the plumber  \n  about the boiler", 0, false, "Call the plumber\nabout the boiler")).toBe(
+      "- [x] Call the plumber  \n  about the boiler",
+    );
   });
 });

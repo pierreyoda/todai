@@ -1,11 +1,12 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
 
   import { createSaveNoteMutation } from "../../client/mutations";
   import type { Day, Note } from "../../client/types";
   import { Autosave } from "../../utils/autosave.svelte";
   import { formatFullDay } from "../../utils/dates";
+  import { toggleTask } from "../../utils/markdownEditing";
   import NoteEditor from "./NoteEditor.svelte";
   import NotePreview from "./NotePreview.svelte";
   import NoteSaveStatus from "./NoteSaveStatus.svelte";
@@ -22,6 +23,27 @@
   const autosave = new Autosave(note?.content ?? "", (content) =>
     saveNote.mutateAsync({ day, content }),
   );
+
+  let editor = $state<ReturnType<typeof NoteEditor>>();
+  let preview = $state<ReturnType<typeof NotePreview>>();
+
+  // Through the editor, so that ⌘Z undoes it there
+  const onToggleTask = (task: Parameters<typeof toggleTask>[1]) => {
+    const edit = toggleTask(autosave.draft, task);
+    if (!edit || !editor) return false;
+    editor.applyExternalEdit(edit);
+    return true;
+  };
+
+  /** The preview follows the editor: proportionally, as their contents' heights differ. */
+  const syncPreviewScroll = () => {
+    if (editor) preview?.scrollToRatio(editor.scrollRatio());
+  };
+  // Also once the preview shows a change, as it may have grown
+  $effect(() => {
+    void autosave.draft;
+    void tick().then(syncPreviewScroll);
+  });
 
   onMount(() => {
     // Closing the window waits for the draft to be saved. Quitting the app (⌘Q) doesn't: it can't be intercepted.
@@ -45,8 +67,12 @@
     </div>
   </header>
   <div class="panes">
-    <NoteEditor bind:value={autosave.draft} />
-    <NotePreview content={autosave.draft} />
+    <NoteEditor
+      bind:this={editor}
+      bind:value={autosave.draft}
+      onScroll={syncPreviewScroll}
+    />
+    <NotePreview bind:this={preview} content={autosave.draft} {onToggleTask} />
   </div>
 </section>
 

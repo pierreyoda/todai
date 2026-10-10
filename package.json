@@ -17,6 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "@date-fns/utc": "2.1.1",
+    "@humanspeak/svelte-markdown": "2.1.1",
     "@tanstack/svelte-query": "6.3.1",
     "@tauri-apps/api": "2.12.1",
     "@tauri-apps/plugin-dialog": "2.8.1",
