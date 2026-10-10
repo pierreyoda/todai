@@ -773,31 +773,37 @@ describe("formatShortDay", () => {
   });
 });
 
+/**
+ * A local date and time: `[year, monthIndex, day, hours, minutes, seconds?]`. Turned into a `Date` in the test itself,
+ * with `localDateTime`, rather than in `describe` or `it.each`: they run before `useTimeZone` sets the local time zone.
+ */
+type LocalDateTime = [number, number, number, number, number, number?];
+
+const localDateTime = ([year, monthIndex, day, hours, minutes, seconds = 0]: LocalDateTime): Date =>
+  new Date(year, monthIndex, day, hours, minutes, seconds);
+
 describe("formatDateTime", () => {
   useTimeZone("Europe/Paris");
 
-  const now = new Date(2026, 9, 10, 16, 0);
+  const NOW: LocalDateTime = [2026, 9, 10, 16, 0];
 
-  it.each([
-    [new Date(2026, 9, 10, 14, 32), "Today, 14:32"],
-    [new Date(2026, 9, 10, 0, 5), "Today, 00:05"],
-    [new Date(2026, 9, 9, 23, 59), "Yesterday, 23:59"],
-    [new Date(2026, 9, 9, 8, 47), "Yesterday, 08:47"],
-    [new Date(2026, 9, 7, 21, 15), "Oct 7, 21:15"],
-    [new Date(2026, 0, 1, 9, 0), "Jan 1, 09:00"],
-    [new Date(2025, 5, 30, 19, 40), "Jun 30, 2025, 19:40"],
-  ])("formats %s as %j", (date, label) => {
-    expect(formatDateTime(date, now)).toBe(label);
+  it.each<[LocalDateTime, string]>([
+    [[2026, 9, 10, 14, 32], "Today, 14:32"],
+    [[2026, 9, 10, 0, 5], "Today, 00:05"],
+    [[2026, 9, 9, 23, 59], "Yesterday, 23:59"],
+    [[2026, 9, 9, 8, 47], "Yesterday, 08:47"],
+    [[2026, 9, 7, 21, 15], "Oct 7, 21:15"],
+    [[2026, 0, 1, 9, 0], "Jan 1, 09:00"],
+    [[2025, 5, 30, 19, 40], "Jun 30, 2025, 19:40"],
+  ])("formats %j as %j", (date, label) => {
+    expect(formatDateTime(localDateTime(date), localDateTime(NOW))).toBe(label);
   });
 
   it("follows local days, not UTC ones", () => {
     // 23:30 in Paris is still the 10th, but already the 9th at 21:30 in UTC
-    expect(formatDateTime(new Date(2026, 9, 10, 23, 30), new Date(2026, 9, 10, 23, 45))).toBe(
-      "Today, 23:30",
-    );
-    expect(formatDateTime(new Date(2026, 9, 10, 23, 30), new Date(2026, 9, 11, 0, 30))).toBe(
-      "Yesterday, 23:30",
-    );
+    const date = localDateTime([2026, 9, 10, 23, 30]);
+    expect(formatDateTime(date, localDateTime([2026, 9, 10, 23, 45]))).toBe("Today, 23:30");
+    expect(formatDateTime(date, localDateTime([2026, 9, 11, 0, 30]))).toBe("Yesterday, 23:30");
   });
 });
 
@@ -805,38 +811,41 @@ describe("formatFullDateTime", () => {
   useTimeZone("Europe/Paris");
 
   it("formats the local date and time, to the second", () => {
-    expect(formatFullDateTime(new Date(2026, 9, 10, 14, 32, 5))).toBe(
+    expect(formatFullDateTime(localDateTime([2026, 9, 10, 14, 32, 5]))).toBe(
       "Saturday, October 10, 2026, 14:32:05",
     );
   });
 });
 
 describe("formatRelativeTime", () => {
-  const now = new Date(2026, 9, 10, 16, 0);
+  // Without daylight saving time changes in between, which would shift the durations by an hour
+  useTimeZone("Europe/Paris");
 
-  it.each([
-    [new Date(2026, 9, 10, 15, 59, 30), "Just now"],
-    [new Date(2026, 9, 10, 16, 0, 30), "Just now"],
-    [new Date(2026, 9, 10, 15, 55), "5 minutes ago"],
-    [new Date(2026, 9, 10, 14, 0), "2 hours ago"],
-    [new Date(2026, 9, 8, 16, 0), "2 days ago"],
-    [new Date(2026, 6, 2, 8, 12), "3 months ago"],
-    [new Date(2026, 9, 10, 18, 0), "in 2 hours"],
-  ])("formats %s as %j", (date, label) => {
-    expect(formatRelativeTime(date, now)).toBe(label);
+  const NOW: LocalDateTime = [2026, 9, 10, 16, 0];
+
+  it.each<[LocalDateTime, string]>([
+    [[2026, 9, 10, 15, 59, 30], "Just now"],
+    [[2026, 9, 10, 16, 0, 30], "Just now"],
+    [[2026, 9, 10, 15, 55], "5 minutes ago"],
+    [[2026, 9, 10, 14, 0], "2 hours ago"],
+    [[2026, 9, 8, 16, 0], "2 days ago"],
+    [[2026, 6, 2, 8, 12], "3 months ago"],
+    [[2026, 9, 10, 18, 0], "in 2 hours"],
+  ])("formats %j as %j", (date, label) => {
+    expect(formatRelativeTime(localDateTime(date), localDateTime(NOW))).toBe(label);
   });
 });
 
 describe("formatShortDate", () => {
   useTimeZone("Europe/Paris");
 
-  const now = new Date(2026, 9, 10, 16, 0);
+  const NOW: LocalDateTime = [2026, 9, 10, 16, 0];
 
-  it.each([
-    [new Date(2026, 9, 9, 8, 47), "Oct 9"],
-    [new Date(2026, 0, 1, 0, 0), "Jan 1"],
-    [new Date(2025, 5, 30, 19, 40), "Jun 30, 2025"],
-  ])("formats %s as %j", (date, label) => {
-    expect(formatShortDate(date, now)).toBe(label);
+  it.each<[LocalDateTime, string]>([
+    [[2026, 9, 9, 8, 47], "Oct 9"],
+    [[2026, 0, 1, 0, 0], "Jan 1"],
+    [[2025, 5, 30, 19, 40], "Jun 30, 2025"],
+  ])("formats %j as %j", (date, label) => {
+    expect(formatShortDate(localDateTime(date), localDateTime(NOW))).toBe(label);
   });
 });
