@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "A personal, day-by-day tasks-management and notes-taking application.",
   "type": "module",
+  "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
