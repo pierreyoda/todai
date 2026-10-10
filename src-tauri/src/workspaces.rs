@@ -34,13 +34,13 @@ fn workspace_not_found(id: &str) -> TodaiError {
 }
 
 /// `path`, as stored in the app database.
-fn path_to_db(path: &Path) -> Result<&str> {
+pub(crate) fn path_to_db(path: &Path) -> Result<&str> {
     path.to_str()
         .ok_or_else(|| TodaiError::InvalidPath(format!("{} is not valid UTF-8", path.display())))
 }
 
 /// Fails if `path` is relative.
-fn ensure_absolute(path: &Path) -> Result<()> {
+pub(crate) fn ensure_absolute(path: &Path) -> Result<()> {
     if !path.is_absolute() {
         return Err(TodaiError::InvalidPath(format!(
             "{} is not absolute",
@@ -110,7 +110,7 @@ fn find_by_path(app_db: &Connection, path: &str) -> Result<Option<DbWorkspace>> 
 }
 
 /// Fails if `path` is already the database of a registered workspace.
-fn ensure_unregistered(app_db: &Connection, path: &str) -> Result<()> {
+pub(crate) fn ensure_unregistered(app_db: &Connection, path: &str) -> Result<()> {
     if let Some(entry) = find_by_path(app_db, path)? {
         return Err(TodaiError::CommandError(format!(
             "{path} is already the database of workspace {:?}",

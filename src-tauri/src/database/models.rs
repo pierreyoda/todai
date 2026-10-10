@@ -81,6 +81,10 @@ pub struct DbWorkspace {
     pub path: String,
     pub created_at: DbTimestamp,
     pub last_opened_at: Option<DbTimestamp>,
+    /// Whether a backup is made when it's opened, if its last automatic one is from another day.
+    pub auto_backup: bool,
+    /// Automatic backups kept: older ones are deleted.
+    pub auto_backup_keep: u32,
 }
 
 impl DbWorkspace {
@@ -91,6 +95,33 @@ impl DbWorkspace {
             path: row.get("path")?,
             created_at: row.get("created_at")?,
             last_opened_at: row.get("last_opened_at")?,
+            auto_backup: row.get("auto_backup")?,
+            auto_backup_keep: row.get("auto_backup_keep")?,
+        })
+    }
+}
+
+/// A backup of a workspace's database, in the app database.
+#[derive(Debug)]
+pub struct DbWorkspaceBackup {
+    /// UUIDv7.
+    pub id: String,
+    pub workspace_id: String,
+    /// Absolute and canonical path of its file.
+    pub path: String,
+    /// `manual`, `automatic`, `pre_migration` or `pre_restore`.
+    pub kind: String,
+    pub created_at: DbTimestamp,
+}
+
+impl DbWorkspaceBackup {
+    pub fn from_row(row: &Row) -> Result<Self> {
+        Ok(Self {
+            id: row.get("id")?,
+            workspace_id: row.get("workspace_id")?,
+            path: row.get("path")?,
+            kind: row.get("kind")?,
+            created_at: row.get("created_at")?,
         })
     }
 }

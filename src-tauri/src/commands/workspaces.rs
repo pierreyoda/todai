@@ -4,7 +4,13 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
-use crate::{database::models::DbWorkspace, errors::Result, state::AppState, workspaces};
+use crate::{
+    backups,
+    database::models::{DbTimestamp, DbWorkspace},
+    errors::Result,
+    state::AppState,
+    workspaces,
+};
 
 /// A workspace, with its own database.
 #[derive(Serialize, Debug)]
@@ -19,10 +25,17 @@ pub struct Workspace {
     pub available: bool,
     pub created_at: Timestamp,
     pub last_opened_at: Option<Timestamp>,
+    /// When its last backup was made, whatever its kind.
+    pub last_backup_at: Option<Timestamp>,
 }
 
 impl Workspace {
-    fn new(entry: DbWorkspace, is_active: bool, available: bool) -> Result<Self> {
+    fn new(
+        entry: DbWorkspace,
+        is_active: bool,
+        available: bool,
+        last_backup_at: Option<DbTimestamp>,
+    ) -> Result<Self> {
         Ok(Self {
             id: entry.id,
             name: entry.name,
@@ -34,6 +47,7 @@ impl Workspace {
                 .last_opened_at
                 .map(Timestamp::from_second)
                 .transpose()?,
+            last_backup_at: last_backup_at.map(Timestamp::from_second).transpose()?,
         })
     }
 }
@@ -46,7 +60,8 @@ fn workspace(state: &AppState, app_db: &Connection, entry: DbWorkspace) -> Resul
     } else {
         Path::new(&entry.path).is_file()
     };
-    Workspace::new(entry, is_active, available)
+    let last_backup_at = backups::last_created_at(app_db, &entry.id)?;
+    Workspace::new(entry, is_active, available, last_backup_at)
 }
 
 /// Makes `entry`, whose database is `db`, the active workspace.

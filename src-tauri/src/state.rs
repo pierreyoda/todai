@@ -1,6 +1,7 @@
 use rusqlite::Connection;
 use std::{
     ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
     sync::{Mutex, MutexGuard, PoisonError},
 };
 
@@ -12,6 +13,8 @@ pub struct AppState {
     app_db: Mutex<Connection>,
     /// The active workspace's database, if it could be opened.
     db: Mutex<Option<Connection>>,
+    /// Where the workspaces' backups are kept, in the app data directory: created with the first one.
+    backups_dir: PathBuf,
 }
 
 /// Locks `mutex`, recovering from poisoning.
@@ -22,11 +25,16 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl AppState {
-    pub fn new(app_db: Connection, db: Option<Connection>) -> Self {
+    pub fn new(app_db: Connection, db: Option<Connection>, backups_dir: PathBuf) -> Self {
         Self {
             app_db: Mutex::new(app_db),
             db: Mutex::new(db),
+            backups_dir,
         }
+    }
+
+    pub fn backups_dir(&self) -> &Path {
+        &self.backups_dir
     }
 
     /// Locks the app database's connection for the guard's lifetime.

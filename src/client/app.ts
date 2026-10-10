@@ -16,6 +16,32 @@ export interface Workspace {
   available: boolean;
   createdAt: Date;
   lastOpenedAt?: Date;
+  /** When its last backup was made, whatever its kind. */
+  lastBackupAt?: Date;
+}
+
+/**
+ * What a backup was made for:
+ * - `manual`: asked for;
+ * - `automatic`: made when the workspace is opened, at most once a day (only the most recent ones are kept);
+ * - `pre_migration`: made before migrating its database to a newer version of todai;
+ * - `pre_restore`: its state before restoring another backup, so that restoring can be undone.
+ */
+export type WorkspaceBackupKind = "manual" | "automatic" | "pre_migration" | "pre_restore";
+
+/** A backup of a workspace's database, kept in the app's data directory. */
+export interface WorkspaceBackup {
+  /** UUID v7. */
+  id: UUID;
+  workspaceId: UUID;
+  /** Absolute path of its file. */
+  path: string;
+  kind: WorkspaceBackupKind;
+  /** Whether its file still exists (e.g. not deleted by hand). */
+  available: boolean;
+  /** Of its file, in bytes, if available. */
+  size?: number;
+  createdAt: Date;
 }
 
 /** Commands about the app itself rather than the active workspace's content. */
@@ -80,6 +106,46 @@ export type ClientInvocationAppCommand = {
   remove_workspace: {
     args: {
       id: UUID;
+    };
+    returns: never;
+  };
+  /** Most recent first. */
+  list_workspace_backups: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: WorkspaceBackup[];
+  };
+  /** A manual backup. Fails if its database is unavailable. */
+  create_workspace_backup: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: WorkspaceBackup;
+  };
+  /** With its file. */
+  delete_workspace_backup: {
+    args: {
+      id: UUID;
+    };
+    returns: never;
+  };
+  /**
+   * Writes a copy of its database to `path`, not listed among its backups. A file there is replaced, unless it's a
+   * workspace's database or a backup. Fails if its database is unavailable.
+   */
+  export_workspace: {
+    args: {
+      workspaceId: UUID;
+      /** Absolute, in an existing directory. */
+      path: string;
+    };
+    returns: never;
+  };
+  /** Opens the directory of its backups in the file manager. */
+  open_workspace_backups_folder: {
+    args: {
+      workspaceId: UUID;
     };
     returns: never;
   };

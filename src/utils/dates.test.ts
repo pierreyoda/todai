@@ -5,9 +5,12 @@ import {
   addMonths,
   calendarWeeksOfMonth,
   dateToTodaiDate,
+  formatDateTime,
   formatDay,
+  formatFullDateTime,
   formatFullDay,
   formatMonth,
+  formatRelativeTime,
   formatShortDay,
   formatWeek,
   isTodaiDate,
@@ -766,5 +769,59 @@ describe("formatShortDay", () => {
 
   it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
     expect(() => formatShortDay(day)).toThrow(RangeError);
+  });
+});
+
+describe("formatDateTime", () => {
+  useTimeZone("Europe/Paris");
+
+  const now = new Date(2026, 9, 10, 16, 0);
+
+  it.each([
+    [new Date(2026, 9, 10, 14, 32), "Today, 14:32"],
+    [new Date(2026, 9, 10, 0, 5), "Today, 00:05"],
+    [new Date(2026, 9, 9, 23, 59), "Yesterday, 23:59"],
+    [new Date(2026, 9, 9, 8, 47), "Yesterday, 08:47"],
+    [new Date(2026, 9, 7, 21, 15), "Oct 7, 21:15"],
+    [new Date(2026, 0, 1, 9, 0), "Jan 1, 09:00"],
+    [new Date(2025, 5, 30, 19, 40), "Jun 30, 2025, 19:40"],
+  ])("formats %s as %j", (date, label) => {
+    expect(formatDateTime(date, now)).toBe(label);
+  });
+
+  it("follows local days, not UTC ones", () => {
+    // 23:30 in Paris is still the 10th, but already the 9th at 21:30 in UTC
+    expect(formatDateTime(new Date(2026, 9, 10, 23, 30), new Date(2026, 9, 10, 23, 45))).toBe(
+      "Today, 23:30",
+    );
+    expect(formatDateTime(new Date(2026, 9, 10, 23, 30), new Date(2026, 9, 11, 0, 30))).toBe(
+      "Yesterday, 23:30",
+    );
+  });
+});
+
+describe("formatFullDateTime", () => {
+  useTimeZone("Europe/Paris");
+
+  it("formats the local date and time, to the second", () => {
+    expect(formatFullDateTime(new Date(2026, 9, 10, 14, 32, 5))).toBe(
+      "Saturday, October 10, 2026, 14:32:05",
+    );
+  });
+});
+
+describe("formatRelativeTime", () => {
+  const now = new Date(2026, 9, 10, 16, 0);
+
+  it.each([
+    [new Date(2026, 9, 10, 15, 59, 30), "Just now"],
+    [new Date(2026, 9, 10, 16, 0, 30), "Just now"],
+    [new Date(2026, 9, 10, 15, 55), "5 minutes ago"],
+    [new Date(2026, 9, 10, 14, 0), "2 hours ago"],
+    [new Date(2026, 9, 8, 16, 0), "2 days ago"],
+    [new Date(2026, 6, 2, 8, 12), "3 months ago"],
+    [new Date(2026, 9, 10, 18, 0), "in 2 hours"],
+  ])("formats %s as %j", (date, label) => {
+    expect(formatRelativeTime(date, now)).toBe(label);
   });
 });
