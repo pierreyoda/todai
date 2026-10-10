@@ -46,6 +46,7 @@
         {todos}
         {tags}
         {selectedTagId}
+        {today}
         open={week.start === currentWeekStart}
       />
     {/each}

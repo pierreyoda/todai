@@ -1,7 +1,7 @@
 import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
-import type { Estimate, Todo } from "./types";
+import type { Day, Estimate, Todo } from "./types";
 import { invalidateTodosOf, tagKeys } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 
@@ -44,6 +44,23 @@ export const createSetTodoEstimateMutation = (getTodo: () => Todo) => {
       }),
     // Returned so the mutation stays pending until the lists (and the months' estimate totals) are refetched.
     onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+  }));
+};
+
+/** Moves `getTodo()` to the end of another day. Must be called during component initialization. */
+export const createMoveTodoMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (day: Day) =>
+      invokeClient({
+        name: "update_todo",
+        args: { params: { id: getTodo().id, day } },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched: the todo leaves its former day for `day`.
+    onSuccess: (_, day) =>
+      Promise.all(
+        [getTodo().day, day].map((day) => invalidateTodosOf(queryClient, day)),
+      ),
   }));
 };
 

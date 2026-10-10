@@ -1,10 +1,14 @@
 <script lang="ts">
-  import type { Tag, Todo } from "../../client/types";
-  import { createToggleTodoMutation } from "../../client/mutations";
+  import type { Day, Tag, Todo } from "../../client/types";
+  import {
+    createMoveTodoMutation,
+    createToggleTodoMutation,
+  } from "../../client/mutations";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
   import { contextMenu } from "../../utils/contextMenu";
   import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
+  import IconSun from "../common/icons/IconSun.svelte";
   import Button from "../common/Button.svelte";
   import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
@@ -14,8 +18,15 @@
     tags: readonly Tag[];
     /** Todos with this tag are highlighted in its color. */
     selectedTagId?: Tag["id"] | null;
+    /** Todos left undone on another day can be moved to it. */
+    today: Day;
   };
-  const { item, tags, selectedTagId = null }: TodoSummaryItemProps = $props();
+  const {
+    item,
+    tags,
+    selectedTagId = null,
+    today,
+  }: TodoSummaryItemProps = $props();
 
   // Resolved from the tags list, so they follow tag renames without refetching todos
   const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
@@ -29,6 +40,8 @@
     () => item,
     () => (completed = item.completed),
   );
+
+  const moveTodo = createMoveTodoMutation(() => item);
 
   let lineRef = $state<HTMLLIElement>();
   let openedDropdownMenu = $state(false);
@@ -49,20 +62,42 @@
     onchange={(event) => toggleCompleted.mutate(event.currentTarget.checked)}
   />
   <span class="title" title={item.title}>{item.title}</span>
-  {#if itemTags.length > 0}
-    <ul class="tags" aria-label="Tags">
-      {#each itemTags as tag (tag.id)}
-        <li class={["tag", tag.id === selectedTagId && "selected"]}>
-          <span class="tag-color" style:background-color={tag.color}></span>
-          {tag.name}
-        </li>
-      {/each}
-    </ul>
-  {/if}
-  <div class="edit-action-container" title="Edit">
-    <Button style="plain" onclick={() => (showUpsertDialog = true)}>
-      <IconPencilSquare class="text-white hover:text-gray-300" />
-    </Button>
+  <div class="trailing">
+    {#if itemTags.length > 0}
+      <ul class="tags" aria-label="Tags">
+        {#each itemTags as tag (tag.id)}
+          <li class={["tag", tag.id === selectedTagId && "selected"]}>
+            <span class="tag-color" style:background-color={tag.color}></span>
+            {tag.name}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+    <div class="actions">
+      <div class="edit-action-container" title="Edit">
+        <Button
+          style="plain"
+          size="xs"
+          aria-label="Edit"
+          onclick={() => (showUpsertDialog = true)}
+        >
+          <IconPencilSquare class="text-white hover:text-gray-300" />
+        </Button>
+      </div>
+      {#if !completed && item.day !== today}
+        <div class="add-to-day-action-container" title="Move to today">
+          <Button
+            style="plain"
+            size="xs"
+            aria-label="Move to today"
+            disabled={moveTodo.isPending}
+            onclick={() => moveTodo.mutate(today)}
+          >
+            <IconSun class="text-white hover:text-gray-300" />
+          </Button>
+        </div>
+      {/if}
+    </div>
   </div>
 </li>
 <TodoDropdownMenu
@@ -79,13 +114,31 @@
 
   .todo {
     @apply flex min-w-0 items-center gap-2 rounded-md px-2 py-1 transition hover:bg-white/5;
-    .edit-action-container {
-      @apply flex items-center gap-1 opacity-0;
+  }
+
+  /* Tags and actions share the end of the row, as wide as the widest: the tags stay flush right, and the title never
+     runs under the actions */
+  .trailing {
+    @apply grid shrink-0 items-center justify-items-end;
+  }
+
+  .actions {
+    @apply col-start-1 row-start-1 flex items-center gap-1 opacity-0 transition-opacity;
+  }
+
+  .edit-action-container,
+  .add-to-day-action-container {
+    @apply flex;
+  }
+
+  /* The tags give way to the actions, like the side panel's tag counts to their menu button */
+  .todo:hover,
+  .todo:has(:focus-visible) {
+    .actions {
+      @apply opacity-100;
     }
-    &:hover {
-      .edit-action-container {
-        @apply opacity-100;
-      }
+    .tags {
+      @apply opacity-0;
     }
   }
 
@@ -104,7 +157,7 @@
   }
 
   .tags {
-    @apply flex shrink-0 items-center gap-2;
+    @apply col-start-1 row-start-1 flex items-center gap-2 transition-opacity;
   }
 
   .tag {

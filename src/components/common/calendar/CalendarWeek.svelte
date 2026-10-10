@@ -11,6 +11,7 @@
     todos: readonly Todo[];
     tags: readonly Tag[];
     selectedTagId: Tag["id"] | null;
+    today: Day;
     /** Initial state. */
     open?: boolean;
   };
@@ -19,6 +20,7 @@
     todos,
     tags,
     selectedTagId,
+    today,
     open: initiallyOpen = false,
   }: CalendarWeekProps = $props();
   // svelte-ignore state_referenced_locally: `open` is only the initial state
@@ -68,7 +70,7 @@
         <h4 class="day">{formatDay(day)}</h4>
         <ul>
           {#each dayTodos as item (item.id)}
-            <TodoSummaryItem {item} {tags} {selectedTagId} />
+            <TodoSummaryItem {item} {tags} {selectedTagId} {today} />
           {/each}
         </ul>
       </section>
