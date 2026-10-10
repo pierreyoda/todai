@@ -7,9 +7,13 @@
     title: string;
     /** As thrown: the backend rejects commands with its error message, as a string. */
     error: unknown;
+    /** Shown after the error's message, e.g. what happens next. */
+    hint?: string;
+    /** A button to recover, e.g. "Try again". */
+    action?: { label: string; onClick: () => void; disabled?: boolean };
     onDismiss?: () => void;
   };
-  const { title, error, onDismiss }: ErrorBannerProps = $props();
+  const { title, error, hint, action, onDismiss }: ErrorBannerProps = $props();
 
   const message = $derived(
     typeof error === "string"
@@ -29,7 +33,20 @@
     {#if message}
       <p class="message">{message}</p>
     {/if}
+    {#if hint}
+      <p class="message">{hint}</p>
+    {/if}
   </div>
+  {#if action}
+    <button
+      type="button"
+      class="action"
+      disabled={action.disabled}
+      onclick={action.onClick}
+    >
+      {action.label}
+    </button>
+  {/if}
   {#if onDismiss}
     <button
       type="button"
@@ -72,6 +89,14 @@
   /* Messages hold paths: wrapped anywhere rather than overflowing */
   .message {
     @apply text-xs/5 wrap-anywhere text-red-200/70;
+  }
+
+  /* Tinted like the banner, centered on its first lines */
+  .action {
+    @apply mt-1 shrink-0 cursor-pointer rounded-md bg-red-500/15 px-2.5 py-1 text-xs font-semibold text-red-200;
+    @apply transition-colors duration-150 hover:bg-red-500/25 hover:text-red-100 motion-reduce:transition-none;
+    @apply focus-visible:outline-2 focus-visible:outline-red-400;
+    @apply disabled:cursor-wait disabled:opacity-60;
   }
 
   .dismiss {

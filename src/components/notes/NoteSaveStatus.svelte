@@ -12,12 +12,12 @@
   const { status, savedAt }: NoteSaveStatusProps = $props();
 </script>
 
-<!-- Not a live region: it changes at every pause while typing. Only failures are announced. -->
+<!-- Not a live region: it changes at every pause while typing. Failures are announced by the page's banner. -->
 <p class="status">
   {#if status === "pending" || status === "saving"}
     Saving…
   {:else if status === "error"}
-    <span class="error" role="alert">
+    <span class="error">
       <IconExclamationTriangle class="text-red-400" />
       Not saved
     </span>

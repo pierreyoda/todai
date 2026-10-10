@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { createQuery } from "@tanstack/svelte-query";
+
+  import { activeWorkspaceQueryOptions, noteQueryOptions } from "../client/queries";
   import type { Tag } from "../client/types";
   import { dateToTodaiDate, formatDay } from "../utils/dates";
   import Collapse from "./common/Collapse.svelte";
@@ -9,6 +12,7 @@
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";
   import TagsEmptyState from "./tags/TagsEmptyState.svelte";
   import IconCalendar from "./common/icons/IconCalendar.svelte";
+  import IconDocumentText from "./common/icons/IconDocumentText.svelte";
   import IconFolderOpen from "./common/icons/IconFolderOpen.svelte";
   import IconArchiveBox from "./common/icons/IconArchiveBox.svelte";
   import SidePanelWorkspace from "./layout/SidePanelWorkspace.svelte";
@@ -27,7 +31,15 @@
   // The header's "+" button then gives way to a more inviting one, in the section's body
   const hasNoTags = $derived(Array.isArray(tags) && tags.length === 0);
 
-  const today = formatDay(dateToTodaiDate(new Date()));
+  const day = dateToTodaiDate(new Date());
+  const today = formatDay(day);
+
+  // Only from a usable workspace's database
+  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+  const note = createQuery(() => ({
+    ...noteQueryOptions(day),
+    enabled: activeWorkspace.data?.available === true,
+  }));
 
   // TODO: add closing mechanism (click outside, button with icon)
 </script>
@@ -42,6 +54,20 @@
             <IconSun />
           {/snippet}
         </SidePanelLink>
+        <ul class="sublinks" aria-label="Today">
+          <li>
+            <SidePanelLink
+              label="Notes"
+              routeId="/today/notes"
+              nested
+              indicator={note.data ? "Today has a note" : undefined}
+            >
+              {#snippet icon()}
+                <IconDocumentText />
+              {/snippet}
+            </SidePanelLink>
+          </li>
+        </ul>
       </li>
       <li>
         <SidePanelLink label="Calendar" routeId="/calendar">
@@ -137,6 +163,11 @@
 
   .links {
     @apply flex flex-col gap-0.5;
+  }
+
+  /* Sub-pages, hanging from their page's icon: their icons line up with its label */
+  .sublinks {
+    @apply mt-0.5 ml-4.25 flex flex-col gap-0.5 border-l border-white/10 pl-2.25;
   }
 
   .scrollable {
