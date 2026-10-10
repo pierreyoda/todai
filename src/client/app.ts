@@ -110,6 +110,8 @@ export type ClientInvocationAppCommand = {
   remove_workspace: {
     args: {
       id: UUID;
+      /** Whether its backups are deleted too, rather than only unlisted (their files kept). */
+      deleteBackups: boolean;
     };
     returns: never;
   };

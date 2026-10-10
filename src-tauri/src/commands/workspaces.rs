@@ -179,13 +179,23 @@ pub async fn rename_workspace(
     workspace(&state, &app_db, entry)
 }
 
-/// Unregisters the workspace `id`, keeping its database: it can be imported again.
+/// Unregisters the workspace `id`, keeping its database: it can be imported again. Its backups are deleted if
+/// `delete_backups`; otherwise they're only unlisted, their files kept.
 ///
 /// If it was the active one, its database is closed: there is no active workspace anymore, until switching to another
 /// one (or creating or importing one).
 #[tauri::command]
-pub async fn remove_workspace(state: State<'_, AppState>, id: String) -> Result<()> {
+pub async fn remove_workspace(
+    state: State<'_, AppState>,
+    id: String,
+    delete_backups: bool,
+) -> Result<()> {
     let app_db = state.app_db();
+    if delete_backups {
+        // Before unregistering it: should deleting one fail, the others are still listed.
+        let deleted = backups::delete_all(&app_db, state.backups_dir(), &id)?;
+        log::info!("Deleted the {deleted} backups of workspace {id}, before removing it");
+    }
     if workspaces::remove(&app_db, &id)? {
         log::info!("Removed the active workspace {id}: no workspace is open anymore");
         state.replace_db(None);

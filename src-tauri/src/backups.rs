@@ -4,7 +4,7 @@ use jiff::{Timestamp, Zoned};
 use rusqlite::{named_params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::{
-    fs,
+    fs, io,
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
@@ -199,6 +199,22 @@ fn delete_backup(app_db: &Connection, backup: &DbWorkspaceBackup) -> Result<()> 
 /// Deletes the backup `id`, with its file.
 pub fn delete(app_db: &Connection, id: &str) -> Result<()> {
     delete_backup(app_db, &get(app_db, id)?)
+}
+
+/// Deletes all the backups of the workspace `workspace_id`, with their files, then its directory in `backups_dir`, with
+/// anything else left in it (e.g. an interrupted backup). Returns how many backups were deleted.
+///
+/// Should deleting one fail, the ones not deleted yet stay listed.
+pub fn delete_all(app_db: &Connection, backups_dir: &Path, workspace_id: &str) -> Result<usize> {
+    let backups = list(app_db, workspace_id)?;
+    for backup in &backups {
+        delete_backup(app_db, backup)?;
+    }
+    match fs::remove_dir_all(workspace_dir(backups_dir, workspace_id)) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        removed => removed?,
+    }
+    Ok(backups.len())
 }
 
 /// Deletes the automatic backups of the workspace `workspace_id` beyond its `keep` most recent ones, with their file.
@@ -701,6 +717,57 @@ mod tests {
         workspaces::remove(&setup.app_db, &setup.workspace.id).unwrap();
         assert!(setup.listed().is_empty());
         assert!(Path::new(&backup.path).exists());
+    }
+
+    #[test]
+    fn delete_all_deletes_the_backups_of_a_workspace_and_its_directory() {
+        let setup = Setup::new();
+        let backups_dir = setup.backups_dir();
+        let deleted: Vec<_> = [
+            BackupKind::Manual,
+            BackupKind::Automatic,
+            BackupKind::PreRestore,
+        ]
+        .into_iter()
+        .map(|kind| setup.backup(kind, &at(10, 9, 0)))
+        .collect();
+        // Left over by an interrupted backup.
+        let dir = workspace_dir(&backups_dir, &setup.workspace.id);
+        fs::write(dir.join("interrupted.sqlite3.partial"), "").unwrap();
+        let (other, other_db) = workspaces::create(
+            &setup.app_db,
+            "Other",
+            &setup.dir.path().join("other.sqlite3"),
+            NOW,
+        )
+        .unwrap();
+        let kept = create(
+            &setup.app_db,
+            &backups_dir,
+            &other,
+            &other_db,
+            BackupKind::Manual,
+            &at(10, 9, 0),
+        )
+        .unwrap();
+
+        assert_eq!(
+            delete_all(&setup.app_db, &backups_dir, &setup.workspace.id).unwrap(),
+            3
+        );
+        assert!(setup.listed().is_empty());
+        assert!(deleted
+            .iter()
+            .all(|backup| !Path::new(&backup.path).exists()));
+        assert!(!dir.exists());
+        assert_eq!(list(&setup.app_db, &other.id).unwrap().len(), 1);
+        assert!(Path::new(&kept.path).exists());
+
+        // Nothing left to delete.
+        assert_eq!(
+            delete_all(&setup.app_db, &backups_dir, &setup.workspace.id).unwrap(),
+            0
+        );
     }
 
     #[test]

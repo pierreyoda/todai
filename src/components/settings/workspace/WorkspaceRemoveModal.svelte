@@ -1,6 +1,11 @@
 <script lang="ts">
+  import { createQuery } from "@tanstack/svelte-query";
+
   import type { Workspace } from "../../../client/app";
+  import { workspaceBackupsQueryOptions } from "../../../client/queries";
+  import { formatFileSize } from "../../../utils";
   import Button from "../../common/Button.svelte";
+  import FieldCheckbox from "../../common/FieldCheckbox.svelte";
   import FieldText from "../../common/FieldText.svelte";
   import Modal from "../../common/Modal.svelte";
 
@@ -11,7 +16,8 @@
     /** Bindable. */
     show: boolean;
     workspace: Workspace;
-    onDelete: () => void;
+    /** With whether its backups are to be deleted too. */
+    onDelete: (deleteBackups: boolean) => void;
   };
   let {
     show = $bindable(),
@@ -19,10 +25,24 @@
     onDelete,
   }: WorkspaceRemoveModalProps = $props();
 
+  const backups = createQuery(() => ({
+    ...workspaceBackupsQueryOptions(workspace.id),
+    enabled: show,
+  }));
+  const backupsCount = $derived(backups.data?.length ?? 0);
+  const backupsSize = $derived(
+    (backups.data ?? []).reduce((total, { size }) => total + (size ?? 0), 0),
+  );
+
   let typed = $state("");
   const confirmed = $derived(typed.trim() === CONFIRMATION);
+  // Kept by default: they can still be restored as a new workspace, from the files
+  let deleteBackups = $state(false);
   $effect(() => {
-    if (!show) typed = "";
+    if (!show) {
+      typed = "";
+      deleteBackups = false;
+    }
   });
 
   const formId = $props.id();
@@ -39,7 +59,7 @@
       onsubmit={(event) => {
         event.preventDefault();
         if (!confirmed) return;
-        onDelete();
+        onDelete(deleteBackups && backupsCount > 0);
       }}
     >
       <p>
@@ -54,6 +74,15 @@
           As it's the active workspace, you'll then switch to another one, or
           create one.
         </p>
+      {/if}
+      {#if backupsCount > 0}
+        <div class="backups">
+          <FieldCheckbox
+            label={`Also delete its ${backupsCount} ${backupsCount === 1 ? "backup" : "backups"} (${formatFileSize(backupsSize)})`}
+            description="Otherwise they're kept in the app's data folder, no longer listed."
+            bind:checked={deleteBackups}
+          />
+        </div>
       {/if}
       <FieldText
         bind:value={typed}
@@ -86,5 +115,10 @@
   /* Paths can be long: wrapped anywhere rather than overflowing */
   .path {
     @apply rounded bg-white/5 px-1 py-0.5 font-mono text-xs wrap-anywhere text-slate-200;
+  }
+
+  /* Surface: barely lifted from the modal, setting the choice apart */
+  .backups {
+    @apply rounded-xl bg-white/3 p-3 ring-1 ring-white/10;
   }
 </style>
