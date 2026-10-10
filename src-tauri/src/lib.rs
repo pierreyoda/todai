@@ -4,6 +4,7 @@ pub mod backups;
 pub mod commands;
 pub mod database;
 pub mod errors;
+pub mod links;
 pub mod logging;
 pub mod state;
 pub mod workspaces;
@@ -48,6 +49,9 @@ pub fn run() {
             commands::tags::update_tag,
             commands::tags::delete_tag,
             commands::tags::set_todo_tags,
+            commands::links::parse_link,
+            commands::links::add_todo_link,
+            commands::links::remove_todo_link,
             commands::notes::get_note,
             commands::notes::save_note,
             commands::workspaces::list_workspaces,

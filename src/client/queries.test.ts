@@ -5,6 +5,7 @@ import {
   clearActiveWorkspace,
   invalidateActiveWorkspace,
   invalidateTodosOf,
+  linkKeys,
   noteKeys,
   tagKeys,
   todoKeys,
@@ -86,5 +87,17 @@ describe("active workspace changes", () => {
       expect(queryClient.getQueryState(key), name).toBeUndefined();
     }
     expect(queryClient.getQueryState(workspaces)?.isInvalidated).toBe(true);
+  });
+
+  it("keeps the recognized links, which don't come from the workspace's database", async () => {
+    const parsed = linkKeys.parse("https://github.com/pierreyoda/todai/pull/58");
+    const queryClient = withData();
+    queryClient.setQueryData(parsed, {});
+
+    await invalidateActiveWorkspace(queryClient);
+    expect(queryClient.getQueryState(parsed)?.isInvalidated).toBe(false);
+
+    await clearActiveWorkspace(queryClient);
+    expect(queryClient.getQueryState(parsed)?.isInvalidated).toBe(false);
   });
 });

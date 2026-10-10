@@ -28,6 +28,7 @@ const todo = (
   createdAt: DATE,
   updatedAt: DATE,
   tagIds: tagIds as UUID[],
+  links: [],
 });
 
 const TAGS = [tag("work", "work"), tag("urgent", "urgent")];

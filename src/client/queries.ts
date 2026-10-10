@@ -92,6 +92,22 @@ export const noteQueryOptions = (day: Day) =>
   });
 
 /**
+ * What URLs are recognized as, by URL. Unlike the todos' links, they don't come from the active workspace's database:
+ * they're kept when switching to another one.
+ */
+export const linkKeys = {
+  all: ["links"] as const,
+  parse: (url: string) => [...linkKeys.all, "parse", url] as const,
+};
+
+/** What `url` is recognized as, if it's an http(s) URL: fails otherwise. */
+export const parseLinkQueryOptions = (url: string) =>
+  queryOptions({
+    queryKey: linkKeys.parse(url),
+    queryFn: () => invokeClient({ name: "parse_link", args: { url } }),
+  });
+
+/**
  * The active workspace and each workspace's backups are nested in the list, so that invalidating the list also
  * refreshes them (e.g. a workspace's last backup, shown in the list). Ids are UUIDs, so they never collide with
  * `"active"`.

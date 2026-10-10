@@ -3,6 +3,8 @@
 </script>
 
 <script lang="ts">
+  import type { Snippet } from "svelte";
+
   import type { Todo } from "../../client/types";
   import { dateToTodaiDate, isTodaiDate } from "../../utils";
   import Button from "../common/Button.svelte";
@@ -21,8 +23,10 @@
       }
   ) & {
     onSubmit: (submittedData: TodoFormData) => void;
+    /** Fields saved on their own rather than submitted, e.g. the todo's links: shown before the submit button. */
+    fields?: Snippet;
   };
-  const { data, onSubmit }: TodoFormProps = $props();
+  const { data, onSubmit, fields }: TodoFormProps = $props();
 
   let editedDay = $state(data?.day ?? dateToTodaiDate(new Date()));
   let editedTitle = $state(data?.title ?? "");
@@ -46,6 +50,7 @@
     <div class="w-1/2 px-2"></div>
     <div class="w-1/2 px-2"></div>
   </div>
+  {@render fields?.()}
   <Button
     type="submit"
     disabled={!valid}

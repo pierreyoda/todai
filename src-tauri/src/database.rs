@@ -21,7 +21,7 @@ pub struct DatabaseKind {
     migrations: &'static [&'static str],
 }
 
-/// A workspace's todos, tags and notes.
+/// A workspace's todos (with their links), tags and notes.
 pub const WORKSPACE: DatabaseKind = DatabaseKind {
     name: "workspace",
     // "TDWS" (ToDai WorkSpace).
@@ -32,6 +32,7 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/003_tags_non_unique_name.sql"),
         include_str!("../migrations/004_todo_estimate.sql"),
         include_str!("../migrations/005_notes.sql"),
+        include_str!("../migrations/006_todo_links.sql"),
     ],
 };
 
@@ -649,12 +650,51 @@ mod tests {
         }
 
         let conn = open_existing(&path, &WORKSPACE).unwrap();
-        assert_eq!(header(&conn).1, 5);
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
         assert_eq!(tag_names(&conn), ["Work"]);
         let notes: i64 = conn
             .query_row("SELECT COUNT(*) FROM notes", [], |r| r.get(0))
             .unwrap();
         assert_eq!(notes, 0);
+    }
+
+    #[test]
+    fn open_existing_adds_todo_links_to_a_workspace_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without links.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..5] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 5).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-10', 'Linked', 'a0', 0, 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, 6);
+        conn.execute(
+            "INSERT INTO todo_links (id, todo_id, kind, url, created_at)
+             VALUES ('l', 't', 'url', 'https://example.org/', 0)",
+            [],
+        )
+        .unwrap();
+        let links: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM todo_links WHERE todo_id = 't'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(links, 1);
     }
 
     #[test]

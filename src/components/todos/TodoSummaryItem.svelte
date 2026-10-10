@@ -8,7 +8,9 @@
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
   import { contextMenu } from "../../utils/contextMenu";
   import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
+  import IconLink from "../common/icons/IconLink.svelte";
   import IconSun from "../common/icons/IconSun.svelte";
+  import { formatLinksCount } from "../../utils/links";
   import Button from "../common/Button.svelte";
   import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
@@ -61,7 +63,22 @@
     bind:checked={completed}
     onchange={(event) => toggleCompleted.mutate(event.currentTarget.checked)}
   />
-  <span class="title" title={item.title}>{item.title}</span>
+  <span class="title-group">
+    <span class="title" title={item.title}>{item.title}</span>
+    <!-- Right after the title, so that it stays in view when the actions replace the tags -->
+    {#if item.links.length > 0}
+      <span
+        class="links-marker"
+        title={item.links.map((link) => link.label).join(", ")}
+      >
+        <IconLink />
+        {#if item.links.length > 1}
+          <span aria-hidden="true">{item.links.length}</span>
+        {/if}
+        <span class="sr-only">{formatLinksCount(item.links.length)}</span>
+      </span>
+    {/if}
+  </span>
   <div class="trailing">
     {#if itemTags.length > 0}
       <ul class="tags" aria-label="Tags">
@@ -148,8 +165,20 @@
     @apply hover:bg-[color-mix(in_oklab,var(--tag-color)_20%,transparent)];
   }
 
+  .title-group {
+    @apply flex min-w-0 flex-1 items-center gap-1.5;
+  }
+
   .title {
-    @apply min-w-0 flex-1 truncate text-sm text-white;
+    @apply min-w-0 truncate text-sm text-white;
+  }
+
+  .links-marker {
+    @apply flex shrink-0 items-center gap-0.5 text-[11px]/4 font-medium text-slate-400 tabular-nums;
+
+    > :global(svg) {
+      @apply size-3;
+    }
   }
 
   .completed .title {

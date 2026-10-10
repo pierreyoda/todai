@@ -92,6 +92,38 @@ impl DbNote {
     }
 }
 
+/// A link on a todo.
+#[derive(Debug)]
+pub struct DbTodoLink {
+    /// UUIDv7.
+    pub id: String,
+    pub todo_id: String,
+    /// `github_pull`, `github_issue` or `url`.
+    pub kind: String,
+    /// Normalized.
+    pub url: String,
+    /// Set exactly for the GitHub kinds, as are `github_repo` and `github_number`.
+    pub github_owner: Option<String>,
+    pub github_repo: Option<String>,
+    pub github_number: Option<u32>,
+    pub created_at: DbTimestamp,
+}
+
+impl DbTodoLink {
+    pub fn from_row(row: &Row) -> Result<Self> {
+        Ok(Self {
+            id: row.get("id")?,
+            todo_id: row.get("todo_id")?,
+            kind: row.get("kind")?,
+            url: row.get("url")?,
+            github_owner: row.get("github_owner")?,
+            github_repo: row.get("github_repo")?,
+            github_number: row.get("github_number")?,
+            created_at: row.get("created_at")?,
+        })
+    }
+}
+
 /// A workspace, in the app database.
 #[derive(Debug)]
 pub struct DbWorkspace {

@@ -11,6 +11,7 @@
   import TagUpsertModal from "../tags/TagUpsertModal.svelte";
   import {
     createDeleteTodoMutation,
+    createRemoveTodoLinkMutation,
     createSetTodoEstimateMutation,
   } from "../../client/mutations";
   import {
@@ -19,8 +20,12 @@
   } from "../../constants";
   import { formatEstimates } from "../../utils";
   import IconClock from "../common/icons/IconClock.svelte";
+  import IconLink from "../common/icons/IconLink.svelte";
   import IconTag from "../common/icons/IconTag.svelte";
   import IconTrash from "../common/icons/IconTrash.svelte";
+  import IconXMark from "../common/icons/IconXMark.svelte";
+  import AddLinkModal from "../links/AddLinkModal.svelte";
+  import LinkKindIcon from "../links/LinkKindIcon.svelte";
 
   type TodoDropdownMenuProps = {
     anchor?: HTMLElement;
@@ -39,8 +44,10 @@
   }: TodoDropdownMenuProps = $props();
 
   let showTagCreationModal = $state(false);
+  let showAddLinkModal = $state(false);
 
   const setTodoEstimate = createSetTodoEstimateMutation(() => item);
+  const removeLink = createRemoveTodoLinkMutation(() => item);
 
   // Created during initialization, as it reads the query client from the context
   const deleteTodo = createDeleteTodoMutation(() => item);
@@ -115,6 +122,28 @@
         + Add a new tag
       </DropdownItem>
     </DropdownSubmenu>
+    <!-- Opens a modal: the menu must close first, see `keepOpen` -->
+    <DropdownItem keepOpen={false} onclick={() => (showAddLinkModal = true)}>
+      {#snippet icon()}
+        <IconLink />
+      {/snippet}
+      Add a link…
+    </DropdownItem>
+    {#if item.links.length > 0}
+      <DropdownSubmenu label="Remove a link" keepOpenOnClick={false}>
+        {#snippet icon()}
+          <IconXMark />
+        {/snippet}
+        {#each item.links as link (link.id)}
+          <DropdownItem onclick={() => removeLink.mutate(link)}>
+            {#snippet icon()}
+              <LinkKindIcon kind={link.kind} />
+            {/snippet}
+            {link.label}
+          </DropdownItem>
+        {/each}
+      </DropdownSubmenu>
+    {/if}
     <DropdownDivider />
     <DropdownItem
       onclick={() => {
@@ -136,3 +165,4 @@
   </DropdownMenu>
 </Dropdown>
 <TagUpsertModal bind:show={showTagCreationModal} />
+<AddLinkModal bind:show={showAddLinkModal} todo={item} />

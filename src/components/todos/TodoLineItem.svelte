@@ -11,6 +11,7 @@
   import Button from "../common/Button.svelte";
   import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
   import IconClock from "../common/icons/IconClock.svelte";
+  import LinkChip from "../links/LinkChip.svelte";
   import { formatEstimates } from "../../utils";
 
   type TodoLineItemProps = {
@@ -71,7 +72,7 @@
         label={`Title of todo "${item.title}"`}
         class="text-sm font-medium text-white wrap-break-word"
       />
-      {#if itemTags.length > 0}
+      {#if itemTags.length > 0 || item.links.length > 0}
         <div class="flex items-center gap-4 overflow-x-auto">
           {#each itemTags as itemTag (itemTag.id)}
             <div class="flex items-center gap-1">
@@ -82,6 +83,16 @@
               <span class="text-white text-xs">{itemTag.name}</span>
             </div>
           {/each}
+          {#if item.links.length > 0}
+            {#if itemTags.length > 0}
+              <span class="links-divider" aria-hidden="true"></span>
+            {/if}
+            <ul class="links" aria-label="Links">
+              {#each item.links as link (link.id)}
+                <li class="flex"><LinkChip {link} /></li>
+              {/each}
+            </ul>
+          {/if}
         </div>
       {/if}
     </div>
@@ -125,5 +136,14 @@
     &.completed {
       @apply border-gray-700 bg-gray-900 hover:bg-gray-700;
     }
+  }
+
+  /* Between the tags and the links, which are told apart at a glance */
+  .links-divider {
+    @apply -mx-1 h-3.5 w-px shrink-0 bg-white/10;
+  }
+
+  .links {
+    @apply flex shrink-0 items-center gap-1.5;
   }
 </style>

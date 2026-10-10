@@ -1,7 +1,7 @@
 import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
-import type { Day, Estimate, Todo } from "./types";
+import type { Day, Estimate, Todo, TodoLink } from "./types";
 import { invalidateTodosOf, noteKeys, tagKeys } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 
@@ -79,6 +79,37 @@ export const createDeleteTodoMutation = (getTodo: () => Todo) => {
         invalidateTodosOf(queryClient, getTodo().day),
         queryClient.invalidateQueries({ queryKey: tagKeys.all }),
       ]),
+  }));
+};
+
+/**
+ * Adds a link to `getTodo()`, from a URL as typed or pasted: normalized by the backend. Must be called during component
+ * initialization.
+ */
+export const createAddTodoLinkMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (url: string) =>
+      invokeClient({
+        name: "add_todo_link",
+        args: { todoId: getTodo().id, url },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched, with the link.
+    onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+  }));
+};
+
+/** Removes one of the links of `getTodo()`. Must be called during component initialization. */
+export const createRemoveTodoLinkMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (link: TodoLink) =>
+      invokeClient({
+        name: "remove_todo_link",
+        args: { id: link.id },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched, without the link.
+    onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
   }));
 };
 

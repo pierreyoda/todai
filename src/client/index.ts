@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Estimate, Note, Tag, Todo, TodoMonth } from "./types";
+import type { Day, Estimate, Note, ParsedLink, Tag, Todo, TodoLink, TodoMonth } from "./types";
 import type { UUID } from "node:crypto";
 
 import { parseResponse } from "../utils/client";
@@ -98,6 +98,36 @@ type ClientInvocationCommand = {
     args: {
       todoId: UUID;
       tagIds: readonly UUID[];
+    };
+    returns: never;
+  };
+  /**
+   * Recognizes what `url` points to, without adding it anywhere.
+   *
+   * Fails if it's not an http(s) URL (the scheme can be left out: `github.com/owner/repo/pull/1`).
+   */
+  parse_link: {
+    args: {
+      url: string;
+    };
+    returns: ParsedLink;
+  };
+  /**
+   * Adds the link `url`, normalized as by `parse_link`, after the other links of a non-deleted todo.
+   *
+   * Fails if it's not an http(s) URL, or if the todo already has it.
+   */
+  add_todo_link: {
+    args: {
+      todoId: UUID;
+      url: string;
+    };
+    returns: TodoLink;
+  };
+  /** Removes a link from its non-deleted todo. */
+  remove_todo_link: {
+    args: {
+      id: UUID;
     };
     returns: never;
   };
