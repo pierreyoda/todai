@@ -25,6 +25,8 @@ pub enum TodaiError {
     InvalidDatabase(String),
     #[error("Invalid path: {0}")]
     InvalidPath(String),
+    #[error("Invalid backup kind {0:?}")]
+    InvalidBackupKind(String),
     #[error("No workspace database at {0}")]
     WorkspaceUnavailable(String),
     #[error("No workspace is open")]

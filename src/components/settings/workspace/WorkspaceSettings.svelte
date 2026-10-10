@@ -34,15 +34,21 @@
       }),
     onSuccess: () => invalidateActiveWorkspace(queryClient),
   }));
-  // Unregisters a workspace, keeping its database. Removing the active one leaves none active: its todos and tags
-  // are dropped, and the user picks or creates another one here.
+  // Unregisters a workspace, keeping its database, and its backups unless asked otherwise. Removing the active one
+  // leaves none active: its todos and tags are dropped, and the user picks or creates another one here.
   const removeWorkspaceMutation = createMutation(() => ({
-    mutationFn: ({ id }: Workspace) =>
+    mutationFn: ({
+      workspace,
+      deleteBackups,
+    }: {
+      workspace: Workspace;
+      deleteBackups: boolean;
+    }) =>
       invokeApiClient({
         name: "remove_workspace",
-        args: { id },
+        args: { id: workspace.id, deleteBackups },
       }),
-    onSuccess: (_, { isActive }) => {
+    onSuccess: (_, { workspace: { isActive } }) => {
       showRemoveDialog = false;
       return isActive
         ? clearActiveWorkspace(queryClient)
@@ -130,7 +136,8 @@
   <WorkspaceRemoveModal
     bind:show={showRemoveDialog}
     {workspace}
-    onDelete={() => removeWorkspaceMutation.mutate(workspace)}
+    onDelete={(deleteBackups) =>
+      removeWorkspaceMutation.mutate({ workspace, deleteBackups })}
   />
 {/if}
 <!-- Recreated for each workspace, as the form only reads its initial data -->

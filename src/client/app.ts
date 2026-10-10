@@ -16,6 +16,36 @@ export interface Workspace {
   available: boolean;
   createdAt: Date;
   lastOpenedAt?: Date;
+  /** When its last backup was made, whatever its kind. */
+  lastBackupAt?: Date;
+  /** Whether it's backed up automatically, once a day: when it's opened, then hourly checks while it's open. */
+  autoBackup: boolean;
+  /** Automatic backups kept, from 1 to 100: older ones are deleted. */
+  autoBackupKeep: number;
+}
+
+/**
+ * What a backup was made for:
+ * - `manual`: asked for;
+ * - `automatic`: made when the workspace is opened, at most once a day (only the most recent ones are kept);
+ * - `pre_migration`: made before migrating its database to a newer version of todai;
+ * - `pre_restore`: its state before restoring another backup, so that restoring can be undone.
+ */
+export type WorkspaceBackupKind = "manual" | "automatic" | "pre_migration" | "pre_restore";
+
+/** A backup of a workspace's database, kept in the app's data directory. */
+export interface WorkspaceBackup {
+  /** UUID v7. */
+  id: UUID;
+  workspaceId: UUID;
+  /** Absolute path of its file. */
+  path: string;
+  kind: WorkspaceBackupKind;
+  /** Whether its file still exists (e.g. not deleted by hand). */
+  available: boolean;
+  /** Of its file, in bytes, if available. */
+  size?: number;
+  createdAt: Date;
 }
 
 /** Commands about the app itself rather than the active workspace's content. */
@@ -80,8 +110,89 @@ export type ClientInvocationAppCommand = {
   remove_workspace: {
     args: {
       id: UUID;
+      /** Whether its backups are deleted too, rather than only unlisted (their files kept). */
+      deleteBackups: boolean;
     };
     returns: never;
+  };
+  /** Most recent first. */
+  list_workspace_backups: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: WorkspaceBackup[];
+  };
+  /** A manual backup. Fails if its database is unavailable. */
+  create_workspace_backup: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: WorkspaceBackup;
+  };
+  /** With its file. */
+  delete_workspace_backup: {
+    args: {
+      id: UUID;
+    };
+    returns: never;
+  };
+  /**
+   * Writes a copy of its database to `path`, not listed among its backups. A file there is replaced, unless it's a
+   * workspace's database or a backup. Fails if its database is unavailable.
+   */
+  export_workspace: {
+    args: {
+      workspaceId: UUID;
+      /** Absolute, in an existing directory. */
+      path: string;
+    };
+    returns: never;
+  };
+  /** Opens the directory of its backups in the file manager. */
+  open_workspace_backups_folder: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: never;
+  };
+  /**
+   * Restores it into its workspace's database, after backing up its current state as a `pre_restore` backup:
+   * restoring the latter undoes this. If its workspace's database is missing, it's recreated from it instead: the
+   * workspace is then available again.
+   *
+   * Fails without changing anything if it can't be restored, or if its workspace's database is there but can't be
+   * opened (so neither backed up first).
+   */
+  restore_workspace_backup: {
+    args: {
+      id: UUID;
+    };
+    returns: Workspace;
+  };
+  /**
+   * Creates a workspace named `name` with a copy of it as its database, at `path`, then switches to it. The backup and
+   * its workspace are left as they are.
+   *
+   * Fails if anything but an empty file already exists at `path`, or if it's in the backups directory.
+   */
+  restore_workspace_backup_as_new: {
+    args: {
+      id: UUID;
+      name: string;
+      /** Absolute; its directory is created if needed. */
+      path: string;
+    };
+    returns: Workspace;
+  };
+  /** Its automatic backups beyond `autoBackupKeep` are deleted right away. */
+  set_workspace_auto_backup: {
+    args: {
+      workspaceId: UUID;
+      autoBackup: boolean;
+      /** From 1 to 100. */
+      autoBackupKeep: number;
+    };
+    returns: Workspace;
   };
 };
 

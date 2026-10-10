@@ -1,5 +1,11 @@
-use rusqlite::{Connection, ErrorCode, OpenFlags};
-use std::path::Path;
+use rusqlite::{
+    backup::{Backup, StepResult},
+    Connection, ErrorCode, OpenFlags,
+};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use crate::errors::{Result, TodaiError};
 
@@ -33,7 +39,10 @@ pub const APP: DatabaseKind = DatabaseKind {
     name: "app",
     // "TDAP" (ToDai APp).
     application_id: 0x5444_4150,
-    migrations: &[include_str!("../migrations-app/001_init.sql")],
+    migrations: &[
+        include_str!("../migrations-app/001_init.sql"),
+        include_str!("../migrations-app/002_workspace_backups.sql"),
+    ],
 };
 
 /// Opens (or creates) the `kind` database at `path`, and migrates it.
@@ -58,12 +67,106 @@ pub fn open_existing(path: impl AsRef<Path>, kind: &DatabaseKind) -> Result<Conn
     init(conn, kind)
 }
 
+/// Opens the existing `kind` database at `path` read-only: neither created, migrated nor otherwise written to, e.g. to
+/// copy it.
+///
+/// Fails if it's not a `kind` database (blank ones included), or comes from a newer version of todai.
+pub fn open_read_only(path: impl AsRef<Path>, kind: &DatabaseKind) -> Result<Connection> {
+    let path = path.as_ref();
+    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(path, flags)?;
+    check_kind(&conn, path, kind, false)?;
+    Ok(conn)
+}
+
+/// Whether `conn`'s `kind` database comes from an older version of todai: opening it read-write migrates it.
+pub fn needs_migration(conn: &Connection, kind: &DatabaseKind) -> Result<bool> {
+    let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
+    Ok(version < kind.migrations.len() as i64)
+}
+
+/// Writes a copy of `conn`'s database to `to`: consistent even while it's in use, compacted, and self-contained (in
+/// rollback journal mode rather than WAL, so without `-wal` and `-shm` files next to it). Its kind and version are
+/// kept: it can be opened like the original.
+///
+/// Written next to `to`, then renamed: `to` is never a partial copy, and is replaced if it exists. `conn` can be
+/// read-only, but not within a transaction.
+pub fn snapshot(conn: &Connection, to: &Path) -> Result<()> {
+    let mut partial = to.as_os_str().to_owned();
+    partial.push(".partial");
+    let partial = PathBuf::from(partial);
+    let partial_db = partial
+        .to_str()
+        .ok_or_else(|| TodaiError::InvalidPath(format!("{} is not valid UTF-8", to.display())))?;
+    // `VACUUM INTO` needs a new file: an interrupted snapshot may have left one.
+    remove_file_if_exists(&partial)?;
+
+    let written = (|| -> Result<()> {
+        conn.execute("VACUUM INTO ?1", [partial_db])?;
+        // Closed right away, before the rename.
+        Connection::open_with_flags(
+            &partial,
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?
+        .pragma_update(None, "journal_mode", "DELETE")?;
+        fs::rename(&partial, to)?;
+        Ok(())
+    })();
+    if written.is_err() {
+        // Best effort: the error worth reporting is the snapshot's.
+        let _ = fs::remove_file(&partial);
+    }
+    written
+}
+
+/// Replaces the content of `conn`'s `kind` database with the one of the `kind` database at `from`, left untouched,
+/// then migrates it if it comes from an older version of todai. `conn` stays open, and usable afterwards.
+///
+/// Fails without changing `conn`'s database if `from` is not a `kind` database (blank ones included), or comes from a
+/// newer version.
+pub fn restore(conn: &mut Connection, from: &Path, kind: &DatabaseKind) -> Result<()> {
+    let source = open_read_only(from, kind)?;
+    // In WAL mode, a database can only be overwritten by one of the same page size: the rollback journal takes any.
+    conn.pragma_update(None, "journal_mode", "DELETE")?;
+    let copied = copy_all(&source, conn, from);
+    // Back to WAL, whether copied or not: a failed copy leaves the database unchanged.
+    configure_and_migrate(conn, kind)?;
+    copied?;
+    // Its statements were prepared against the previous schema.
+    conn.flush_prepared_statement_cache();
+    Ok(())
+}
+
+/// Copies `source`'s database, read from `path`, over `destination`'s, in a single step.
+fn copy_all(source: &Connection, destination: &mut Connection, path: &Path) -> Result<()> {
+    match Backup::new(source, destination)?.step(-1)? {
+        StepResult::Done => Ok(()),
+        // Busy or locked: another connection holds either database, which the app never does.
+        step => Err(TodaiError::InvalidDatabase(format!(
+            "could not copy {}: {step:?}",
+            path.display()
+        ))),
+    }
+}
+
 /// Configures `conn`, checked to be a `kind` database, and migrates it.
 fn init(mut conn: Connection, kind: &DatabaseKind) -> Result<Connection> {
+    configure_and_migrate(&mut conn, kind)?;
+    Ok(conn)
+}
+
+fn configure_and_migrate(conn: &mut Connection, kind: &DatabaseKind) -> Result<()> {
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
-    migrate(&mut conn, kind)?;
-    Ok(conn)
+    migrate(conn, kind)
+}
+
+/// Removes the file at `path`, if any.
+pub(crate) fn remove_file_if_exists(path: &Path) -> io::Result<()> {
+    match fs::remove_file(path) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        removed => removed,
+    }
 }
 
 /// An in-memory `kind` database, migrated.
@@ -72,8 +175,23 @@ pub fn open_test_database(kind: &DatabaseKind) -> Connection {
     open(":memory:", kind).unwrap()
 }
 
+/// A `kind` database at `path`, as created by the first version of todai: to be migrated. Closed once created.
+#[cfg(test)]
+pub fn create_first_version_test_database(path: &Path, kind: &DatabaseKind) {
+    let conn = Connection::open(path).unwrap();
+    conn.execute_batch(kind.migrations[0]).unwrap();
+    conn.pragma_update(None, "user_version", 1).unwrap();
+    conn.pragma_update(None, "application_id", kind.application_id)
+        .unwrap();
+}
+
 /// Accepts a blank database if `allow_blank`, to be initialized as a `kind` one.
-fn check_kind(conn: &Connection, path: &Path, kind: &DatabaseKind, allow_blank: bool) -> Result<()> {
+fn check_kind(
+    conn: &Connection,
+    path: &Path,
+    kind: &DatabaseKind,
+    allow_blank: bool,
+) -> Result<()> {
     let invalid = || {
         TodaiError::InvalidDatabase(format!(
             "{} is not a todai {} database",
@@ -274,6 +392,239 @@ mod tests {
             header(&conn),
             (WORKSPACE.application_id, WORKSPACE.migrations.len() as i64)
         );
+    }
+
+    /// A workspace database at `path`, with a tag named `name`.
+    fn workspace_with_tag(path: &Path, name: &str) -> Connection {
+        let conn = open(path, &WORKSPACE).unwrap();
+        conn.execute(
+            "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES (?1, ?1, 0, 0, 0)",
+            [name],
+        )
+        .unwrap();
+        conn
+    }
+
+    fn tag_names(conn: &Connection) -> Vec<String> {
+        conn.prepare("SELECT name FROM tags ORDER BY name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    fn journal_mode(conn: &Connection) -> String {
+        conn.pragma_query_value(None, "journal_mode", |r| r.get(0))
+            .unwrap()
+    }
+
+    fn first_version_workspace(path: &Path) {
+        create_first_version_test_database(path, &WORKSPACE);
+    }
+
+    #[test]
+    fn open_read_only_neither_creates_nor_migrates() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let missing = dir.path().join("missing.sqlite3");
+        assert!(open_read_only(&missing, &WORKSPACE).is_err());
+        assert!(!missing.exists());
+
+        let old = dir.path().join("old.sqlite3");
+        first_version_workspace(&old);
+        let conn = open_read_only(&old, &WORKSPACE).unwrap();
+        assert!(needs_migration(&conn, &WORKSPACE).unwrap());
+        assert_eq!(header(&conn), (WORKSPACE.application_id, 1));
+        assert!(conn
+            .execute_batch("CREATE TABLE things (id INTEGER)")
+            .is_err());
+
+        let current = dir.path().join("current.sqlite3");
+        open(&current, &WORKSPACE).unwrap();
+        let conn = open_read_only(&current, &WORKSPACE).unwrap();
+        assert!(!needs_migration(&conn, &WORKSPACE).unwrap());
+
+        let app = dir.path().join("app.sqlite3");
+        open(&app, &APP).unwrap();
+        assert!(matches!(
+            open_read_only(&app, &WORKSPACE),
+            Err(TodaiError::InvalidDatabase(_))
+        ));
+    }
+
+    #[test]
+    fn snapshot_writes_a_self_contained_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = workspace_with_tag(&dir.path().join("work.sqlite3"), "Work");
+        assert_eq!(journal_mode(&conn), "wal");
+
+        let copy = dir.path().join("copy.sqlite3");
+        snapshot(&conn, &copy).unwrap();
+        let copied = open_read_only(&copy, &WORKSPACE).unwrap();
+        assert_eq!(
+            header(&copied),
+            (WORKSPACE.application_id, WORKSPACE.migrations.len() as i64)
+        );
+        assert_eq!(journal_mode(&copied), "delete");
+        assert_eq!(tag_names(&copied), ["Work"]);
+        drop(copied);
+        for leftover in [
+            "copy.sqlite3.partial",
+            "copy.sqlite3-wal",
+            "copy.sqlite3-shm",
+        ] {
+            assert!(!dir.path().join(leftover).exists(), "{leftover}");
+        }
+    }
+
+    #[test]
+    fn snapshot_replaces_existing_files_and_reads_closed_databases() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("work.sqlite3");
+        // Closed, like the databases of the workspaces that aren't active.
+        drop(workspace_with_tag(&path, "Work"));
+        let copy = dir.path().join("copy.sqlite3");
+        fs::write(&copy, "Previous export").unwrap();
+        fs::write(dir.path().join("copy.sqlite3.partial"), "Interrupted").unwrap();
+
+        snapshot(&open_read_only(&path, &WORKSPACE).unwrap(), &copy).unwrap();
+        assert_eq!(
+            tag_names(&open_read_only(&copy, &WORKSPACE).unwrap()),
+            ["Work"]
+        );
+    }
+
+    #[test]
+    fn restore_replaces_the_content_in_place() {
+        let dir = tempfile::tempdir().unwrap();
+        let backup = dir.path().join("backup.sqlite3");
+        snapshot(
+            &workspace_with_tag(&dir.path().join("before.sqlite3"), "Before"),
+            &backup,
+        )
+        .unwrap();
+        let backup_bytes = fs::read(&backup).unwrap();
+
+        let path = dir.path().join("work.sqlite3");
+        let mut conn = workspace_with_tag(&path, "After");
+        restore(&mut conn, &backup, &WORKSPACE).unwrap();
+        assert_eq!(tag_names(&conn), ["Before"]);
+        assert_eq!(journal_mode(&conn), "wal");
+        assert!(conn
+            .pragma_query_value(None, "foreign_keys", |r| r.get::<_, bool>(0))
+            .unwrap());
+
+        // Still usable, and persisted.
+        conn.execute(
+            "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('later', 'Later', 0, 0, 0)",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            tag_names(&open_existing(&path, &WORKSPACE).unwrap()),
+            ["Before", "Later"]
+        );
+        assert_eq!(fs::read(&backup).unwrap(), backup_bytes);
+    }
+
+    #[test]
+    fn restore_migrates_a_backup_from_an_older_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let backup = dir.path().join("backup.sqlite3");
+        first_version_workspace(&backup);
+
+        let mut conn = workspace_with_tag(&dir.path().join("work.sqlite3"), "Work");
+        restore(&mut conn, &backup, &WORKSPACE).unwrap();
+        assert_eq!(
+            header(&conn),
+            (WORKSPACE.application_id, WORKSPACE.migrations.len() as i64)
+        );
+        // Created by a later migration.
+        assert!(tag_names(&conn).is_empty());
+        // The backup itself is left at its version.
+        assert_eq!(header(&open_read_only(&backup, &WORKSPACE).unwrap()).1, 1);
+    }
+
+    #[test]
+    fn restore_accepts_another_page_size() {
+        let dir = tempfile::tempdir().unwrap();
+        let backup = dir.path().join("backup.sqlite3");
+        {
+            let conn = Connection::open(&backup).unwrap();
+            conn.pragma_update(None, "page_size", 8192).unwrap();
+            let conn = init(conn, &WORKSPACE).unwrap();
+            conn.execute(
+                "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('b', 'Backup', 0, 0, 0)",
+                [],
+            )
+            .unwrap();
+            assert_eq!(
+                conn.pragma_query_value(None, "page_size", |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                8192
+            );
+        }
+
+        let mut conn = workspace_with_tag(&dir.path().join("work.sqlite3"), "Work");
+        restore(&mut conn, &backup, &WORKSPACE).unwrap();
+        assert_eq!(tag_names(&conn), ["Backup"]);
+        assert_eq!(journal_mode(&conn), "wal");
+    }
+
+    #[test]
+    fn restore_refuses_other_databases_without_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut conn = workspace_with_tag(&dir.path().join("work.sqlite3"), "Work");
+
+        let app = dir.path().join("app.sqlite3");
+        open(&app, &APP).unwrap();
+        let newer = dir.path().join("newer.sqlite3");
+        open(&newer, &WORKSPACE)
+            .unwrap()
+            .pragma_update(None, "user_version", WORKSPACE.migrations.len() as i64 + 1)
+            .unwrap();
+        let missing = dir.path().join("missing.sqlite3");
+        for path in [&app, &newer, &missing] {
+            assert!(restore(&mut conn, path, &WORKSPACE).is_err(), "{path:?}");
+        }
+        assert!(!missing.exists());
+        assert_eq!(tag_names(&conn), ["Work"]);
+        assert_eq!(journal_mode(&conn), "wal");
+    }
+
+    #[test]
+    fn open_adds_backups_to_an_existing_app_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.sqlite3");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(APP.migrations[0]).unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+            conn.pragma_update(None, "application_id", APP.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO workspaces (id, name, path, created_at) VALUES ('w', 'Work', '/work.sqlite3', 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open(&path, &APP).unwrap();
+        let (auto_backup, auto_backup_keep): (bool, u32) = conn
+            .query_row(
+                "SELECT auto_backup, auto_backup_keep FROM workspaces WHERE id = 'w'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert!(auto_backup);
+        assert_eq!(auto_backup_keep, 7);
+        let backups: i64 = conn
+            .query_row("SELECT COUNT(*) FROM workspace_backups", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(backups, 0);
     }
 
     #[test]

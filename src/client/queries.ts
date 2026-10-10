@@ -80,13 +80,15 @@ export const tagsQueryOptions = queryOptions({
 });
 
 /**
- * The active workspace is nested in the list, so that invalidating the list also refreshes it.
- * Ids are UUIDs, so they never collide with `"active"`.
+ * The active workspace and each workspace's backups are nested in the list, so that invalidating the list also
+ * refreshes them (e.g. a workspace's last backup, shown in the list). Ids are UUIDs, so they never collide with
+ * `"active"`.
  */
 export const workspaceKeys = {
   all: ["workspaces"] as const,
   active: () => [...workspaceKeys.all, "active"] as const,
   id: (id: UUID) => [...workspaceKeys.all, id] as const,
+  backups: (id: UUID) => [...workspaceKeys.id(id), "backups"] as const,
 };
 
 /**
@@ -121,6 +123,13 @@ export const activeWorkspaceQueryOptions = queryOptions({
   queryKey: workspaceKeys.active(),
   queryFn: () => invokeApiClient({ name: "get_active_workspace" }),
 });
+
+/** Most recent first. */
+export const workspaceBackupsQueryOptions = (workspaceId: UUID) =>
+  queryOptions({
+    queryKey: workspaceKeys.backups(workspaceId),
+    queryFn: () => invokeApiClient({ name: "list_workspace_backups", args: { workspaceId } }),
+  });
 
 /** Found in the list, as there is no command for a single workspace; `null` if there is none with `id`. */
 export const workspaceQueryOptions = (id: UUID) =>

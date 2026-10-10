@@ -15,17 +15,23 @@
     | {
         /** Editing an existing Workspace. */
         data: WorkspaceFormData;
+        initialName?: never;
       }
     | {
         /** Creating a new Workspace. */
         data?: never;
+        /** Its name to start with, e.g. suggested from the backup it's restored from. */
+        initialName?: string;
       }
   ) & {
+    /** "Update" or "Create" by default. */
+    submitLabel?: string;
     onSubmit: (submittedData: WorkspaceFormData) => void;
   };
-  const { data, onSubmit }: WorkspaceFormProps = $props();
+  const { data, initialName, submitLabel, onSubmit }: WorkspaceFormProps =
+    $props();
 
-  let editedName = $state(data?.name ?? "");
+  let editedName = $state(data?.name ?? initialName ?? "");
   let editedPath = $state(data?.path ?? "");
   let editingPath = $state(false);
   const valid = $derived(
@@ -73,7 +79,9 @@
       });
     }}
   >
-    {#if data}
+    {#if submitLabel}
+      {submitLabel}
+    {:else if data}
       Update
     {:else}
       Create
