@@ -4,6 +4,7 @@ pub mod backups;
 pub mod commands;
 pub mod database;
 pub mod errors;
+pub mod gh;
 pub mod links;
 pub mod logging;
 pub mod state;
@@ -32,6 +33,7 @@ pub fn run() {
                 backups::open_workspace(&app_db, &backups_dir, entry, &now)
             })?;
             app.manage(state::AppState::new(app_db, db, backups_dir));
+            app.manage(gh::GhFinder::default());
             commands::backups::spawn_daily_backups(app.handle().clone());
             Ok(())
         })
@@ -69,6 +71,9 @@ pub fn run() {
             commands::backups::restore_workspace_backup,
             commands::backups::restore_workspace_backup_as_new,
             commands::backups::set_workspace_auto_backup,
+            commands::github::get_gh_status,
+            commands::github::connect_github,
+            commands::github::disconnect_github,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

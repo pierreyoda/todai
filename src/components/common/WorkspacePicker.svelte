@@ -1,21 +1,21 @@
 <script lang="ts">
-  import type { Workspace } from "../../../client/app";
+  import type { Workspace } from "../../client/app";
   import {
     Dropdown,
     DropdownItem,
     DropdownMenu,
     DropdownSection,
     DropdownTrigger,
-  } from "../../common/dropdown";
-  import IconChevronUpDown from "../../common/icons/IconChevronUpDown.svelte";
-  import WorkspaceAvatar from "../../common/WorkspaceAvatar.svelte";
+  } from "./dropdown";
+  import IconChevronUpDown from "./icons/IconChevronUpDown.svelte";
+  import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
 
-  type BackupsWorkspacePickerProps = {
+  type WorkspacePickerProps = {
     workspaces: readonly Workspace[];
     selected: Workspace;
     onPicked: (workspace: Workspace) => void;
   };
-  const { workspaces, selected, onPicked }: BackupsWorkspacePickerProps =
+  const { workspaces, selected, onPicked }: WorkspacePickerProps =
     $props();
 </script>
 

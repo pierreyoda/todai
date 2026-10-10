@@ -343,6 +343,24 @@ pub fn set_auto_backup(
         .ok_or_else(|| workspace_not_found(id))
 }
 
+/// Sets the GitHub CLI account the registered workspace `id` uses on github.com, by its `login` (not empty), or
+/// disconnects it from GitHub if `None`. Whether `gh` is signed in to it isn't checked here.
+pub fn set_github_login(app_db: &Connection, id: &str, login: Option<&str>) -> Result<DbWorkspace> {
+    if login.is_some_and(str::is_empty) {
+        return Err(TodaiError::CommandError(
+            "GitHub login cannot be empty".into(),
+        ));
+    }
+    app_db
+        .prepare_cached("UPDATE workspaces SET github_login = :login WHERE id = :id RETURNING *")?
+        .query_row(
+            named_params! { ":id": id, ":login": login },
+            DbWorkspace::from_row,
+        )
+        .optional()?
+        .ok_or_else(|| workspace_not_found(id))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -692,5 +710,33 @@ mod tests {
             .map(|workspace| workspace.name)
             .collect();
         assert_eq!(names, ["Archive", "Personal", "work"]);
+    }
+
+    #[test]
+    fn set_github_login_connects_and_disconnects_each_workspace() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        let personal = setup.create("Personal", "personal.sqlite3");
+        assert_eq!(work.github_login, None);
+
+        let login_of = |id: &str| get(&setup.app_db, id).unwrap().github_login;
+
+        let connected = set_github_login(&setup.app_db, &work.id, Some("acme-dev")).unwrap();
+        assert_eq!(connected.github_login.as_deref(), Some("acme-dev"));
+        set_github_login(&setup.app_db, &personal.id, Some("pierreyoda")).unwrap();
+        assert_eq!(login_of(&work.id).as_deref(), Some("acme-dev"));
+
+        let disconnected = set_github_login(&setup.app_db, &work.id, None).unwrap();
+        assert_eq!(disconnected.github_login, None);
+        assert_eq!(login_of(&personal.id).as_deref(), Some("pierreyoda"));
+    }
+
+    #[test]
+    fn set_github_login_rejects_empty_logins_and_unknown_workspaces() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        assert!(set_github_login(&setup.app_db, &work.id, Some("")).is_err());
+        assert!(set_github_login(&setup.app_db, "unknown", Some("pierreyoda")).is_err());
+        assert_eq!(get(&setup.app_db, &work.id).unwrap().github_login, None);
     }
 }

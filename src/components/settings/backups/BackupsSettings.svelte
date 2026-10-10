@@ -30,7 +30,7 @@
   import AutoBackupSettings from "./AutoBackupSettings.svelte";
   import ErrorBanner from "../../common/ErrorBanner.svelte";
   import SettingsContainer from "../SettingsContainer.svelte";
-  import BackupsWorkspacePicker from "./BackupsWorkspacePicker.svelte";
+  import WorkspacePicker from "../../common/WorkspacePicker.svelte";
   import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
   import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
   import IconArrowDownTray from "../../common/icons/IconArrowDownTray.svelte";
@@ -120,7 +120,7 @@
   {/snippet}
   <div class="content">
     <div class="toolbar">
-      <BackupsWorkspacePicker
+      <WorkspacePicker
         {workspaces}
         selected={workspace}
         onPicked={({ id }) =>

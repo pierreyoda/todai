@@ -33,6 +33,10 @@ pub enum TodaiError {
     WorkspaceUnavailable(String),
     #[error("No workspace is open")]
     NoActiveWorkspace,
+    #[error("The GitHub CLI (gh) was not found: install it, then sign in with `gh auth login`")]
+    GhNotFound,
+    #[error("GitHub CLI error: {0}")]
+    GhCli(String),
     #[error("Command error: {0}")]
     CommandError(String),
 }

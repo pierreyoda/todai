@@ -138,6 +138,8 @@ pub struct DbWorkspace {
     pub auto_backup: bool,
     /// Automatic backups kept: older ones are deleted.
     pub auto_backup_keep: u32,
+    /// The GitHub CLI account it uses on github.com, if connected.
+    pub github_login: Option<String>,
 }
 
 impl DbWorkspace {
@@ -150,6 +152,7 @@ impl DbWorkspace {
             last_opened_at: row.get("last_opened_at")?,
             auto_backup: row.get("auto_backup")?,
             auto_backup_keep: row.get("auto_backup_keep")?,
+            github_login: row.get("github_login")?,
         })
     }
 }

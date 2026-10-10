@@ -22,6 +22,25 @@ export interface Workspace {
   autoBackup: boolean;
   /** Automatic backups kept, from 1 to 100: older ones are deleted. */
   autoBackupKeep: number;
+  /** The GitHub CLI account it uses on github.com, if connected to GitHub. */
+  githubLogin?: string;
+}
+
+/** An account the GitHub CLI (`gh`) knows on github.com. */
+export interface GhAccount {
+  login: string;
+  /** The one `gh` uses by default (`gh auth switch` changes it). */
+  active: boolean;
+  /** Whether its token works: not once revoked or expired, until signing in again with `gh auth login`. */
+  signedIn: boolean;
+}
+
+/** What the GitHub CLI offers to connect workspaces with. */
+export interface GhStatus {
+  /** Where `gh` was found: `null` if it's not installed (or not where expected). */
+  path: string | null;
+  /** The accounts it knows on github.com, signed in or not anymore: none without `gh`. */
+  accounts: GhAccount[];
 }
 
 /**
@@ -191,6 +210,28 @@ export type ClientInvocationAppCommand = {
       autoBackup: boolean;
       /** From 1 to 100. */
       autoBackupKeep: number;
+    };
+    returns: Workspace;
+  };
+  /** `gh` is looked for once, then remembered: `refind` looks for it again, e.g. after installing it. */
+  get_gh_status: {
+    args?: {
+      refind?: boolean;
+    };
+    returns: GhStatus;
+  };
+  /** Instead of any other account. Fails unless `gh` is signed in to `login` on github.com. */
+  connect_github: {
+    args: {
+      workspaceId: UUID;
+      login: string;
+    };
+    returns: Workspace;
+  };
+  /** Its links then only show what their URL tells. */
+  disconnect_github: {
+    args: {
+      workspaceId: UUID;
     };
     returns: Workspace;
   };

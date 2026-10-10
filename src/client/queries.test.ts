@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clearActiveWorkspace,
+  ghKeys,
   invalidateActiveWorkspace,
   invalidateTodosOf,
   linkKeys,
@@ -89,15 +90,17 @@ describe("active workspace changes", () => {
     expect(queryClient.getQueryState(workspaces)?.isInvalidated).toBe(true);
   });
 
-  it("keeps the recognized links, which don't come from the workspace's database", async () => {
-    const parsed = linkKeys.parse("https://github.com/pierreyoda/todai/pull/58");
+  it.each([
+    ["the recognized links", linkKeys.parse("https://github.com/pierreyoda/todai/pull/58")],
+    ["the GitHub CLI status", ghKeys.status()],
+  ])("keeps %s, which don't come from the workspace's database", async (_, key) => {
     const queryClient = withData();
-    queryClient.setQueryData(parsed, {});
+    queryClient.setQueryData(key, {});
 
     await invalidateActiveWorkspace(queryClient);
-    expect(queryClient.getQueryState(parsed)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
 
     await clearActiveWorkspace(queryClient);
-    expect(queryClient.getQueryState(parsed)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
   });
 });

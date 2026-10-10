@@ -44,6 +44,7 @@ pub const APP: DatabaseKind = DatabaseKind {
     migrations: &[
         include_str!("../migrations-app/001_init.sql"),
         include_str!("../migrations-app/002_workspace_backups.sql"),
+        include_str!("../migrations-app/003_workspace_github.sql"),
     ],
 };
 
@@ -627,6 +628,42 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM workspace_backups", [], |r| r.get(0))
             .unwrap();
         assert_eq!(backups, 0);
+    }
+
+    #[test]
+    fn open_leaves_existing_workspaces_unconnected_to_github() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.sqlite3");
+        {
+            // As left by the last version without GitHub.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &APP.migrations[..2] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 2).unwrap();
+            conn.pragma_update(None, "application_id", APP.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO workspaces (id, name, path, created_at) VALUES ('w', 'Work', '/work.sqlite3', 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open(&path, &APP).unwrap();
+        assert_eq!(header(&conn).1, 3);
+        let login: Option<String> = conn
+            .query_row(
+                "SELECT github_login FROM workspaces WHERE id = 'w'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(login, None);
+        // A login is never empty: disconnecting sets it back to NULL.
+        assert!(conn
+            .execute("UPDATE workspaces SET github_login = '' WHERE id = 'w'", [])
+            .is_err());
     }
 
     #[test]

@@ -108,6 +108,25 @@ export const parseLinkQueryOptions = (url: string) =>
   });
 
 /**
+ * The GitHub CLI (`gh`) on this machine. Like the recognized links, it doesn't come from the active workspace's
+ * database: it's kept when switching to another one.
+ */
+export const ghKeys = {
+  all: ["gh"] as const,
+  status: () => [...ghKeys.all, "status"] as const,
+};
+
+/**
+ * Whether `gh` is installed, with its accounts on github.com. Unlike the app's own data, it changes behind its back
+ * (`gh auth login`, `gh auth logout`): refetched each time it's shown.
+ */
+export const ghStatusQueryOptions = queryOptions({
+  queryKey: ghKeys.status(),
+  queryFn: () => invokeApiClient({ name: "get_gh_status" }),
+  staleTime: 0,
+});
+
+/**
  * The active workspace and each workspace's backups are nested in the list, so that invalidating the list also
  * refreshes them (e.g. a workspace's last backup, shown in the list). Ids are UUIDs, so they never collide with
  * `"active"`.

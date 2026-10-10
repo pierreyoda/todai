@@ -6,22 +6,16 @@
   import SidePanel from "../../../components/SidePanel.svelte";
   import LoadingState from "../../../components/common/LoadingState.svelte";
   import BackupsSettings from "../../../components/settings/backups/BackupsSettings.svelte";
+  import { pickedWorkspace } from "../../../utils/workspaces";
 
   const workspaces = createQuery(() => workspacesQueryOptions);
   const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
 
-  // Picked in the URL (e.g. from the workspaces page), else the active one, else the first one. Even without a usable
-  // active workspace: restoring one of its backups is how to get it back.
-  const workspace = $derived.by(() => {
-    const list = workspaces.data ?? [];
-    const id = page.url.searchParams.get("workspace");
-    return (
-      list.find((workspace) => workspace.id === id) ??
-      list.find((workspace) => workspace.isActive) ??
-      list[0] ??
-      null
-    );
-  });
+  // E.g. picked from the workspaces page. Even without a usable active workspace: restoring one of its backups is how
+  // to get it back.
+  const workspace = $derived(
+    pickedWorkspace(workspaces.data ?? [], page.url.searchParams.get("workspace")),
+  );
 </script>
 
 <main>

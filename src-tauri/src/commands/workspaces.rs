@@ -31,6 +31,8 @@ pub struct Workspace {
     pub auto_backup: bool,
     /// Automatic backups kept: older ones are deleted.
     pub auto_backup_keep: u32,
+    /// The GitHub CLI account it uses on github.com, if connected to GitHub.
+    pub github_login: Option<String>,
 }
 
 impl Workspace {
@@ -54,6 +56,7 @@ impl Workspace {
             last_backup_at: last_backup_at.map(Timestamp::from_second).transpose()?,
             auto_backup: entry.auto_backup,
             auto_backup_keep: entry.auto_backup_keep,
+            github_login: entry.github_login,
         })
     }
 }

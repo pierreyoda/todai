@@ -31,6 +31,7 @@ thiserror = "2.0.21"
 uuid = { version = "1.28.0", features = ["v7"] }
 log = "0.4.34"
 url = "2.5.8"
+tokio = { version = "1.53.2", features = ["process", "time"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -43,3 +44,4 @@ strip = true
 
 [dev-dependencies]
 tempfile = "3.27.0"
+tokio = { version = "1.53.2", features = ["macros", "rt"] }

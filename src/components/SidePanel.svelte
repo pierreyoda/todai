@@ -15,6 +15,7 @@
   import IconDocumentText from "./common/icons/IconDocumentText.svelte";
   import IconFolderOpen from "./common/icons/IconFolderOpen.svelte";
   import IconArchiveBox from "./common/icons/IconArchiveBox.svelte";
+  import IconLink from "./common/icons/IconLink.svelte";
   import SidePanelWorkspace from "./layout/SidePanelWorkspace.svelte";
   import IconExclamationTriangle from "./common/icons/IconExclamationTriangle.svelte";
 
@@ -145,6 +146,11 @@
     <SidePanelLink label="Backups" routeId="/settings/backups">
       {#snippet icon()}
         <IconArchiveBox />
+      {/snippet}
+    </SidePanelLink>
+    <SidePanelLink label="Integrations" routeId="/settings/integrations">
+      {#snippet icon()}
+        <IconLink />
       {/snippet}
     </SidePanelLink>
   </footer>
