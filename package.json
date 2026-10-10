@@ -20,7 +20,8 @@
     "@tauri-apps/api": "2.12.1",
     "@tauri-apps/plugin-dialog": "2.8.1",
     "@tauri-apps/plugin-opener": "2.7.0",
-    "date-fns": "4.4.0"
+    "date-fns": "4.4.0",
+    "fuse.js": "7.5.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "4.0.0",

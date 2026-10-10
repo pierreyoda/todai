@@ -16,7 +16,6 @@
     selected: boolean;
     onSelectedChanged: (selected: boolean) => void;
   };
-
   const { tag, selected, onSelectedChanged }: SidePanelTagProps = $props();
 
   const queryClient = useQueryClient();
@@ -63,14 +62,19 @@
     }}
   >
     <!-- Not while renaming: right-clicking its field shows the field's own menu (cut, copy, paste...) -->
-    <div class="row" {@attach !renaming && contextMenu(() => (menuOpen = true))}>
+    <div
+      class="row"
+      {@attach !renaming && contextMenu(() => (menuOpen = true))}
+    >
       {#if renaming}
         <div class="item">
           <span class="dot" aria-hidden="true"></span>
           <EditableText
             as="span"
             bind:value={() => tag.name, saveName}
-            bind:editing={() => renaming, (editing) => !editing && stopRenaming()}
+            bind:editing={
+              () => renaming, (editing) => !editing && stopRenaming()
+            }
             label={`Name of tag "${tag.name}"`}
             class="min-w-0 flex-1 text-sm/6 font-medium text-white"
           />

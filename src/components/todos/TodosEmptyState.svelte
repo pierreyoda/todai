@@ -4,6 +4,7 @@
 
   import type { Tag } from "../../client/types";
   import Button from "../common/Button.svelte";
+  import IconMagnifyingGlass from "../common/icons/IconMagnifyingGlass.svelte";
   import IconSun from "../common/icons/IconSun.svelte";
   import IconTag from "../common/icons/IconTag.svelte";
 
@@ -11,8 +12,12 @@
     /** Set when the day has todos, but none with this tag. */
     filterTag?: Tag | null;
     onClearFilter?: () => void;
+    /** Set when the day has todos, but none matching this query (among the ones with `filterTag`, if set). */
+    searchQuery?: string | null;
+    onClearSearch?: () => void;
   };
-  const { filterTag, onClearFilter }: TodosEmptyStateProps = $props();
+  const { filterTag, onClearFilter, searchQuery, onClearSearch }: TodosEmptyStateProps =
+    $props();
 </script>
 
 <div
@@ -25,14 +30,30 @@
     <span class="ripple"></span>
     <span class="ripple delayed"></span>
     <div class="disc">
-      {#if filterTag}
+      {#if searchQuery}
+        <IconMagnifyingGlass class="size-14" />
+      {:else if filterTag}
         <IconTag class="size-14" />
       {:else}
         <IconSun class="spin size-16" />
       {/if}
     </div>
   </div>
-  {#if filterTag}
+  {#if searchQuery}
+    <h2 class="title">No todos match “{searchQuery}”</h2>
+    {#if filterTag}
+      <p class="hint">
+        Searched among the todos tagged <span class="text-(--accent)">{filterTag.name}</span>.
+      </p>
+    {:else}
+      <p class="hint">Other todos are planned today, just not matching this search.</p>
+    {/if}
+    {#if onClearSearch}
+      <Button style="outline" class="mt-2" onclick={onClearSearch}>
+        Clear the search
+      </Button>
+    {/if}
+  {:else if filterTag}
     <h2 class="title">
       No todos tagged <span class="text-(--accent)">{filterTag.name}</span>
     </h2>
