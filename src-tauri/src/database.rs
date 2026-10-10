@@ -33,6 +33,7 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/004_todo_estimate.sql"),
         include_str!("../migrations/005_notes.sql"),
         include_str!("../migrations/006_todo_links.sql"),
+        include_str!("../migrations/007_todo_link_statuses.sql"),
     ],
 };
 
@@ -717,7 +718,7 @@ mod tests {
         }
 
         let conn = open_existing(&path, &WORKSPACE).unwrap();
-        assert_eq!(header(&conn).1, 6);
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
         conn.execute(
             "INSERT INTO todo_links (id, todo_id, kind, url, created_at)
              VALUES ('l', 't', 'url', 'https://example.org/', 0)",
@@ -732,6 +733,49 @@ mod tests {
             )
             .unwrap();
         assert_eq!(links, 1);
+    }
+
+    #[test]
+    fn open_existing_keeps_the_links_of_a_workspace_database_without_their_statuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without links' statuses.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..6] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 6).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute_batch(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-10', 'Linked', 'a0', 0, 0);
+                 INSERT INTO todo_links (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at)
+                 VALUES ('l', 't', 'github_pull', 'https://github.com/o/r/pull/1', 'o', 'r', 1, 0);",
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
+        let never_fetched: (Option<String>, Option<i64>, Option<String>) = conn
+            .query_row(
+                "SELECT snapshot, fetched_at, fetch_error FROM todo_links WHERE id = 'l'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(never_fetched, (None, None, None));
+        let set_error = |error: &str| {
+            conn.execute(
+                "UPDATE todo_links SET fetch_error = ?1 WHERE id = 'l'",
+                [error],
+            )
+        };
+        assert!(set_error("no_access").is_ok());
+        assert!(set_error("sso_required").is_ok());
+        assert!(set_error("offline").is_err());
     }
 
     #[test]

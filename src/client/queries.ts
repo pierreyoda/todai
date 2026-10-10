@@ -92,6 +92,36 @@ export const noteQueryOptions = (day: Day) =>
   });
 
 /**
+ * The refreshes of the GitHub links' statuses, by day: what the last one ran into. Like the todos, they come from the
+ * active workspace's database: refreshed when switching to another one.
+ */
+export const linkStatusKeys = {
+  all: ["linkStatuses"] as const,
+  day: (day: Day) => [...linkStatusKeys.all, day] as const,
+};
+
+/** How often the GitHub links' statuses are refreshed while shown. Only the ones fetched long enough ago are. */
+const LINK_STATUSES_INTERVAL = 10 * 60 * 1000;
+
+/**
+ * Refreshes the status of the GitHub links of the todos of `day` that were fetched long enough ago, then the todos if
+ * any was. Unlike the app's own data, it changes behind its back: each time it's shown, every 10 minutes, and on window
+ * focus.
+ */
+export const linkStatusesQueryOptions = (day: Day) =>
+  queryOptions({
+    queryKey: linkStatusKeys.day(day),
+    queryFn: async () => {
+      const outcome = await invokeClient({ name: "refresh_links", args: { day } });
+      if (outcome.refreshed > 0) await invalidateTodosOf(queryClient, day);
+      return outcome;
+    },
+    staleTime: 0,
+    refetchInterval: LINK_STATUSES_INTERVAL,
+    refetchOnWindowFocus: true,
+  });
+
+/**
  * What URLs are recognized as, by URL. Unlike the todos' links, they don't come from the active workspace's database:
  * they're kept when switching to another one.
  */
@@ -136,11 +166,12 @@ export const workspaceKeys = {
   active: () => [...workspaceKeys.all, "active"] as const,
   id: (id: UUID) => [...workspaceKeys.all, id] as const,
   backups: (id: UUID) => [...workspaceKeys.id(id), "backups"] as const,
+  github: (id: UUID) => [...workspaceKeys.id(id), "github"] as const,
 };
 
 /**
- * Refreshes the workspaces (with the active one) and, as they come from its database, the todos, tags and notes: after
- * switching to another workspace. Awaitable, so that a mutation can stay pending until then.
+ * Refreshes the workspaces (with the active one) and, as they come from its database, the todos, tags, notes and link
+ * statuses: after switching to another workspace. Awaitable, so that a mutation can stay pending until then.
  */
 export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
   Promise.all([
@@ -148,17 +179,19 @@ export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: todoKeys.all }),
     queryClient.invalidateQueries({ queryKey: tagKeys.all }),
     queryClient.invalidateQueries({ queryKey: noteKeys.all }),
+    queryClient.invalidateQueries({ queryKey: linkStatusKeys.all }),
   ]);
 
 /**
- * Refreshes the workspaces and drops the todos, tags and notes, which came from the active workspace's database: after
- * closing it without opening another one, so there is nothing to refetch them from. Awaitable, so that a mutation can
- * stay pending until then.
+ * Refreshes the workspaces and drops the todos, tags, notes and link statuses, which came from the active workspace's
+ * database: after closing it without opening another one, so there is nothing to refetch them from. Awaitable, so that a
+ * mutation can stay pending until then.
  */
 export const clearActiveWorkspace = (queryClient: QueryClient) => {
   queryClient.removeQueries({ queryKey: todoKeys.all });
   queryClient.removeQueries({ queryKey: tagKeys.all });
   queryClient.removeQueries({ queryKey: noteKeys.all });
+  queryClient.removeQueries({ queryKey: linkStatusKeys.all });
   return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
 };
 
@@ -178,6 +211,17 @@ export const workspaceBackupsQueryOptions = (workspaceId: UUID) =>
   queryOptions({
     queryKey: workspaceKeys.backups(workspaceId),
     queryFn: () => invokeApiClient({ name: "list_workspace_backups", args: { workspaceId } }),
+  });
+
+/**
+ * What GitHub says of a workspace's connection: its account's rate limit, or why it can't be asked. Unlike the app's
+ * own data, it changes behind its back: refetched each time it's shown.
+ */
+export const githubApiStatusQueryOptions = (workspaceId: UUID) =>
+  queryOptions({
+    queryKey: workspaceKeys.github(workspaceId),
+    queryFn: () => invokeApiClient({ name: "get_github_api_status", args: { workspaceId } }),
+    staleTime: 0,
   });
 
 /** Found in the list, as there is no command for a single workspace; `null` if there is none with `id`. */

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Estimate, Note, ParsedLink, Tag, Todo, TodoLink, TodoMonth } from "./types";
+import type { Day, Estimate, Note, ParsedLink, RefreshOutcome, Tag, Todo, TodoLink, TodoMonth } from "./types";
 import type { UUID } from "node:crypto";
 
 import { parseResponse } from "../utils/client";
@@ -130,6 +130,25 @@ type ClientInvocationCommand = {
       id: UUID;
     };
     returns: never;
+  };
+  /**
+   * Refreshes the status of the pull requests and issues linked to the non-deleted todos of `day`, if fetched long
+   * enough ago (5 minutes for open ones, a day for the others, or whenever if `force`), through the active workspace's
+   * GitHub connection. Does nothing without one.
+   */
+  refresh_links: {
+    args: {
+      day: Day;
+      force?: boolean;
+    };
+    returns: RefreshOutcome;
+  };
+  /** Refreshes the status of a GitHub link's pull request or issue, however recently fetched, as `refresh_links`. */
+  refresh_link: {
+    args: {
+      id: UUID;
+    };
+    returns: RefreshOutcome;
   };
   /** `null` if the day has no note. */
   get_note: {

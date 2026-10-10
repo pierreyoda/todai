@@ -7,6 +7,7 @@ import {
   invalidateActiveWorkspace,
   invalidateTodosOf,
   linkKeys,
+  linkStatusKeys,
   noteKeys,
   tagKeys,
   todoKeys,
@@ -57,6 +58,7 @@ describe("active workspace changes", () => {
     months: todoKeys.months(),
     tags: tagKeys.all,
     note: noteKeys.day("2026-10-10"),
+    linkStatuses: linkStatusKeys.day("2026-10-10"),
     workspaces: workspaceKeys.all,
   };
 

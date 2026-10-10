@@ -11,7 +11,8 @@ use crate::{
     commands::todos::Day,
     database::models::DbTodoLink,
     errors::{Result, TodaiError},
-    links::{self, GitHubRef, LinkKind, ParsedLink},
+    github::snapshot::GitHubSnapshot,
+    links::{self, FetchError, GitHubRef, LinkKind, ParsedLink},
     state::AppState,
 };
 
@@ -30,6 +31,15 @@ pub struct TodoLink {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
     pub created_at: Timestamp,
+    /// What GitHub last told about its pull request or issue, if fetched since it was added.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<GitHubSnapshot>,
+    /// When GitHub last answered about it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetched_at: Option<Timestamp>,
+    /// Why GitHub's last answer had nothing about it, if so: `snapshot` is then the one before, if any.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch_error: Option<FetchError>,
 }
 
 impl TryFrom<DbTodoLink> for TodoLink {
@@ -60,6 +70,8 @@ impl TryFrom<DbTodoLink> for TodoLink {
                 .and_then(|url| url.host_str().map(links::domain_label))
                 .unwrap_or_else(|| link.url.clone()),
         };
+        // Ignored if stored in another format: as if never fetched, until fetched again.
+        let snapshot = link.snapshot.as_deref().and_then(GitHubSnapshot::from_db);
         Ok(Self {
             id: link.id,
             todo_id: link.todo_id,
@@ -68,15 +80,26 @@ impl TryFrom<DbTodoLink> for TodoLink {
             label,
             github,
             created_at: Timestamp::from_second(link.created_at)?,
+            fetched_at: link
+                .fetched_at
+                .filter(|_| snapshot.is_some() || link.fetch_error.is_some())
+                .map(Timestamp::from_second)
+                .transpose()?,
+            snapshot,
+            fetch_error: link
+                .fetch_error
+                .as_deref()
+                .map(FetchError::try_from)
+                .transpose()?,
         })
     }
 }
 
-fn todo_not_found(id: &str) -> TodaiError {
+pub(crate) fn todo_not_found(id: &str) -> TodaiError {
     TodaiError::CommandError(format!("Todo {id} not found"))
 }
 
-fn link_not_found(id: &str) -> TodaiError {
+pub(crate) fn link_not_found(id: &str) -> TodaiError {
     TodaiError::CommandError(format!("Link {id} not found"))
 }
 

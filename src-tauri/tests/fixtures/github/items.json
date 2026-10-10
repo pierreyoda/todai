@@ -1,0 +1,430 @@
+{
+  "data": {
+    "rateLimit": {
+      "limit": 5000,
+      "remaining": 4985,
+      "resetAt": "2026-10-10T20:25:17Z"
+    },
+    "l0": {
+      "issueOrPullRequest": {
+        "__typename": "PullRequest",
+        "url": "https://github.com/cli/cli/pull/14640",
+        "title": "`gh issue artifact` stack 11/12: Address review feedback",
+        "state": "OPEN",
+        "isDraft": false,
+        "reviewDecision": "REVIEW_REQUIRED",
+        "author": {
+          "login": "BagToad"
+        },
+        "updatedAt": "2026-10-09T20:04:39Z",
+        "additions": 545,
+        "deletions": 280,
+        "changedFiles": 30,
+        "headRefName": "bagtoad/artifact-review-feedback",
+        "baseRefName": "bagtoad/artifact-restore-version",
+        "statusCheckRollup": {
+          "state": "FAILURE",
+          "contexts": {
+            "checkRunCountsByState": [
+              {
+                "state": "ACTION_REQUIRED",
+                "count": 0
+              },
+              {
+                "state": "CANCELLED",
+                "count": 0
+              },
+              {
+                "state": "COMPLETED",
+                "count": 0
+              },
+              {
+                "state": "FAILURE",
+                "count": 1
+              },
+              {
+                "state": "IN_PROGRESS",
+                "count": 0
+              },
+              {
+                "state": "NEUTRAL",
+                "count": 0
+              },
+              {
+                "state": "PENDING",
+                "count": 0
+              },
+              {
+                "state": "QUEUED",
+                "count": 0
+              },
+              {
+                "state": "SKIPPED",
+                "count": 13
+              },
+              {
+                "state": "STALE",
+                "count": 0
+              },
+              {
+                "state": "STARTUP_FAILURE",
+                "count": 0
+              },
+              {
+                "state": "SUCCESS",
+                "count": 11
+              },
+              {
+                "state": "TIMED_OUT",
+                "count": 0
+              },
+              {
+                "state": "WAITING",
+                "count": 0
+              }
+            ],
+            "statusContextCountsByState": [
+              {
+                "state": "EXPECTED",
+                "count": 0
+              },
+              {
+                "state": "ERROR",
+                "count": 0
+              },
+              {
+                "state": "FAILURE",
+                "count": 0
+              },
+              {
+                "state": "PENDING",
+                "count": 1
+              },
+              {
+                "state": "SUCCESS",
+                "count": 0
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "CheckRun",
+                "name": "govulncheck",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+                "startedAt": "2026-10-09T19:39:49Z",
+                "checkSuite": {
+                  "workflowRun": {
+                    "workflow": {
+                      "name": "Lint"
+                    }
+                  }
+                }
+              },
+              {
+                "__typename": "CheckRun",
+                "name": "CodeQL-Build (go, manual, ./.github/codeql/codeql-config.yml)",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+                "startedAt": "2026-10-09T19:40:19Z",
+                "checkSuite": {
+                  "workflowRun": {
+                    "workflow": {
+                      "name": "Code Scanning"
+                    }
+                  }
+                }
+              },
+              {
+                "__typename": "CheckRun",
+                "name": "label-external",
+                "status": "COMPLETED",
+                "conclusion": "SKIPPED",
+                "startedAt": "2026-10-09T20:04:53Z",
+                "checkSuite": {
+                  "workflowRun": {
+                    "workflow": {
+                      "name": "PR Triaging"
+                    }
+                  }
+                }
+              },
+              {
+                "__typename": "StatusContext",
+                "context": "ci/circleci",
+                "state": "PENDING",
+                "createdAt": "2026-10-09T19:41:00Z"
+              }
+            ]
+          }
+        },
+        "closingIssuesReferences": {
+          "nodes": []
+        }
+      }
+    },
+    "l1": {
+      "issueOrPullRequest": {
+        "__typename": "PullRequest",
+        "url": "https://github.com/cli/cli/pull/14616",
+        "title": "Clarify issue view comment output modes",
+        "state": "MERGED",
+        "isDraft": false,
+        "reviewDecision": "APPROVED",
+        "author": {
+          "login": "copilot-swe-agent"
+        },
+        "updatedAt": "2026-10-07T10:13:20Z",
+        "additions": 1,
+        "deletions": 0,
+        "changedFiles": 1,
+        "headRefName": "copilot/gh-skill-document-issue-view",
+        "baseRefName": "trunk",
+        "statusCheckRollup": {
+          "state": "SUCCESS",
+          "contexts": {
+            "checkRunCountsByState": [
+              {
+                "state": "ACTION_REQUIRED",
+                "count": 0
+              },
+              {
+                "state": "CANCELLED",
+                "count": 0
+              },
+              {
+                "state": "COMPLETED",
+                "count": 0
+              },
+              {
+                "state": "FAILURE",
+                "count": 0
+              },
+              {
+                "state": "IN_PROGRESS",
+                "count": 0
+              },
+              {
+                "state": "NEUTRAL",
+                "count": 0
+              },
+              {
+                "state": "PENDING",
+                "count": 0
+              },
+              {
+                "state": "QUEUED",
+                "count": 0
+              },
+              {
+                "state": "SKIPPED",
+                "count": 7
+              },
+              {
+                "state": "STALE",
+                "count": 0
+              },
+              {
+                "state": "STARTUP_FAILURE",
+                "count": 0
+              },
+              {
+                "state": "SUCCESS",
+                "count": 6
+              },
+              {
+                "state": "TIMED_OUT",
+                "count": 0
+              },
+              {
+                "state": "WAITING",
+                "count": 0
+              }
+            ],
+            "statusContextCountsByState": [
+              {
+                "state": "EXPECTED",
+                "count": 0
+              },
+              {
+                "state": "ERROR",
+                "count": 0
+              },
+              {
+                "state": "FAILURE",
+                "count": 0
+              },
+              {
+                "state": "PENDING",
+                "count": 0
+              },
+              {
+                "state": "SUCCESS",
+                "count": 0
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "CheckRun",
+                "name": "label-external",
+                "status": "COMPLETED",
+                "conclusion": "SKIPPED",
+                "startedAt": "2026-10-07T08:34:54Z",
+                "checkSuite": {
+                  "workflowRun": {
+                    "workflow": {
+                      "name": "PR Triaging"
+                    }
+                  }
+                }
+              },
+              {
+                "__typename": "CheckRun",
+                "name": "build (ubuntu-latest)",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+                "startedAt": "2026-10-07T08:33:36Z",
+                "checkSuite": {
+                  "workflowRun": {
+                    "workflow": {
+                      "name": "Unit and Integration Tests"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "closingIssuesReferences": {
+          "nodes": [
+            {
+              "url": "https://github.com/cli/cli/issues/14614",
+              "title": "gh skill: document that issue view --comments and --json are mutually exclusive",
+              "state": "CLOSED",
+              "stateReason": "COMPLETED"
+            }
+          ]
+        }
+      }
+    },
+    "l2": {
+      "issueOrPullRequest": {
+        "__typename": "Issue",
+        "url": "https://github.com/cli/cli/issues/14614",
+        "title": "gh skill: document that issue view --comments and --json are mutually exclusive",
+        "state": "CLOSED",
+        "stateReason": "COMPLETED",
+        "author": {
+          "login": "filippolmt"
+        },
+        "updatedAt": "2026-10-07T10:13:19Z",
+        "assignees": {
+          "nodes": [
+            {
+              "login": "babakks"
+            },
+            {
+              "login": "Copilot"
+            }
+          ]
+        },
+        "labels": {
+          "nodes": [
+            {
+              "name": "bug",
+              "color": "d73a4a"
+            },
+            {
+              "name": "priority-3",
+              "color": "eded04"
+            },
+            {
+              "name": "core",
+              "color": "e25944"
+            }
+          ]
+        },
+        "milestone": null,
+        "comments": {
+          "totalCount": 2
+        },
+        "closedByPullRequestsReferences": {
+          "nodes": [
+            {
+              "url": "https://github.com/cli/cli/pull/14616",
+              "title": "Clarify issue view comment output modes",
+              "state": "MERGED",
+              "isDraft": false
+            }
+          ]
+        }
+      }
+    },
+    "l3": {
+      "issueOrPullRequest": {
+        "__typename": "Issue",
+        "url": "https://github.com/cli/cli/issues/14627",
+        "title": "`gh` fails with obscure errors when access token misses some permissionts",
+        "state": "OPEN",
+        "stateReason": null,
+        "author": {
+          "login": "heitorPB"
+        },
+        "updatedAt": "2026-10-08T19:21:25Z",
+        "assignees": {
+          "nodes": []
+        },
+        "labels": {
+          "nodes": [
+            {
+              "name": "needs-triage",
+              "color": "D6393F"
+            }
+          ]
+        },
+        "milestone": null,
+        "comments": {
+          "totalCount": 1
+        },
+        "closedByPullRequestsReferences": {
+          "nodes": []
+        }
+      }
+    },
+    "l4": {
+      "issueOrPullRequest": null
+    },
+    "l5": null
+  },
+  "errors": [
+    {
+      "type": "NOT_FOUND",
+      "path": [
+        "l4",
+        "issueOrPullRequest"
+      ],
+      "locations": [
+        {
+          "line": 8,
+          "column": 43
+        }
+      ],
+      "message": "Could not resolve to an issue or pull request with the number of 10001."
+    },
+    {
+      "type": "FORBIDDEN",
+      "path": [
+        "l5"
+      ],
+      "extensions": {
+        "saml_failure": true
+      },
+      "locations": [
+        {
+          "line": 9,
+          "column": 3
+        }
+      ],
+      "message": "Resource protected by organization SAML enforcement. You must grant your Personal Access token access to this organization."
+    }
+  ]
+}

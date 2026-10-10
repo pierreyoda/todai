@@ -5,6 +5,7 @@ use crate::{
     commands::workspaces::{workspace, Workspace},
     errors::{Result, TodaiError},
     gh::{GhAccount, GhFinder},
+    github::{query::RateLimit, GitHub, GitHubError},
     state::AppState,
     workspaces,
 };
@@ -65,6 +66,46 @@ pub async fn disconnect_github(
     let entry = workspaces::set_github_login(&app_db, &workspace_id, None)?;
     log::info!("Disconnected workspace {:?} from GitHub", entry.name);
     workspace(&state, &app_db, entry)
+}
+
+/// A workspace's GitHub connection, as GitHub sees it.
+#[derive(Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubApiStatus {
+    /// The connected account's rate limit, if GitHub could be asked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate_limit: Option<RateLimit>,
+    /// Why GitHub couldn't be asked, if so.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<GitHubError>,
+}
+
+/// Asks GitHub for the rate limit of the account the workspace `workspace_id` is connected to: which also checks that
+/// GitHub accepts its token. Fails if it isn't connected.
+#[tauri::command]
+pub async fn get_github_api_status(
+    state: State<'_, AppState>,
+    finder: State<'_, GhFinder>,
+    github: State<'_, GitHub>,
+    workspace_id: String,
+) -> Result<GitHubApiStatus> {
+    let login = workspaces::get(&state.app_db(), &workspace_id)?
+        .github_login
+        .ok_or_else(|| {
+            TodaiError::CommandError(format!(
+                "Workspace {workspace_id} isn't connected to GitHub"
+            ))
+        })?;
+    Ok(match github.rate_limit(&*finder, &login).await {
+        Ok(rate_limit) => GitHubApiStatus {
+            rate_limit: Some(rate_limit),
+            problem: None,
+        },
+        Err(problem) => GitHubApiStatus {
+            rate_limit: None,
+            problem: Some(problem),
+        },
+    })
 }
 
 /// Fails unless `login` is among `accounts`, signed in.

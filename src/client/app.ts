@@ -3,6 +3,7 @@ import type { UUID } from "node:crypto";
 import { invoke } from "@tauri-apps/api/core";
 import { parseResponse } from "../utils/client";
 import type { Invocation } from ".";
+import type { GitHubProblem } from "./types";
 
 /** A workspace, with its own database. */
 export interface Workspace {
@@ -41,6 +42,21 @@ export interface GhStatus {
   path: string | null;
   /** The accounts it knows on github.com, signed in or not anymore: none without `gh`. */
   accounts: GhAccount[];
+}
+
+/** GitHub's rate limit for an account, in points: requests cost 1 or 2, for up to 50 pull requests and issues. */
+export interface GitHubRateLimit {
+  limit: number;
+  remaining: number;
+  resetAt: Date;
+}
+
+/** A workspace's GitHub connection, as GitHub sees it. */
+export interface GitHubApiStatus {
+  /** The connected account's rate limit, if GitHub could be asked. */
+  rateLimit?: GitHubRateLimit;
+  /** Why GitHub couldn't be asked, if so. */
+  problem?: GitHubProblem;
 }
 
 /**
@@ -234,6 +250,16 @@ export type ClientInvocationAppCommand = {
       workspaceId: UUID;
     };
     returns: Workspace;
+  };
+  /**
+   * Asks GitHub for the rate limit of the account a workspace is connected to, which also checks that GitHub accepts
+   * its token. Fails if it isn't connected.
+   */
+  get_github_api_status: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: GitHubApiStatus;
   };
 };
 

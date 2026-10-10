@@ -1,5 +1,6 @@
 pub mod backups;
 pub mod github;
+pub mod link_statuses;
 pub mod links;
 pub mod notes;
 pub mod tags;

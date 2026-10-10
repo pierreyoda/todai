@@ -5,6 +5,7 @@ pub mod commands;
 pub mod database;
 pub mod errors;
 pub mod gh;
+pub mod github;
 pub mod links;
 pub mod logging;
 pub mod state;
@@ -34,6 +35,7 @@ pub fn run() {
             })?;
             app.manage(state::AppState::new(app_db, db, backups_dir));
             app.manage(gh::GhFinder::default());
+            app.manage(github::GitHub::new()?);
             commands::backups::spawn_daily_backups(app.handle().clone());
             Ok(())
         })
@@ -54,6 +56,8 @@ pub fn run() {
             commands::links::parse_link,
             commands::links::add_todo_link,
             commands::links::remove_todo_link,
+            commands::link_statuses::refresh_links,
+            commands::link_statuses::refresh_link,
             commands::notes::get_note,
             commands::notes::save_note,
             commands::workspaces::list_workspaces,
@@ -74,6 +78,7 @@ pub fn run() {
             commands::github::get_gh_status,
             commands::github::connect_github,
             commands::github::disconnect_github,
+            commands::github::get_github_api_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

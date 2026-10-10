@@ -3,7 +3,7 @@ import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
 import type { Day, Estimate, Todo, TodoLink } from "./types";
-import { ghKeys, invalidateTodosOf, noteKeys, tagKeys, workspaceKeys } from "./queries";
+import { ghKeys, invalidateTodosOf, linkStatusKeys, noteKeys, tagKeys, workspaceKeys } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 
 // TODO: migrate other mutations to this file
@@ -95,8 +95,12 @@ export const createAddTodoLinkMutation = (getTodo: () => Todo) => {
         name: "add_todo_link",
         args: { todoId: getTodo().id, url },
       }),
-    // Returned so the mutation stays pending until the lists are refetched, with the link.
-    onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+    onSuccess: () => {
+      // Its status, if it's a GitHub one, without waiting for GitHub
+      queryClient.invalidateQueries({ queryKey: linkStatusKeys.day(getTodo().day) });
+      // Returned so the mutation stays pending until the lists are refetched, with the link.
+      return invalidateTodosOf(queryClient, getTodo().day);
+    },
   }));
 };
 
@@ -111,6 +115,23 @@ export const createRemoveTodoLinkMutation = (getTodo: () => Todo) => {
       }),
     // Returned so the mutation stays pending until the lists are refetched, without the link.
     onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+  }));
+};
+
+/**
+ * Fetches again the status of a GitHub link of `getTodo()`, however recently fetched. Must be called during component
+ * initialization.
+ *
+ * Succeeds with the problem GitHub couldn't be asked because of, if any: the link then keeps its last known status.
+ */
+export const createRefreshTodoLinkMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (link: TodoLink) => invokeClient({ name: "refresh_link", args: { id: link.id } }),
+    // Returned so the mutation stays pending until the lists are refetched, with the status.
+    onSuccess: (outcome) => {
+      if (outcome.refreshed > 0) return invalidateTodosOf(queryClient, getTodo().day);
+    },
   }));
 };
 
@@ -142,8 +163,12 @@ export const createConnectGitHubMutation = () => {
         name: "connect_github",
         args: { workspaceId: workspace.id, login },
       }),
-    // Returned so the mutation stays pending until the workspaces are refetched, with the connection.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
+    onSuccess: () => {
+      // The links' statuses, through the new connection, without waiting for GitHub
+      queryClient.invalidateQueries({ queryKey: linkStatusKeys.all });
+      // Returned so the mutation stays pending until the workspaces are refetched, with the connection.
+      return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+    },
   }));
 };
 

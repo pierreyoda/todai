@@ -1,9 +1,16 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+  import {
+    createMutation,
+    createQuery,
+    useQueryClient,
+  } from "@tanstack/svelte-query";
 
   import { invokeClient } from "../../client";
   import type { Tag, Todo } from "../../client/types";
-  import { invalidateTodosOf } from "../../client/queries";
+  import {
+    activeWorkspaceQueryOptions,
+    invalidateTodosOf,
+  } from "../../client/queries";
   import { createToggleTodoMutation } from "../../client/mutations";
   import EditableText from "../common/EditableText.svelte";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
@@ -11,7 +18,7 @@
   import Button from "../common/Button.svelte";
   import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
   import IconClock from "../common/icons/IconClock.svelte";
-  import LinkChip from "../links/LinkChip.svelte";
+  import TodoLinkChip from "../links/TodoLinkChip.svelte";
   import { formatEstimates } from "../../utils";
 
   type TodoLineItemProps = {
@@ -19,6 +26,10 @@
     tags: readonly Tag[];
   };
   const { item, tags }: TodoLineItemProps = $props();
+
+  // Its GitHub links show their status through the workspace's connection, if any
+  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+  const connected = $derived(!!activeWorkspace.data?.githubLogin);
 
   // Resolved from the tags list, so they follow tag renames without refetching todos
   const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
@@ -89,7 +100,9 @@
             {/if}
             <ul class="links" aria-label="Links">
               {#each item.links as link (link.id)}
-                <li class="flex"><LinkChip {link} /></li>
+                <li class="flex">
+                  <TodoLinkChip {link} todo={item} {connected} />
+                </li>
               {/each}
             </ul>
           {/if}

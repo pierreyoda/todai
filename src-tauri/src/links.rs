@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::errors::{Result, TodaiError};
@@ -7,7 +7,7 @@ use crate::errors::{Result, TodaiError};
 pub const MAX_URL_LENGTH: usize = 2048;
 
 /// What a link points to, recognized from its URL. Serialized like the `kind` column.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkKind {
     /// A pull request on github.com.
@@ -47,8 +47,46 @@ impl TryFrom<&str> for LinkKind {
     }
 }
 
+/// Why GitHub's last answer had nothing about a link's pull request or issue. Serialized like the `fetch_error` column.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FetchError {
+    /// Missing, deleted, or private to others: GitHub can't tell these apart.
+    NoAccess,
+    /// Its organization requires single sign-on, which the GitHub CLI's token isn't authorized for.
+    SsoRequired,
+}
+
+impl FetchError {
+    const DB_NO_ACCESS: &str = "no_access";
+    const DB_SSO_REQUIRED: &str = "sso_required";
+
+    /// The `fetch_error` column.
+    pub fn to_db(self) -> &'static str {
+        match self {
+            Self::NoAccess => Self::DB_NO_ACCESS,
+            Self::SsoRequired => Self::DB_SSO_REQUIRED,
+        }
+    }
+}
+
+/// From the `fetch_error` column.
+impl TryFrom<&str> for FetchError {
+    type Error = TodaiError;
+
+    fn try_from(error: &str) -> std::result::Result<Self, Self::Error> {
+        match error {
+            Self::DB_NO_ACCESS => Ok(Self::NoAccess),
+            Self::DB_SSO_REQUIRED => Ok(Self::SsoRequired),
+            _ => Err(TodaiError::InvalidLink(format!(
+                "unknown fetch error {error:?}"
+            ))),
+        }
+    }
+}
+
 /// A pull request or issue on github.com.
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct GitHubRef {
     pub owner: String,
@@ -57,7 +95,7 @@ pub struct GitHubRef {
 }
 
 /// A URL recognized as a link, ready to be added to a todo.
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsedLink {
     pub kind: LinkKind,
@@ -67,7 +105,7 @@ pub struct ParsedLink {
     /// Short name, as shown on the todo: `repo#number` for GitHub, the domain otherwise.
     pub label: String,
     /// Set exactly for the GitHub kinds.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
 }
 

@@ -107,6 +107,12 @@ pub struct DbTodoLink {
     pub github_repo: Option<String>,
     pub github_number: Option<u32>,
     pub created_at: DbTimestamp,
+    /// What GitHub last told about the GitHub kinds' pull request or issue, as JSON: see `github::snapshot`.
+    pub snapshot: Option<String>,
+    /// When GitHub last answered about it.
+    pub fetched_at: Option<DbTimestamp>,
+    /// `no_access` or `sso_required`, if GitHub's last answer had nothing about it.
+    pub fetch_error: Option<String>,
 }
 
 impl DbTodoLink {
@@ -120,6 +126,9 @@ impl DbTodoLink {
             github_repo: row.get("github_repo")?,
             github_number: row.get("github_number")?,
             created_at: row.get("created_at")?,
+            snapshot: row.get("snapshot")?,
+            fetched_at: row.get("fetched_at")?,
+            fetch_error: row.get("fetch_error")?,
         })
     }
 }

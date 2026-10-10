@@ -6,8 +6,13 @@
     createDisconnectGitHubMutation,
     createRefindGhMutation,
   } from "../../../client/mutations";
-  import { ghStatusQueryOptions } from "../../../client/queries";
+  import {
+    ghStatusQueryOptions,
+    githubApiStatusQueryOptions,
+  } from "../../../client/queries";
+  import { formatTime } from "../../../utils/dates";
   import { githubConnectionState } from "../../../utils/github";
+  import { describeProblem } from "../../../utils/linkStatuses";
   import Button from "../../common/Button.svelte";
   import ErrorBanner from "../../common/ErrorBanner.svelte";
   import IconPullRequest from "../../common/icons/IconPullRequest.svelte";
@@ -27,6 +32,15 @@
   );
   const needsAttention = $derived(
     connection === "signed_out" || connection === "gh_missing",
+  );
+  // GitHub's side, once the GitHub CLI's is fine: which also tells whether GitHub accepts its token
+  const apiStatus = createQuery(() => ({
+    ...githubApiStatusQueryOptions(workspace.id),
+    enabled: connection === "connected",
+  }));
+  const rateLimit = $derived(apiStatus.data?.rateLimit);
+  const apiProblem = $derived(
+    apiStatus.data?.problem && describeProblem(apiStatus.data.problem),
   );
 
   let showConnectModal = $state(false);
@@ -61,7 +75,29 @@
         <dt>GitHub CLI</dt>
         <dd class="path">{ghStatus.data.path}</dd>
       {/if}
+      {#if connection === "connected"}
+        <dt>Rate limit</dt>
+        <dd>
+          {#if rateLimit}
+            {rateLimit.remaining.toLocaleString("en-US")} of
+            {rateLimit.limit.toLocaleString("en-US")} points left, until
+            {formatTime(rateLimit.resetAt)}
+          {:else if apiProblem}
+            <span class="text-amber-300">{apiProblem.label}</span>
+          {:else if apiStatus.isError}
+            <span class="text-slate-400">Unknown</span>
+          {:else}
+            <span class="text-slate-400">Asking GitHub…</span>
+          {/if}
+        </dd>
+      {/if}
     </dl>
+    {#if apiProblem && apiStatus.data?.problem?.kind !== "offline"}
+      <div class="problem" role="alert">
+        <p class="problem-title">GitHub refused to answer</p>
+        <p class="problem-text">{apiProblem.detail}</p>
+      </div>
+    {/if}
     {#if connection === "signed_out"}
       <div class="problem" role="alert">
         <p class="problem-title">
