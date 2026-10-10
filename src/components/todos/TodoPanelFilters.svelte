@@ -18,8 +18,11 @@
 
 <div class={["container", extraClass]}>
   {#each selectedTags as tag (tag.id)}
-    <TodoPanelAppliedFilter onDismiss={() => onDismissedTag(tag.id)} class="text-sm">
-      <span style:color={tag.color}>{tag.name}</span>&nbsp;
+    <TodoPanelAppliedFilter
+      onDismiss={() => onDismissedTag(tag.id)}
+      class="text-sm"
+    >
+      <span style:color={tag.color}>{tag.name}</span>
       <span class="text-white">(tag)</span>
     </TodoPanelAppliedFilter>
   {/each}

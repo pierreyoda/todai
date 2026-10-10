@@ -264,6 +264,9 @@ export const formatDateTime = (date: Date, now: Date = new Date()): string => {
   return format(date, isSameYear(date, now) ? "MMM d, HH:mm" : "MMM d, y, HH:mm");
 };
 
+/** E.g. "14:32". */
+export const formatTime = (date: Date): string => format(date, "HH:mm");
+
 /** E.g. "Oct 9", or "Jun 30, 2025" in another year than `now`'s. */
 export const formatShortDate = (date: Date, now: Date = new Date()): string =>
   format(date, isSameYear(date, now) ? "MMM d" : "MMM d, y");
