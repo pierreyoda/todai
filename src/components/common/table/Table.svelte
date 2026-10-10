@@ -24,8 +24,10 @@
     rows: readonly Row[];
     /** The property identifying a row, used as the `#each` key. */
     rowKey: keyof Row;
+    /** Content of the single cell shown without rows. "Nothing to show." by default. */
+    empty?: Snippet;
   };
-  const { columns, rows, rowKey }: TableProps = $props();
+  const { columns, rows, rowKey, empty }: TableProps = $props();
 
   const columnId = (column: TableColumn): string =>
     "key" in column ? String(column.key) : column.id;
@@ -56,7 +58,13 @@
       </tr>
     {:else}
       <tr>
-        <td class="empty" colspan={columns.length}>Nothing to show.</td>
+        <td class="empty" colspan={columns.length}>
+          {#if empty}
+            {@render empty()}
+          {:else}
+            Nothing to show.
+          {/if}
+        </td>
       </tr>
     {/each}
   </tbody>

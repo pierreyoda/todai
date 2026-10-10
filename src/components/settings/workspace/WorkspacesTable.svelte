@@ -1,9 +1,16 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
-  import { basename, dateToTodaiDate } from "../../../utils";
+  import { goto } from "$app/navigation";
+  import {
+    basename,
+    dateToTodaiDate,
+    formatFullDateTime,
+    formatRelativeTime,
+  } from "../../../utils";
   import Button from "../../common/Button.svelte";
   import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
+  import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
   import IconPencilSquare from "../../common/icons/IconPencilSquare.svelte";
   import Table from "../../common/table/Table.svelte";
   import { invokeApiClient, type Workspace } from "../../../client/app";
@@ -42,6 +49,19 @@
   {/if}
 {/snippet}
 
+{#snippet lastBackupAtCell({ lastBackupAt }: Workspace)}
+  {#if lastBackupAt}
+    <time
+      datetime={lastBackupAt.toISOString()}
+      title={formatFullDateTime(lastBackupAt)}
+    >
+      {formatRelativeTime(lastBackupAt)}
+    </time>
+  {:else}
+    <span class="never">Never</span>
+  {/if}
+{/snippet}
+
 {#snippet actionsCell(workspace: Workspace)}
   <div class="actions">
     <Button
@@ -65,6 +85,16 @@
       onclick={() => onEdit(workspace)}
     >
       <IconPencilSquare />
+    </Button>
+    <!-- Even when unavailable: one of its backups can recreate its database -->
+    <Button
+      style="plain"
+      size="sm"
+      title="Backups"
+      aria-label={`Backups of ${workspace.name}`}
+      onclick={() => goto(`/settings/backups?workspace=${workspace.id}`)}
+    >
+      <IconArchiveBox />
     </Button>
     <Button
       style="plain"
@@ -96,6 +126,11 @@
         key: "lastOpenedAt",
         label: "Last opened",
         cell: lastOpenedAtCell,
+      },
+      {
+        key: "lastBackupAt",
+        label: "Last backup",
+        cell: lastBackupAtCell,
       },
       {
         id: "actions",

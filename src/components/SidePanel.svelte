@@ -10,6 +10,7 @@
   import TagsEmptyState from "./tags/TagsEmptyState.svelte";
   import IconCalendar from "./common/icons/IconCalendar.svelte";
   import IconFolderOpen from "./common/icons/IconFolderOpen.svelte";
+  import IconArchiveBox from "./common/icons/IconArchiveBox.svelte";
   import SidePanelWorkspace from "./layout/SidePanelWorkspace.svelte";
   import IconExclamationTriangle from "./common/icons/IconExclamationTriangle.svelte";
 
@@ -113,6 +114,11 @@
     <SidePanelLink label="Workspaces" routeId="/settings/workspace">
       {#snippet icon()}
         <IconFolderOpen />
+      {/snippet}
+    </SidePanelLink>
+    <SidePanelLink label="Backups" routeId="/settings/backups">
+      {#snippet icon()}
+        <IconArchiveBox />
       {/snippet}
     </SidePanelLink>
   </footer>
