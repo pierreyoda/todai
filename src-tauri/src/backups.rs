@@ -370,6 +370,87 @@ pub fn recreate(workspace: &DbWorkspace, backup: &DbWorkspaceBackup) -> Result<C
     database::open_existing(path, &database::WORKSPACE)
 }
 
+/// Makes the daily backup of `workspace`, whose database is `db`, if it's due at `now` (see [`is_daily_backup_due`]),
+/// then deletes its automatic backups beyond the ones it keeps. Returns the backup, if made.
+pub fn back_up_daily(
+    app_db: &Connection,
+    backups_dir: &Path,
+    workspace: &DbWorkspace,
+    db: &Connection,
+    now: &Zoned,
+) -> Result<Option<DbWorkspaceBackup>> {
+    if !is_daily_backup_due(app_db, workspace, now)? {
+        return Ok(None);
+    }
+    let backup = create(
+        app_db,
+        backups_dir,
+        workspace,
+        db,
+        BackupKind::Automatic,
+        now,
+    )?;
+    let pruned = prune_automatic(app_db, &workspace.id, workspace.auto_backup_keep)?;
+    log::info!(
+        "Backed up workspace {:?} to {} (daily), deleting {pruned} older automatic backups",
+        workspace.name,
+        backup.path
+    );
+    Ok(Some(backup))
+}
+
+/// Makes a `pre_migration` backup of `workspace` at `now` if its database `source`, opened read-only, comes from an
+/// older version of todai: opening it read-write migrates it.
+pub fn back_up_before_migration(
+    app_db: &Connection,
+    backups_dir: &Path,
+    workspace: &DbWorkspace,
+    source: &Connection,
+    now: &Zoned,
+) -> Result<()> {
+    if database::needs_migration(source, &database::WORKSPACE)? {
+        let backup = create(
+            app_db,
+            backups_dir,
+            workspace,
+            source,
+            BackupKind::PreMigration,
+            now,
+        )?;
+        log::info!(
+            "Backed up workspace {:?} to {} before migrating it",
+            workspace.name,
+            backup.path
+        );
+    }
+    Ok(())
+}
+
+/// Opens the database of the registered `workspace`, to use it: backed up first if it comes from an older version of
+/// todai, as opening it migrates it; then backed up daily (see [`back_up_daily`]).
+///
+/// Fails if it can't be opened, or backed up before being migrated: it's never migrated without a copy of the previous
+/// version. A failed daily backup is only logged.
+pub fn open_workspace(
+    app_db: &Connection,
+    backups_dir: &Path,
+    workspace: &DbWorkspace,
+    now: &Zoned,
+) -> Result<Connection> {
+    // Unchecked when it can't be opened read-only: opening it fails with the reason.
+    if let Ok(source) = database::open_read_only(&workspace.path, &database::WORKSPACE) {
+        back_up_before_migration(app_db, backups_dir, workspace, &source, now)?;
+    }
+    let db = workspaces::open_registered(workspace)?;
+    if let Err(error) = back_up_daily(app_db, backups_dir, workspace, &db, now) {
+        log::warn!(
+            "Cannot back up workspace {:?} daily: {error}",
+            workspace.name
+        );
+    }
+    Ok(db)
+}
+
 #[cfg(test)]
 mod tests {
     use jiff::{civil::date, tz};
@@ -850,5 +931,127 @@ mod tests {
 
         // Another workspace's backup.
         assert!(recreate(&setup.workspace, &backup).is_err());
+    }
+
+    fn kinds(setup: &Setup, workspace: &DbWorkspace) -> Vec<String> {
+        list(&setup.app_db, &workspace.id)
+            .unwrap()
+            .into_iter()
+            .map(|backup| backup.kind)
+            .collect()
+    }
+
+    #[test]
+    fn back_up_daily_makes_one_backup_a_day_and_prunes_older_ones() {
+        let setup = Setup::new();
+        let workspace =
+            workspaces::set_auto_backup(&setup.app_db, &setup.workspace.id, true, 2).unwrap();
+        let back_up = |now: &Zoned| {
+            back_up_daily(
+                &setup.app_db,
+                &setup.backups_dir(),
+                &workspace,
+                &setup.db,
+                now,
+            )
+            .unwrap()
+        };
+        let first = back_up(&at(1, 8, 0)).unwrap();
+        assert_eq!(first.kind, "automatic");
+        assert!(back_up(&at(1, 20, 0)).is_none());
+        setup.backup(BackupKind::Manual, &at(1, 21, 0));
+        for day in 2..=4 {
+            assert!(back_up(&at(day, 8, 0)).is_some());
+        }
+        assert_eq!(
+            kinds(&setup, &workspace),
+            ["automatic", "automatic", "manual"]
+        );
+        assert!(!Path::new(&first.path).exists());
+    }
+
+    #[test]
+    fn back_up_daily_does_nothing_when_disabled() {
+        let setup = Setup::new();
+        let workspace =
+            workspaces::set_auto_backup(&setup.app_db, &setup.workspace.id, false, 7).unwrap();
+        let backup = back_up_daily(
+            &setup.app_db,
+            &setup.backups_dir(),
+            &workspace,
+            &setup.db,
+            &at(1, 8, 0),
+        )
+        .unwrap();
+        assert!(backup.is_none());
+        assert!(setup.listed().is_empty());
+    }
+
+    /// A registered workspace whose database, closed, comes from the first version of todai.
+    fn outdated_workspace(setup: &Setup) -> DbWorkspace {
+        let (workspace, db) = workspaces::create(
+            &setup.app_db,
+            "Old",
+            &setup.dir.path().join("old.sqlite3"),
+            NOW,
+        )
+        .unwrap();
+        drop(db);
+        fs::remove_file(&workspace.path).unwrap();
+        database::create_first_version_test_database(
+            Path::new(&workspace.path),
+            &database::WORKSPACE,
+        );
+        workspace
+    }
+
+    fn version(conn: &Connection) -> i64 {
+        conn.pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn open_workspace_backs_up_outdated_databases_before_migrating_them() {
+        let setup = Setup::new();
+        let workspace = outdated_workspace(&setup);
+
+        let db = open_workspace(
+            &setup.app_db,
+            &setup.backups_dir(),
+            &workspace,
+            &at(1, 8, 0),
+        )
+        .unwrap();
+        assert!(!database::needs_migration(&db, &database::WORKSPACE).unwrap());
+        // Then its daily backup, of the migrated database.
+        assert_eq!(kinds(&setup, &workspace), ["automatic", "pre_migration"]);
+        let backups = list(&setup.app_db, &workspace.id).unwrap();
+        let pre_migration =
+            database::open_read_only(&backups[1].path, &database::WORKSPACE).unwrap();
+        assert_eq!(version(&pre_migration), 1);
+    }
+
+    #[test]
+    fn open_workspace_never_migrates_without_a_backup() {
+        let setup = Setup::new();
+        let workspace = outdated_workspace(&setup);
+        // Backups can't be written there.
+        let backups_dir = setup.dir.path().join("not-a-directory");
+        fs::write(&backups_dir, "").unwrap();
+
+        assert!(open_workspace(&setup.app_db, &backups_dir, &workspace, &at(1, 8, 0)).is_err());
+        let db = database::open_read_only(&workspace.path, &database::WORKSPACE).unwrap();
+        assert_eq!(version(&db), 1);
+    }
+
+    #[test]
+    fn open_workspace_opens_even_when_the_daily_backup_fails() {
+        let setup = Setup::new();
+        let backups_dir = setup.dir.path().join("not-a-directory");
+        fs::write(&backups_dir, "").unwrap();
+        assert!(
+            open_workspace(&setup.app_db, &backups_dir, &setup.workspace, &at(1, 8, 0)).is_ok()
+        );
+        assert!(setup.listed().is_empty());
     }
 }

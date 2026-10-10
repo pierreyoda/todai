@@ -27,6 +27,7 @@
   import BackupsTable from "./BackupsTable.svelte";
   import BackupRestoreModal from "./BackupRestoreModal.svelte";
   import BackupRestoreAsNewModal from "./BackupRestoreAsNewModal.svelte";
+  import AutoBackupSettings from "./AutoBackupSettings.svelte";
   import ErrorBanner from "../../common/ErrorBanner.svelte";
   import SettingsContainer from "../SettingsContainer.svelte";
   import BackupsWorkspacePicker from "./BackupsWorkspacePicker.svelte";
@@ -187,6 +188,7 @@
       <BackupsTable
         backups={backups.data}
         workspaceName={workspace.name}
+        autoBackup={workspace.autoBackup}
         onRestore={(backup) => {
           restoredBackup = backup;
           showRestoreDialog = true;
@@ -200,6 +202,10 @@
     {:else}
       <p class="loading" role="status">Loading its backups…</p>
     {/if}
+    <!-- Recreated for each workspace, as it edits a copy of its settings -->
+    {#key workspace.id}
+      <AutoBackupSettings {workspace} />
+    {/key}
   </div>
 </SettingsContainer>
 {#if restoredBackup}

@@ -24,6 +24,8 @@
     backups: readonly WorkspaceBackup[];
     /** Of the workspace they're the backups of. */
     workspaceName: string;
+    /** Whether that workspace is backed up daily. */
+    autoBackup: boolean;
     /** Into its workspace's database. */
     onRestore: (backup: WorkspaceBackup) => void;
     onRestoreAsNew: (backup: WorkspaceBackup) => void;
@@ -32,6 +34,7 @@
   const {
     backups,
     workspaceName,
+    autoBackup,
     onRestore,
     onRestoreAsNew,
     onDelete,
@@ -117,6 +120,9 @@
     <span class="empty-hint">
       Backups are copies of {workspaceName}'s todos and tags, kept in the app's
       data folder.
+      {#if autoBackup}
+        One is made automatically each day it's open.
+      {/if}
     </span>
   </span>
 {/snippet}

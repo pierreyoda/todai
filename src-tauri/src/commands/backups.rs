@@ -4,8 +4,10 @@ use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
+    thread,
+    time::Duration,
 };
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
@@ -238,6 +240,66 @@ pub async fn open_workspace_backups_folder(
         })
 }
 
+/// Sets whether the workspace `workspace_id` is backed up daily, and how many of its automatic backups are kept (from 1
+/// to 100): older ones are deleted right away.
+#[tauri::command]
+pub async fn set_workspace_auto_backup(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    auto_backup: bool,
+    auto_backup_keep: u32,
+) -> Result<Workspace> {
+    let app_db = state.app_db();
+    let entry = workspaces::set_auto_backup(&app_db, &workspace_id, auto_backup, auto_backup_keep)?;
+    let pruned = backups::prune_automatic(&app_db, &entry.id, entry.auto_backup_keep)?;
+    if pruned > 0 {
+        log::info!(
+            "Deleted {pruned} automatic backups of workspace {:?}, beyond the {} it keeps",
+            entry.name,
+            entry.auto_backup_keep
+        );
+    }
+    workspace(&state, &app_db, entry)
+}
+
+/// How often the active workspace's daily backup is checked for, while the app stays open.
+const DAILY_BACKUP_CHECK_INTERVAL: Duration = Duration::from_secs(60 * 60);
+
+/// Checks every hour whether the active workspace's daily backup is due: workspaces are otherwise backed up daily only
+/// when opened, so an app left open for days wouldn't be.
+pub fn spawn_daily_backups(app: AppHandle) {
+    let spawned = thread::Builder::new()
+        .name("daily-backups".into())
+        .spawn(move || loop {
+            thread::sleep(DAILY_BACKUP_CHECK_INTERVAL);
+            let state = app.state::<AppState>();
+            if let Err(error) = back_up_active_workspace_daily(&state, &Zoned::now()) {
+                log::warn!("Cannot back up the active workspace daily: {error}");
+            }
+        });
+    if let Err(error) = spawned {
+        log::error!("Cannot check for daily backups while the app is open: {error}");
+    }
+}
+
+/// Makes the active workspace's daily backup if it's due at `now` (e.g. the app was left open since the previous day),
+/// pruning its older automatic backups. Returns it, if made.
+fn back_up_active_workspace_daily(
+    state: &AppState,
+    now: &Zoned,
+) -> Result<Option<DbWorkspaceBackup>> {
+    let app_db = state.app_db();
+    let Some(id) = workspaces::active_id(&app_db)? else {
+        return Ok(None);
+    };
+    let entry = workspaces::get(&app_db, &id)?;
+    // Unavailable: nothing to back up.
+    let Ok(db) = state.db() else {
+        return Ok(None);
+    };
+    backups::back_up_daily(&app_db, state.backups_dir(), &entry, &db, now)
+}
+
 #[cfg(test)]
 mod tests {
     use rusqlite::MAIN_DB;
@@ -453,5 +515,32 @@ mod tests {
             Err(TodaiError::InvalidPath(_))
         ));
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn back_up_active_workspace_daily_backs_it_up_once_a_day() {
+        let setup = setup();
+        let today = Zoned::now();
+        let backup = back_up_active_workspace_daily(&setup.state, &today)
+            .unwrap()
+            .unwrap();
+        assert_eq!(backup.workspace_id, setup.active.id);
+        assert_eq!(backup.kind, "automatic");
+        assert!(back_up_active_workspace_daily(&setup.state, &today)
+            .unwrap()
+            .is_none());
+        let tomorrow = today.tomorrow().unwrap();
+        assert!(back_up_active_workspace_daily(&setup.state, &tomorrow)
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
+    fn back_up_active_workspace_daily_skips_an_unavailable_one() {
+        let setup = setup();
+        setup.state.replace_db(None);
+        assert!(back_up_active_workspace_daily(&setup.state, &Zoned::now())
+            .unwrap()
+            .is_none());
     }
 }

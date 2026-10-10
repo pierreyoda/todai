@@ -1,4 +1,4 @@
-use jiff::Timestamp;
+use jiff::{Timestamp, Zoned};
 use rusqlite::Connection;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -27,6 +27,10 @@ pub struct Workspace {
     pub last_opened_at: Option<Timestamp>,
     /// When its last backup was made, whatever its kind.
     pub last_backup_at: Option<Timestamp>,
+    /// Whether a backup is made when it's opened, if its last automatic one is from another day.
+    pub auto_backup: bool,
+    /// Automatic backups kept: older ones are deleted.
+    pub auto_backup_keep: u32,
 }
 
 impl Workspace {
@@ -48,6 +52,8 @@ impl Workspace {
                 .map(Timestamp::from_second)
                 .transpose()?,
             last_backup_at: last_backup_at.map(Timestamp::from_second).transpose()?,
+            auto_backup: entry.auto_backup,
+            auto_backup_keep: entry.auto_backup_keep,
         })
     }
 }
@@ -123,11 +129,11 @@ pub async fn create_workspace(
 }
 
 /// Registers the workspace named `name` (trimmed, not empty), whose database already exists at `path`, and switches
-/// to it. Its database is migrated if it comes from an older version of todai.
+/// to it. Its database is migrated if it comes from an older version of todai, after backing it up.
 ///
 /// `path` must be absolute, outside of the backups directory: a backup is restored as a new workspace instead. Fails
-/// without writing to it if it's not a todai workspace database (blank ones included), comes from a newer version, or
-/// is already registered.
+/// without writing to it if it's not a todai workspace database (blank ones included), comes from a newer version, is
+/// already registered, or can't be backed up before migrating it.
 #[tauri::command]
 pub async fn import_workspace(
     state: State<'_, AppState>,
@@ -136,16 +142,28 @@ pub async fn import_workspace(
 ) -> Result<Workspace> {
     let app_db = state.app_db();
     backups::ensure_outside(state.backups_dir(), &path)?;
-    let (entry, db) = workspaces::import(&app_db, &name, &path, Timestamp::now().as_second())?;
+    let now = Zoned::now();
+    let (entry, db) = workspaces::import(
+        &app_db,
+        &name,
+        &path,
+        now.timestamp().as_second(),
+        |entry, source| {
+            backups::back_up_before_migration(&app_db, state.backups_dir(), entry, source, &now)
+        },
+    )?;
     open_and_activate(&state, &app_db, entry, db)
 }
 
-/// Switches to the workspace `id`, closing the previous one's database. Fails if its database cannot be opened.
+/// Switches to the workspace `id`, closing the previous one's database. It's backed up before being migrated, if it
+/// comes from an older version of todai, then daily.
+///
+/// Fails if its database cannot be opened, or backed up before migrating it.
 #[tauri::command]
 pub async fn switch_to_workspace(state: State<'_, AppState>, id: String) -> Result<Workspace> {
     let app_db = state.app_db();
     let entry = workspaces::get(&app_db, &id)?;
-    let db = workspaces::open_registered(&entry)?;
+    let db = backups::open_workspace(&app_db, state.backups_dir(), &entry, &Zoned::now())?;
     open_and_activate(&state, &app_db, entry, db)
 }
 

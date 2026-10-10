@@ -18,6 +18,10 @@ export interface Workspace {
   lastOpenedAt?: Date;
   /** When its last backup was made, whatever its kind. */
   lastBackupAt?: Date;
+  /** Whether it's backed up automatically, once a day: when it's opened, then hourly checks while it's open. */
+  autoBackup: boolean;
+  /** Automatic backups kept, from 1 to 100: older ones are deleted. */
+  autoBackupKeep: number;
 }
 
 /**
@@ -175,6 +179,16 @@ export type ClientInvocationAppCommand = {
       name: string;
       /** Absolute; its directory is created if needed. */
       path: string;
+    };
+    returns: Workspace;
+  };
+  /** Its automatic backups beyond `autoBackupKeep` are deleted right away. */
+  set_workspace_auto_backup: {
+    args: {
+      workspaceId: UUID;
+      autoBackup: boolean;
+      /** From 1 to 100. */
+      autoBackupKeep: number;
     };
     returns: Workspace;
   };

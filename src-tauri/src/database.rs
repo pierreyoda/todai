@@ -175,6 +175,16 @@ pub fn open_test_database(kind: &DatabaseKind) -> Connection {
     open(":memory:", kind).unwrap()
 }
 
+/// A `kind` database at `path`, as created by the first version of todai: to be migrated. Closed once created.
+#[cfg(test)]
+pub fn create_first_version_test_database(path: &Path, kind: &DatabaseKind) {
+    let conn = Connection::open(path).unwrap();
+    conn.execute_batch(kind.migrations[0]).unwrap();
+    conn.pragma_update(None, "user_version", 1).unwrap();
+    conn.pragma_update(None, "application_id", kind.application_id)
+        .unwrap();
+}
+
 /// Accepts a blank database if `allow_blank`, to be initialized as a `kind` one.
 fn check_kind(
     conn: &Connection,
@@ -409,13 +419,8 @@ mod tests {
             .unwrap()
     }
 
-    /// A workspace database at `path`, as created by the first version of todai.
     fn first_version_workspace(path: &Path) {
-        let conn = Connection::open(path).unwrap();
-        conn.execute_batch(WORKSPACE.migrations[0]).unwrap();
-        conn.pragma_update(None, "user_version", 1).unwrap();
-        conn.pragma_update(None, "application_id", WORKSPACE.application_id)
-            .unwrap();
+        create_first_version_test_database(path, &WORKSPACE);
     }
 
     #[test]
