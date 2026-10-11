@@ -250,6 +250,24 @@ export const formatFullDay = (day: Day): string => format(parseDay(day), "EEEE, 
  */
 export const formatShortDay = (day: Day): string => format(parseDay(day), "EEE, MMM d, y", UTC);
 
+/**
+ * `day` as said from `today`, e.g. in a sentence: "today", "tomorrow" or "yesterday", "Tue 13" within a week of it, or
+ * "Mon, Nov 30, 2026" farther.
+ *
+ * @throws {RangeError} If `day` or `today` is invalid.
+ */
+export const formatRelativeDay = (day: Day, today: Day): string => {
+  const near = new Map([
+    [today, "today"],
+    [addDays(today, 1), "tomorrow"],
+    [addDays(today, -1), "yesterday"],
+  ]);
+  const word = near.get(day);
+  if (word) return word;
+  const withinWeek = [2, 3, 4, 5, 6].some((count) => day === addDays(today, count) || day === addDays(today, -count));
+  return withinWeek ? formatDay(day) : formatShortDay(day);
+};
+
 /*
  * Moments (e.g. when a backup was made), unlike days, are shown in local time.
  */

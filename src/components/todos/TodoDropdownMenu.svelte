@@ -11,6 +11,7 @@
   import TagUpsertModal from "../tags/TagUpsertModal.svelte";
   import {
     createDeleteTodoMutation,
+    createMoveTodoMutation,
     createRemoveTodoLinkMutation,
     createSetTodoEstimateMutation,
   } from "../../client/mutations";
@@ -19,13 +20,20 @@
     TODO_ESTIMATE_POINTS_PRESET,
   } from "../../constants";
   import { formatEstimates } from "../../utils";
+  import { addDays, dateToTodaiDate, formatDay } from "../../utils/dates";
+  import DatePickerModal from "../common/DatePickerModal.svelte";
+  import IconArrowRight from "../common/icons/IconArrowRight.svelte";
+  import IconCalendar from "../common/icons/IconCalendar.svelte";
   import IconClock from "../common/icons/IconClock.svelte";
+  import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
+  import IconSun from "../common/icons/IconSun.svelte";
   import IconLink from "../common/icons/IconLink.svelte";
   import IconTag from "../common/icons/IconTag.svelte";
   import IconTrash from "../common/icons/IconTrash.svelte";
   import IconXMark from "../common/icons/IconXMark.svelte";
   import AddLinkModal from "../links/AddLinkModal.svelte";
   import LinkKindIcon from "../links/LinkKindIcon.svelte";
+  import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
   type TodoDropdownMenuProps = {
     anchor?: HTMLElement;
@@ -45,6 +53,23 @@
 
   let showTagCreationModal = $state(false);
   let showAddLinkModal = $state(false);
+  let showEditModal = $state(false);
+  let showDatePicker = $state(false);
+
+  /** Updated when opened, so that a menu opened after midnight offers the right days. */
+  let today = $state(dateToTodaiDate(new Date()));
+  $effect(() => {
+    if (open) today = dateToTodaiDate(new Date());
+  });
+  const tomorrow = $derived(addDays(today, 1));
+  /** Today and the next few days, but its own. */
+  const moveTargets = $derived(
+    [0, 1, 2, 3, 4]
+      .map((count) => addDays(today, count))
+      .filter((day) => day !== item.day),
+  );
+  // Leaves the list it's moved from: tells where it went, with an undo
+  const moveTodo = createMoveTodoMutation(() => item, { undoable: true });
 
   const setTodoEstimate = createSetTodoEstimateMutation(() => item);
   const removeLink = createRemoveTodoLinkMutation(() => item);
@@ -59,6 +84,45 @@
 
 <Dropdown bind:open {anchor}>
   <DropdownMenu placement="bottom-end">
+    <!-- Opens a modal: the menu must close first, see `keepOpen` -->
+    <DropdownItem keepOpen={false} onclick={() => (showEditModal = true)}>
+      {#snippet icon()}
+        <IconPencilSquare />
+      {/snippet}
+      Edit…
+    </DropdownItem>
+    <DropdownSubmenu label="Move to" keepOpenOnClick={false}>
+      {#snippet icon()}
+        <IconArrowRight />
+      {/snippet}
+      {#each moveTargets as day (day)}
+        <DropdownItem
+          disabled={moveTodo.isPending}
+          onclick={() => moveTodo.mutate(day)}
+        >
+          {#snippet icon()}
+            {#if day === today}
+              <IconSun />
+            {/if}
+          {/snippet}
+          {#if day === today}
+            Today
+          {:else if day === tomorrow}
+            Tomorrow <span class="hint">{formatDay(day)}</span>
+          {:else}
+            {formatDay(day)}
+          {/if}
+        </DropdownItem>
+      {/each}
+      <DropdownDivider />
+      <!-- Opens a modal: the menu must close first, see `keepOpen` -->
+      <DropdownItem keepOpen={false} onclick={() => (showDatePicker = true)}>
+        {#snippet icon()}
+          <IconCalendar />
+        {/snippet}
+        Pick a date…
+      </DropdownItem>
+    </DropdownSubmenu>
     {@const estimateLabel = item.estimate
       ? `Estimate (${formatEstimates([item.estimate])})`
       : "Estimate"}
@@ -166,3 +230,26 @@
 </Dropdown>
 <TagUpsertModal bind:show={showTagCreationModal} />
 <AddLinkModal bind:show={showAddLinkModal} todo={item} />
+<!-- Only while shown: the calendar has a menu per todo -->
+{#if showEditModal}
+  <TodoUpsertModal bind:show={showEditModal} existing={item} />
+{/if}
+{#if showDatePicker}
+  <DatePickerModal
+    bind:show={showDatePicker}
+    day={item.day}
+    label="Move to"
+    onPick={(day) => {
+      if (day !== item.day) moveTodo.mutate(day);
+    }}
+  />
+{/if}
+
+<style lang="postcss">
+  @reference "tailwindcss";
+
+  /* After the day's name, as the side panel's hint for Today */
+  .hint {
+    @apply ml-1.5 text-white/50;
+  }
+</style>

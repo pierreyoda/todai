@@ -15,6 +15,7 @@ import {
 } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 import { toasts } from "../utils/toasts.svelte";
+import { dateToTodaiDate, formatRelativeDay } from "../utils/dates";
 
 // TODO: migrate other mutations to this file
 
@@ -58,20 +59,38 @@ export const createSetTodoEstimateMutation = (getTodo: () => Todo) => {
   }));
 };
 
-/** Moves `getTodo()` to the end of another day. Must be called during component initialization. */
-export const createMoveTodoMutation = (getTodo: () => Todo) => {
+/** Moves `todo` to the end of `day`, then refreshes both its days. */
+const moveTodo = async (queryClient: QueryClient, todo: Todo, day: Day) => {
+  await invokeClient({ name: "update_todo", args: { params: { id: todo.id, day } } });
+  await Promise.all([todo.day, day].map((day) => invalidateTodosOf(queryClient, day)));
+};
+
+/**
+ * Moves `getTodo()` to the end of another day. Must be called during component initialization.
+ *
+ * @param undoable Whether to tell where it went, offering to move it back (at the end of its former day): for a todo
+ * leaving the list it's moved from.
+ */
+export const createMoveTodoMutation = (getTodo: () => Todo, { undoable = false } = {}) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (day: Day) =>
-      invokeClient({
-        name: "update_todo",
-        args: { params: { id: getTodo().id, day } },
-      }),
     // Returned so the mutation stays pending until the lists are refetched: the todo leaves its former day for `day`.
-    onSuccess: (_, day) =>
-      Promise.all(
-        [getTodo().day, day].map((day) => invalidateTodosOf(queryClient, day)),
-      ),
+    mutationFn: (day: Day) => moveTodo(queryClient, getTodo(), day),
+    onSuccess: (_, day) => {
+      if (!undoable) return;
+      // Kept as it was: the undo outlives the todo's component
+      const todo = getTodo();
+      const today = dateToTodaiDate(new Date());
+      toasts.show(`Moved “${todo.title}” to ${formatRelativeDay(day, today)}`, {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            void moveTodo(queryClient, { ...todo, day }, todo.day).catch(() =>
+              toasts.show(`Could not move “${todo.title}” back`, { tone: "error" }),
+            ),
+        },
+      });
+    },
   }));
 };
 
