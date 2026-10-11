@@ -2,13 +2,46 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { basename } from "../../utils";
-  import { activeWorkspaceQueryOptions } from "../../client/queries";
+  import type { Workspace } from "../../client/app";
+  import { createSwitchWorkspaceMutation } from "../../client/mutations";
+  import {
+    activeWorkspaceQueryOptions,
+    workspacesQueryOptions,
+  } from "../../client/queries";
+  import { toasts } from "../../utils/toasts.svelte";
   import WorkspaceAvatar from "../common/WorkspaceAvatar.svelte";
+  import WorkspacePicker from "../common/WorkspacePicker.svelte";
 
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
   const workspace = $derived(activeWorkspace.data ?? null);
+  const workspaces = createQuery(() => workspacesQueryOptions);
+
+  // Stays on the current page, which then shows the other workspace's data
+  const switchWorkspace = createSwitchWorkspaceMutation();
+  const switchTo = (picked: Workspace) => {
+    if (picked.isActive || switchWorkspace.isPending) return;
+    if (!picked.available) {
+      toasts.show(`Can't open “${picked.name}”: its database is missing`, {
+        tone: "error",
+      });
+      return;
+    }
+    switchWorkspace.mutate(picked, {
+      onError: () =>
+        toasts.show(`Could not switch to “${picked.name}”`, { tone: "error" }),
+    });
+  };
 </script>
 
+<!-- Without an active workspace, the link to create or pick one -->
+{#if workspace && workspaces.data}
+  <WorkspacePicker
+    workspaces={workspaces.data}
+    selected={workspace}
+    onPicked={switchTo}
+    class="w-full"
+  />
+{:else}
 <a href="/settings/workspace" class="workspace" title={workspace?.path}>
   <WorkspaceAvatar name={workspace?.name} />
   <span class="details">
@@ -25,6 +58,7 @@
     {/if}
   </span>
 </a>
+{/if}
 
 <style lang="postcss">
   @reference "tailwindcss";

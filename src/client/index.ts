@@ -57,6 +57,19 @@ type ClientInvocationCommand = {
     };
     returns: never;
   };
+  /**
+   * Restores a deleted todo to its day, at its former position, along with `tagIds`: some of its deleted tags, which
+   * then come back on their other todos too.
+   *
+   * Fails without restoring anything if the todo isn't deleted, or if any of `tagIds` isn't one of its deleted tags.
+   */
+  restore_todo: {
+    args: {
+      id: UUID;
+      tagIds: readonly UUID[];
+    };
+    returns: never;
+  };
   /** Fields left out are unchanged; moving a todo to another day puts it at the end of that day. */
   update_todo: {
     args: {
@@ -66,6 +79,17 @@ type ClientInvocationCommand = {
         day?: Day;
         completed?: boolean;
       };
+    };
+    returns: never;
+  };
+  /**
+   * Moves todos to the end of `day`, in this order, as `update_todo` would one by one: those already on `day` stay in
+   * place. Fails without moving any if one of them is deleted or unknown.
+   */
+  move_todos: {
+    args: {
+      ids: readonly UUID[];
+      day: Day;
     };
     returns: never;
   };

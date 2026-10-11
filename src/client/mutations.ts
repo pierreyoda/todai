@@ -1,10 +1,11 @@
-import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { createMutation, useQueryClient, type QueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
 import type { Day, Estimate, Todo, TodoLink } from "./types";
 import {
   ghKeys,
+  invalidateActiveWorkspace,
   invalidateTodosOf,
   linkStatusKeys,
   noteKeys,
@@ -14,6 +15,9 @@ import {
   workspaceKeys,
 } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
+import { toasts } from "../utils/toasts.svelte";
+import { dateToTodaiDate, formatRelativeDay } from "../utils/dates";
+import { canSwitchWorkspace } from "../utils/workspaceSwitch";
 
 // TODO: migrate other mutations to this file
 
@@ -57,24 +61,80 @@ export const createSetTodoEstimateMutation = (getTodo: () => Todo) => {
   }));
 };
 
-/** Moves `getTodo()` to the end of another day. Must be called during component initialization. */
-export const createMoveTodoMutation = (getTodo: () => Todo) => {
+/** Moves `todo` to the end of `day`, then refreshes both its days. */
+const moveTodo = async (queryClient: QueryClient, todo: Todo, day: Day) => {
+  await invokeClient({ name: "update_todo", args: { params: { id: todo.id, day } } });
+  await Promise.all([todo.day, day].map((day) => invalidateTodosOf(queryClient, day)));
+};
+
+/**
+ * Moves `getTodo()` to the end of another day. Must be called during component initialization.
+ *
+ * @param undoable Whether to tell where it went, offering to move it back (at the end of its former day): for a todo
+ * leaving the list it's moved from.
+ */
+export const createMoveTodoMutation = (getTodo: () => Todo, { undoable = false } = {}) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (day: Day) =>
-      invokeClient({
-        name: "update_todo",
-        args: { params: { id: getTodo().id, day } },
-      }),
     // Returned so the mutation stays pending until the lists are refetched: the todo leaves its former day for `day`.
-    onSuccess: (_, day) =>
-      Promise.all(
-        [getTodo().day, day].map((day) => invalidateTodosOf(queryClient, day)),
-      ),
+    mutationFn: (day: Day) => moveTodo(queryClient, getTodo(), day),
+    onSuccess: (_, day) => {
+      if (!undoable) return;
+      // Kept as it was: the undo outlives the todo's component
+      const todo = getTodo();
+      const today = dateToTodaiDate(new Date());
+      toasts.show(`Moved “${todo.title}” to ${formatRelativeDay(day, today)}`, {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            void moveTodo(queryClient, { ...todo, day }, todo.day).catch(() =>
+              toasts.show(`Could not move “${todo.title}” back`, { tone: "error" }),
+            ),
+        },
+      });
+    },
   }));
 };
 
-/** Deletes `getTodo()`. Must be called during component initialization. */
+/** Moves todos to the end of `getDay()`, in this order, at once. Must be called during component initialization. */
+export const createMoveTodosMutation = (getDay: () => Day) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (todos: readonly Todo[]) =>
+      invokeClient({
+        name: "move_todos",
+        args: { ids: todos.map(({ id }) => id), day: getDay() },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched: the todos leave their days for `getDay()`.
+    onSuccess: (_, todos) => {
+      const days = new Set([getDay(), ...todos.map(({ day }) => day)]);
+      return Promise.all([...days].map((day) => invalidateTodosOf(queryClient, day)));
+    },
+  }));
+};
+
+/** Refreshes what depends on the todos of `day` and on whether they're deleted: tags count their linked todos. */
+const invalidateDeletionOf = (queryClient: QueryClient, day: Day) =>
+  Promise.all([
+    invalidateTodosOf(queryClient, day),
+    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+  ]);
+
+/**
+ * Restores `todo`, just deleted, at its place: its tags weren't deleted along with it. Tells if it fails, as it's
+ * asked from a toast, once the todo's component is gone.
+ */
+const undoDeletion = async (queryClient: QueryClient, todo: Todo) => {
+  try {
+    await invokeClient({ name: "restore_todo", args: { id: todo.id, tagIds: [] } });
+  } catch {
+    toasts.show(`Could not restore “${todo.title}”`, { tone: "error" });
+    return;
+  }
+  await invalidateDeletionOf(queryClient, todo.day);
+};
+
+/** Deletes `getTodo()`, offering to undo it. Must be called during component initialization. */
 export const createDeleteTodoMutation = (getTodo: () => Todo) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
@@ -83,12 +143,15 @@ export const createDeleteTodoMutation = (getTodo: () => Todo) => {
         name: "delete_todo",
         args: { id: getTodo().id },
       }),
-    // Returned so the mutation stays pending until the lists are refetched; tags count their linked todos.
-    onSuccess: () =>
-      Promise.all([
-        invalidateTodosOf(queryClient, getTodo().day),
-        queryClient.invalidateQueries({ queryKey: tagKeys.all }),
-      ]),
+    onSuccess: () => {
+      // Kept as it is now: the undo outlives the todo's component
+      const todo = getTodo();
+      toasts.show(`Deleted “${todo.title}”`, {
+        action: { label: "Undo", onClick: () => void undoDeletion(queryClient, todo) },
+      });
+      // Returned so the mutation stays pending until the lists are refetched.
+      return invalidateDeletionOf(queryClient, todo.day);
+    },
   }));
 };
 
@@ -223,5 +286,29 @@ export const createRefindGhMutation = () => {
     mutationFn: () => invokeApiClient({ name: "get_gh_status", args: { refind: true } }),
     // Replaces the cached status, rather than refetching it without looking for `gh` again.
     onSuccess: (status) => queryClient.setQueryData(ghKeys.status(), status),
+  }));
+};
+
+/**
+ * Switches to another workspace, once what's being edited in the current one is saved (see `beforeWorkspaceSwitch`):
+ * resolves to whether it did. Must be called during component initialization.
+ */
+export const createSwitchWorkspaceMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: async ({ id }: Workspace) => {
+      if (!(await canSwitchWorkspace())) return false;
+      await invokeApiClient({ name: "switch_to_workspace", args: { id } });
+      return true;
+    },
+    // Returned so the mutation stays pending until everything is refetched from the other workspace's database.
+    onSuccess: (switched) => {
+      if (!switched) return;
+      return Promise.all([
+        // Dropped rather than only refetched: the note's editor is kept while its note is shown, and must start over
+        queryClient.resetQueries({ queryKey: noteKeys.all }),
+        invalidateActiveWorkspace(queryClient),
+      ]);
+    },
   }));
 };

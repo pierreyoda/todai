@@ -10,6 +10,7 @@ import {
   formatFullDateTime,
   formatFullDay,
   formatMonth,
+  formatRelativeDay,
   formatRelativeTime,
   formatShortDate,
   formatShortDay,
@@ -756,6 +757,31 @@ describe("formatFullDay", () => {
 
   it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
     expect(() => formatFullDay(day)).toThrow(RangeError);
+  });
+});
+
+describe("formatRelativeDay", () => {
+  it.each([
+    ["2026-10-11", "today"],
+    ["2026-10-12", "tomorrow"],
+    ["2026-10-10", "yesterday"],
+    ["2026-10-13", "Tue 13"],
+    ["2026-10-17", "Sat 17"],
+    ["2026-10-05", "Mon 5"],
+    ["2026-10-18", "Sun, Oct 18, 2026"],
+    ["2026-10-04", "Sun, Oct 4, 2026"],
+    ["2027-10-11", "Mon, Oct 11, 2027"],
+  ])("formats %s as %j from 2026-10-11", (day, label) => {
+    expect(formatRelativeDay(day, "2026-10-11")).toBe(label);
+  });
+
+  it("counts across months", () => {
+    expect(formatRelativeDay("2026-11-01", "2026-10-31")).toBe("tomorrow");
+    expect(formatRelativeDay("2026-11-03", "2026-10-31")).toBe("Tue 3");
+  });
+
+  it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
+    expect(() => formatRelativeDay(day, "2026-10-11")).toThrow(RangeError);
   });
 });
 

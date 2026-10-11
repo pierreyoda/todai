@@ -4,6 +4,7 @@
   import type { Snippet } from "svelte";
 
   import { queryClient } from "../client/queries";
+  import Toaster from "../components/common/Toaster.svelte";
 
   type LayoutProps = {
     children: Snippet;
@@ -16,4 +17,5 @@
   <div class="w-screen h-screen">
     {@render children()}
   </div>
+  <Toaster />
 </QueryClientProvider>

@@ -4,7 +4,8 @@ import { QueryClient, queryOptions } from "@tanstack/svelte-query";
 import { invokeClient } from ".";
 import { invokeApiClient } from "./app";
 import type { Day, Month } from "./types";
-import { monthBounds, monthOf } from "../utils/dates";
+import { addDays, monthBounds, monthOf } from "../utils/dates";
+import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../constants";
 
 /**
  * Data comes from the local Rust backend through IPC, not over the network:
@@ -36,6 +37,9 @@ export const todoKeys = {
   months: () => [...todoKeys.all, "months"] as const,
   month: (month: Month) => [...todoKeys.all, month] as const,
   day: (day: Day) => [...todoKeys.month(monthOf(day)), day] as const,
+  /** Unfinished todos of the days before one, which may span several months: refreshed along with any of them. */
+  unfinished: () => [...todoKeys.all, "unfinished"] as const,
+  unfinishedBefore: (day: Day) => [...todoKeys.unfinished(), day] as const,
 };
 
 export const todosQueryOptions = (day: Day) =>
@@ -59,14 +63,28 @@ export const todoMonthsQueryOptions = queryOptions({
   queryFn: () => invokeClient({ name: "list_todo_months" }),
 });
 
+/** The todos left unfinished in the `UNFINISHED_TODOS_LOOKBACK_DAYS` days before `day`, by day then in display order. */
+export const unfinishedTodosQueryOptions = (day: Day) =>
+  queryOptions({
+    queryKey: todoKeys.unfinishedBefore(day),
+    queryFn: async () => {
+      const todos = await invokeClient({
+        name: "list_todos_between",
+        args: { start: addDays(day, -UNFINISHED_TODOS_LOOKBACK_DAYS), end: addDays(day, -1) },
+      });
+      return todos.filter((todo) => !todo.completed);
+    },
+  });
+
 /**
- * Refreshes what depends on the todos of `day`, after changing them: its month (with its days' lists) and the
- * per-month statistics. Awaitable, so that a mutation can stay pending until then.
+ * Refreshes what depends on the todos of `day`, after changing them: its month (with its days' lists), the per-month
+ * statistics, and the unfinished todos before a day. Awaitable, so that a mutation can stay pending until then.
  */
 export const invalidateTodosOf = (queryClient: QueryClient, day: Day) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: todoKeys.month(monthOf(day)) }),
     queryClient.invalidateQueries({ queryKey: todoKeys.months() }),
+    queryClient.invalidateQueries({ queryKey: todoKeys.unfinished() }),
   ]);
 
 export const tagKeys = {

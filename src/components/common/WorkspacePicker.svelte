@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { ClassValue } from "svelte/elements";
+
   import type { Workspace } from "../../client/app";
   import {
     Dropdown,
@@ -14,9 +16,15 @@
     workspaces: readonly Workspace[];
     selected: Workspace;
     onPicked: (workspace: Workspace) => void;
+    /** Applied to the button opening it. */
+    class?: ClassValue;
   };
-  const { workspaces, selected, onPicked }: WorkspacePickerProps =
-    $props();
+  const {
+    workspaces,
+    selected,
+    onPicked,
+    class: extraClass,
+  }: WorkspacePickerProps = $props();
 </script>
 
 {#snippet status({ available, isActive }: Workspace)}
@@ -30,7 +38,11 @@
 <Dropdown>
   <DropdownTrigger>
     {#snippet children(trigger)}
-      <button {...trigger} class="picker" aria-label={`Workspace: ${selected.name}`}>
+      <button
+        {...trigger}
+        class={["picker", extraClass]}
+        aria-label={`Workspace: ${selected.name}`}
+      >
         <WorkspaceAvatar name={selected.name} size="sm" />
         <span class="name">{selected.name}</span>
         {@render status(selected)}
@@ -72,6 +84,11 @@
 
   .name {
     @apply min-w-0 truncate;
+  }
+
+  /* Takes the room of a widened button (see `class`), pushing its status and chevron to the end */
+  .picker .name {
+    @apply flex-1 text-left;
   }
 
   .status {
