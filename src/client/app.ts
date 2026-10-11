@@ -3,6 +3,7 @@ import type { UUID } from "node:crypto";
 import { invoke } from "@tauri-apps/api/core";
 import { parseResponse } from "../utils/client";
 import type { Invocation } from ".";
+import type { GitHubProblem } from "./types";
 
 /** A workspace, with its own database. */
 export interface Workspace {
@@ -22,6 +23,51 @@ export interface Workspace {
   autoBackup: boolean;
   /** Automatic backups kept, from 1 to 100: older ones are deleted. */
   autoBackupKeep: number;
+  /** The GitHub CLI account it uses on github.com, if connected to GitHub. */
+  githubLogin?: string;
+  /**
+   * Why its GitHub connection needs the user, if it did the last time GitHub was asked (since todai was opened): the
+   * GitHub CLI is missing, or signed out of its account.
+   */
+  githubAttention?: Extract<GitHubProblem, { kind: "gh_missing" | "signed_out" }>;
+  /** Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked. */
+  linksAutoRefresh: boolean;
+  /** Whether a todo whose pull request is merged (or issue completed) offers to be marked as done. */
+  linksSuggestDone: boolean;
+  /** Whether pasting a pull request's or issue's link as a new todo's title offers to create it from the link. */
+  linksPasteToCreate: boolean;
+}
+
+/** An account the GitHub CLI (`gh`) knows on github.com. */
+export interface GhAccount {
+  login: string;
+  /** The one `gh` uses by default (`gh auth switch` changes it). */
+  active: boolean;
+  /** Whether its token works: not once revoked or expired, until signing in again with `gh auth login`. */
+  signedIn: boolean;
+}
+
+/** What the GitHub CLI offers to connect workspaces with. */
+export interface GhStatus {
+  /** Where `gh` was found: `null` if it's not installed (or not where expected). */
+  path: string | null;
+  /** The accounts it knows on github.com, signed in or not anymore: none without `gh`. */
+  accounts: GhAccount[];
+}
+
+/** GitHub's rate limit for an account, in points: requests cost 1 or 2, for up to 50 pull requests and issues. */
+export interface GitHubRateLimit {
+  limit: number;
+  remaining: number;
+  resetAt: Date;
+}
+
+/** A workspace's GitHub connection, as GitHub sees it. */
+export interface GitHubApiStatus {
+  /** The connected account's rate limit, if GitHub could be asked. */
+  rateLimit?: GitHubRateLimit;
+  /** Why GitHub couldn't be asked, if so. */
+  problem?: GitHubProblem;
 }
 
 /**
@@ -191,6 +237,47 @@ export type ClientInvocationAppCommand = {
       autoBackup: boolean;
       /** From 1 to 100. */
       autoBackupKeep: number;
+    };
+    returns: Workspace;
+  };
+  /** `gh` is looked for once, then remembered: `refind` looks for it again, e.g. after installing it. */
+  get_gh_status: {
+    args?: {
+      refind?: boolean;
+    };
+    returns: GhStatus;
+  };
+  /** Instead of any other account. Fails unless `gh` is signed in to `login` on github.com. */
+  connect_github: {
+    args: {
+      workspaceId: UUID;
+      login: string;
+    };
+    returns: Workspace;
+  };
+  /** Its links then only show what their URL tells. */
+  disconnect_github: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: Workspace;
+  };
+  /**
+   * Asks GitHub for the rate limit of the account a workspace is connected to, which also checks that GitHub accepts
+   * its token. Fails if it isn't connected.
+   */
+  get_github_api_status: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: GitHubApiStatus;
+  };
+  set_workspace_links_behaviors: {
+    args: {
+      workspaceId: UUID;
+      linksAutoRefresh: boolean;
+      linksSuggestDone: boolean;
+      linksPasteToCreate: boolean;
     };
     returns: Workspace;
   };

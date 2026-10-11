@@ -8,6 +8,7 @@ use crate::{
     backups,
     database::models::{DbTimestamp, DbWorkspace},
     errors::Result,
+    github::GitHubError,
     state::AppState,
     workspaces,
 };
@@ -31,6 +32,18 @@ pub struct Workspace {
     pub auto_backup: bool,
     /// Automatic backups kept: older ones are deleted.
     pub auto_backup_keep: u32,
+    /// The GitHub CLI account it uses on github.com, if connected to GitHub.
+    pub github_login: Option<String>,
+    /// Why its GitHub connection needs the user, if it did the last time GitHub was asked: the GitHub CLI is missing, or
+    /// signed out of its account.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub github_attention: Option<GitHubError>,
+    /// Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked.
+    pub links_auto_refresh: bool,
+    /// Whether a todo whose pull request is merged (or issue completed) offers to be marked as done.
+    pub links_suggest_done: bool,
+    /// Whether pasting a pull request's or issue's link as a new todo's title offers to create it from the link.
+    pub links_paste_to_create: bool,
 }
 
 impl Workspace {
@@ -39,6 +52,7 @@ impl Workspace {
         is_active: bool,
         available: bool,
         last_backup_at: Option<DbTimestamp>,
+        github_attention: Option<GitHubError>,
     ) -> Result<Self> {
         Ok(Self {
             id: entry.id,
@@ -54,6 +68,11 @@ impl Workspace {
             last_backup_at: last_backup_at.map(Timestamp::from_second).transpose()?,
             auto_backup: entry.auto_backup,
             auto_backup_keep: entry.auto_backup_keep,
+            github_login: entry.github_login,
+            github_attention,
+            links_auto_refresh: entry.links_auto_refresh,
+            links_suggest_done: entry.links_suggest_done,
+            links_paste_to_create: entry.links_paste_to_create,
         })
     }
 }
@@ -71,7 +90,17 @@ pub(crate) fn workspace(
         Path::new(&entry.path).is_file()
     };
     let last_backup_at = backups::last_created_at(app_db, &entry.id)?;
-    Workspace::new(entry, is_active, available, last_backup_at)
+    let github_attention = entry
+        .github_login
+        .as_deref()
+        .and_then(|login| state.github_attention(login));
+    Workspace::new(
+        entry,
+        is_active,
+        available,
+        last_backup_at,
+        github_attention,
+    )
 }
 
 /// Makes `entry`, whose database is `db`, the active workspace.

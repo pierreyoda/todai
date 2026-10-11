@@ -3,9 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   clearActiveWorkspace,
+  ghKeys,
   invalidateActiveWorkspace,
   invalidateTodosOf,
+  linkKeys,
+  linkStatusKeys,
   noteKeys,
+  refreshGitHubAttention,
   tagKeys,
   todoKeys,
   workspaceKeys,
@@ -55,6 +59,7 @@ describe("active workspace changes", () => {
     months: todoKeys.months(),
     tags: tagKeys.all,
     note: noteKeys.day("2026-10-10"),
+    linkStatuses: linkStatusKeys.day("2026-10-10"),
     workspaces: workspaceKeys.all,
   };
 
@@ -86,5 +91,42 @@ describe("active workspace changes", () => {
       expect(queryClient.getQueryState(key), name).toBeUndefined();
     }
     expect(queryClient.getQueryState(workspaces)?.isInvalidated).toBe(true);
+  });
+
+  it.each([
+    ["the recognized links", linkKeys.parse("https://github.com/pierreyoda/todai/pull/58")],
+    ["the GitHub CLI status", ghKeys.status()],
+  ])("keeps %s, which don't come from the workspace's database", async (_, key) => {
+    const queryClient = withData();
+    queryClient.setQueryData(key, {});
+
+    await invalidateActiveWorkspace(queryClient);
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+
+    await clearActiveWorkspace(queryClient);
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+  });
+});
+
+describe("refreshGitHubAttention", () => {
+  it("refreshes the workspaces, but not what's nested in their keys", async () => {
+    const id = "0199d0c0-0000-7000-8000-000000000001";
+    const keys = {
+      workspaces: workspaceKeys.all,
+      active: workspaceKeys.active(),
+      github: workspaceKeys.github(id),
+      backups: workspaceKeys.backups(id),
+    };
+    const queryClient = new QueryClient();
+    for (const key of Object.values(keys)) {
+      queryClient.setQueryData(key, []);
+    }
+
+    await refreshGitHubAttention(queryClient);
+
+    const invalidated = Object.fromEntries(
+      Object.entries(keys).map(([name, key]) => [name, queryClient.getQueryState(key)?.isInvalidated]),
+    );
+    expect(invalidated).toEqual({ workspaces: true, active: true, github: false, backups: false });
   });
 });

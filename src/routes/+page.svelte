@@ -6,6 +6,7 @@
   import { dateToTodaiDate } from "../utils/dates";
   import {
     activeWorkspaceQueryOptions,
+    linkStatusesQueryOptions,
     tagsQueryOptions,
     todosQueryOptions,
   } from "../client/queries";
@@ -30,6 +31,24 @@
     enabled: ready,
   }));
   let selectedTagId = $state<Tag["id"] | null>(null);
+
+  // The statuses of the todos' GitHub links, through the workspace's connection: refreshed as shown, then regularly,
+  // unless only when asked (e.g. once a link is added)
+  const connected = $derived(ready && !!activeWorkspace.data?.githubLogin);
+  const autoRefresh = $derived(
+    connected && !!activeWorkspace.data?.linksAutoRefresh,
+  );
+  const linkStatuses = createQuery(() => ({
+    ...linkStatusesQueryOptions(day),
+    enabled: autoRefresh,
+  }));
+  // Also when coming back to the app: TanStack Query only watches the page's visibility, which switching apps leaves
+  $effect(() => {
+    if (!autoRefresh) return;
+    const refresh = () => linkStatuses.refetch({ cancelRefetch: false });
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  });
 
   /** The tags, with `linkedTodosCount` scoped to the todos of `day` (unknown until they're loaded). */
   const dayTags = $derived.by(() => {
@@ -68,6 +87,7 @@
         tags={dayTags}
         {selectedTagId}
         onSelectedTagChanged={(id) => (selectedTagId = id)}
+        linksProblem={connected ? linkStatuses.data?.problem : undefined}
       />
     {/if}
   {:else}

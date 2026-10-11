@@ -9,6 +9,7 @@
   import { contextMenu } from "../../utils/contextMenu";
   import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
   import IconSun from "../common/icons/IconSun.svelte";
+  import LinksMarker from "../links/LinksMarker.svelte";
   import Button from "../common/Button.svelte";
   import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
@@ -61,7 +62,13 @@
     bind:checked={completed}
     onchange={(event) => toggleCompleted.mutate(event.currentTarget.checked)}
   />
-  <span class="title" title={item.title}>{item.title}</span>
+  <span class="title-group">
+    <span class="title" title={item.title}>{item.title}</span>
+    <!-- Right after the title, so that it stays in view when the actions replace the tags -->
+    {#if item.links.length > 0}
+      <LinksMarker links={item.links} title={item.title} />
+    {/if}
+  </span>
   <div class="trailing">
     {#if itemTags.length > 0}
       <ul class="tags" aria-label="Tags">
@@ -148,8 +155,12 @@
     @apply hover:bg-[color-mix(in_oklab,var(--tag-color)_20%,transparent)];
   }
 
+  .title-group {
+    @apply flex min-w-0 flex-1 items-center gap-1.5;
+  }
+
   .title {
-    @apply min-w-0 flex-1 truncate text-sm text-white;
+    @apply min-w-0 truncate text-sm text-white;
   }
 
   .completed .title {

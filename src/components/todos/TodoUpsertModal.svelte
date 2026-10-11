@@ -5,6 +5,7 @@
   import { invokeClient } from "../../client";
   import type { Todo } from "../../client/types";
   import TodoForm, { type TodoFormData } from "./TodoForm.svelte";
+  import TodoLinksEditor from "../links/TodoLinksEditor.svelte";
   import { invalidateTodosOf } from "../../client/queries";
 
   type TodoUpsertModalProps = {
@@ -69,7 +70,11 @@
           title: existing.title,
         }}
         onSubmit={(data) => updateTodo.mutate({ todo: existing, data })}
-      />
+      >
+        {#snippet fields()}
+          <TodoLinksEditor todo={existing} />
+        {/snippet}
+      </TodoForm>
     {:else}
       <TodoForm onSubmit={(data) => createTodo.mutate(data)} />
     {/if}

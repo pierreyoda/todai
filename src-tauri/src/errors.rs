@@ -27,10 +27,16 @@ pub enum TodaiError {
     InvalidPath(String),
     #[error("Invalid backup kind {0:?}")]
     InvalidBackupKind(String),
+    #[error("Invalid link: {0}")]
+    InvalidLink(String),
     #[error("No workspace database at {0}")]
     WorkspaceUnavailable(String),
     #[error("No workspace is open")]
     NoActiveWorkspace,
+    #[error("The GitHub CLI (gh) was not found: install it, then sign in with `gh auth login`")]
+    GhNotFound,
+    #[error("GitHub CLI error: {0}")]
+    GhCli(String),
     #[error("Command error: {0}")]
     CommandError(String),
 }

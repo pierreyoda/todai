@@ -1,8 +1,18 @@
 import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
-import type { Day, Estimate, Todo } from "./types";
-import { invalidateTodosOf, noteKeys, tagKeys } from "./queries";
+import { invokeApiClient, type Workspace } from "./app";
+import type { Day, Estimate, Todo, TodoLink } from "./types";
+import {
+  ghKeys,
+  invalidateTodosOf,
+  linkStatusKeys,
+  noteKeys,
+  refreshGitHubAttention,
+  refreshLinksOf,
+  tagKeys,
+  workspaceKeys,
+} from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 
 // TODO: migrate other mutations to this file
@@ -83,6 +93,76 @@ export const createDeleteTodoMutation = (getTodo: () => Todo) => {
 };
 
 /**
+ * Adds links to `getTodo()`, in this order, from URLs as typed or pasted: normalized by the backend. Must be called
+ * during component initialization.
+ */
+export const createAddTodoLinksMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (urls: readonly string[]) =>
+      invokeClient({
+        name: "add_todo_links",
+        args: { todoId: getTodo().id, urls },
+      }),
+    onSuccess: () => {
+      // Their status, if they're GitHub ones, even if not refreshed on their own; without waiting for GitHub
+      refreshLinksOf(queryClient, getTodo().day);
+      // Returned so the mutation stays pending until the lists are refetched, with the links.
+      return invalidateTodosOf(queryClient, getTodo().day);
+    },
+  }));
+};
+
+/**
+ * Creates a todo at the end of `getDay()` with a link, titled after its pull request or issue if known. Must be called
+ * during component initialization.
+ */
+export const createAddTodoFromLinkMutation = (getDay: () => Day) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({ url, title }: { url: string; title?: string }) =>
+      invokeClient({ name: "create_todo_from_link", args: { day: getDay(), url, title } }),
+    onSuccess: () => {
+      refreshLinksOf(queryClient, getDay());
+      // Returned so the mutation stays pending until the list is refetched, with the todo.
+      return invalidateTodosOf(queryClient, getDay());
+    },
+  }));
+};
+
+/** Removes one of the links of `getTodo()`. Must be called during component initialization. */
+export const createRemoveTodoLinkMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (link: TodoLink) =>
+      invokeClient({
+        name: "remove_todo_link",
+        args: { id: link.id },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched, without the link.
+    onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+  }));
+};
+
+/**
+ * Fetches again the status of a GitHub link of `getTodo()`, however recently fetched. Must be called during component
+ * initialization.
+ *
+ * Succeeds with the problem GitHub couldn't be asked because of, if any: the link then keeps its last known status.
+ */
+export const createRefreshTodoLinkMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (link: TodoLink) => invokeClient({ name: "refresh_link", args: { id: link.id } }),
+    // Returned so the mutation stays pending until the lists are refetched, with the status.
+    onSuccess: (outcome) => {
+      refreshGitHubAttention(queryClient);
+      if (outcome.refreshed > 0) return invalidateTodosOf(queryClient, getTodo().day);
+    },
+  }));
+};
+
+/**
  * Saves `content` as the note of `day`, as typed, or deletes it if blank. Must be called during component
  * initialization.
  *
@@ -95,5 +175,53 @@ export const createSaveNoteMutation = () => {
       invokeClient({ name: "save_note", args: { day, content } }),
     // The saved note (or `null`, once deleted) replaces the cached one, rather than being refetched.
     onSuccess: (note, { day }) => queryClient.setQueryData(noteKeys.day(day), note),
+  }));
+};
+
+/**
+ * Connects a workspace to GitHub through a GitHub CLI account, instead of any other one. Must be called during
+ * component initialization.
+ */
+export const createConnectGitHubMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({ workspace, login }: { workspace: Workspace; login: string }) =>
+      invokeApiClient({
+        name: "connect_github",
+        args: { workspaceId: workspace.id, login },
+      }),
+    onSuccess: () => {
+      // The links' statuses, through the new connection, without waiting for GitHub
+      queryClient.invalidateQueries({ queryKey: linkStatusKeys.all });
+      // Returned so the mutation stays pending until the workspaces are refetched, with the connection.
+      return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+    },
+  }));
+};
+
+/** Disconnects a workspace from GitHub. Must be called during component initialization. */
+export const createDisconnectGitHubMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (workspace: Workspace) =>
+      invokeApiClient({
+        name: "disconnect_github",
+        args: { workspaceId: workspace.id },
+      }),
+    // Returned so the mutation stays pending until the workspaces are refetched, without the connection.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
+  }));
+};
+
+/**
+ * Looks for the GitHub CLI again rather than where it was found, e.g. once installed or signed in to. Must be called
+ * during component initialization.
+ */
+export const createRefindGhMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: () => invokeApiClient({ name: "get_gh_status", args: { refind: true } }),
+    // Replaces the cached status, rather than refetching it without looking for `gh` again.
+    onSuccess: (status) => queryClient.setQueryData(ghKeys.status(), status),
   }));
 };

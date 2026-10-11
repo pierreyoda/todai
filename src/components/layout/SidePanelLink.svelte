@@ -15,8 +15,18 @@
     nested?: boolean;
     /** Shown as a dot after the label, e.g. "Today has a note": the text is for screen readers only. */
     indicator?: string;
+    /** The dot's color: `warning` when something needs the user, e.g. a connection. */
+    indicatorTone?: "accent" | "warning";
   };
-  const { label, icon, routeId, hint, nested = false, indicator }: SidePanelLinkProps = $props();
+  const {
+    label,
+    icon,
+    routeId,
+    hint,
+    nested = false,
+    indicator,
+    indicatorTone = "accent",
+  }: SidePanelLinkProps = $props();
 
   const current = $derived((page.route.id ?? "/") === routeId);
 </script>
@@ -28,7 +38,7 @@
     <span class="hint">{hint}</span>
   {/if}
   {#if indicator}
-    <span class="indicator" title={indicator}></span>
+    <span class={["indicator", indicatorTone]} title={indicator}></span>
     <span class="sr-only">({indicator})</span>
   {/if}
 </a>
@@ -77,5 +87,9 @@
   /* Where the hint would be, in the accent color */
   .indicator {
     @apply mr-1 size-1.5 shrink-0 rounded-full bg-pink-400;
+
+    &.warning {
+      @apply bg-amber-400;
+    }
   }
 </style>

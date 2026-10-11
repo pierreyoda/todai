@@ -4,6 +4,9 @@ pub mod backups;
 pub mod commands;
 pub mod database;
 pub mod errors;
+pub mod gh;
+pub mod github;
+pub mod links;
 pub mod logging;
 pub mod state;
 pub mod workspaces;
@@ -31,6 +34,8 @@ pub fn run() {
                 backups::open_workspace(&app_db, &backups_dir, entry, &now)
             })?;
             app.manage(state::AppState::new(app_db, db, backups_dir));
+            app.manage(gh::GhFinder::default());
+            app.manage(github::GitHub::new()?);
             commands::backups::spawn_daily_backups(app.handle().clone());
             Ok(())
         })
@@ -39,6 +44,7 @@ pub fn run() {
             commands::todos::list_todos_between,
             commands::todos::list_todo_months,
             commands::todos::create_todo,
+            commands::todos::create_todo_from_link,
             commands::todos::toggle_todo,
             commands::todos::update_todo,
             commands::todos::set_todo_estimate,
@@ -48,6 +54,12 @@ pub fn run() {
             commands::tags::update_tag,
             commands::tags::delete_tag,
             commands::tags::set_todo_tags,
+            commands::links::parse_link,
+            commands::links::add_todo_links,
+            commands::links::remove_todo_link,
+            commands::link_statuses::refresh_links,
+            commands::link_statuses::refresh_link,
+            commands::link_statuses::preview_link,
             commands::notes::get_note,
             commands::notes::save_note,
             commands::workspaces::list_workspaces,
@@ -65,6 +77,11 @@ pub fn run() {
             commands::backups::restore_workspace_backup,
             commands::backups::restore_workspace_backup_as_new,
             commands::backups::set_workspace_auto_backup,
+            commands::github::get_gh_status,
+            commands::github::connect_github,
+            commands::github::disconnect_github,
+            commands::github::get_github_api_status,
+            commands::github::set_workspace_links_behaviors,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

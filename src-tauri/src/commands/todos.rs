@@ -6,8 +6,10 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::{
+    commands::links::{insert_links_in, query_links_between, TodoLink},
     database::models::{DbDay, DbTodo},
     errors::{Result, TodaiError},
+    links::{self, ParsedLink},
     state::AppState,
 };
 
@@ -118,6 +120,8 @@ pub struct Todo {
     /// IDs of its non-deleted tags, to resolve against `list_tags`: tags have a single source of truth on the
     /// frontend, so that renaming one doesn't require refetching todos.
     pub tag_ids: Vec<String>,
+    /// Its links, in the order they were added: unlike tags, each belongs to this todo only.
+    pub links: Vec<TodoLink>,
 }
 
 impl TryFrom<DbTodo> for Todo {
@@ -146,6 +150,7 @@ impl TryFrom<DbTodo> for Todo {
             completed_at: todo.completed_at.map(Timestamp::from_second).transpose()?,
             deleted_at: todo.deleted_at.map(Timestamp::from_second).transpose()?,
             tag_ids: Vec::new(),
+            links: Vec::new(),
         })
     }
 }
@@ -164,7 +169,7 @@ pub struct TodoMonth {
     pub estimated_points: u32,
 }
 
-/// Lists the non-deleted todos of `day`, in display order, with the IDs of their non-deleted tags.
+/// Lists the non-deleted todos of `day`, in display order, with the IDs of their non-deleted tags and their links.
 #[tauri::command]
 pub async fn list_todos(state: State<'_, AppState>, day: Day) -> Result<Vec<Todo>> {
     let db = state.db()?;
@@ -218,7 +223,7 @@ pub async fn list_todo_months(state: State<'_, AppState>) -> Result<Vec<TodoMont
     Ok(months)
 }
 
-/// The non-deleted todos from `start` to `end` (inclusive), by day then in display order.
+/// The non-deleted todos from `start` to `end` (inclusive), by day then in display order, with their tags and links.
 fn query_todos(db: &Connection, start: &Day, end: &Day) -> Result<Vec<Todo>> {
     // One row per (todo, tag) pair, or a single row with a NULL tag ID for an untagged todo.
     // Tags are only joined to skip deleted ones. Sorting by `todos.id` after `position` keeps each todo's rows contiguous.
@@ -251,6 +256,12 @@ fn query_todos(db: &Connection, start: &Day, end: &Day) -> Result<Vec<Todo>> {
             todo.tag_ids.push(tag_id);
         }
     }
+
+    // In a second query rather than joined: a todo with several tags and links would otherwise get a row per pair.
+    let mut links = query_links_between(db, start, end)?;
+    for todo in &mut todos {
+        todo.links = links.remove(&todo.id).unwrap_or_default();
+    }
     Ok(todos)
 }
 
@@ -280,26 +291,70 @@ pub async fn create_todo(
     description: Option<String>,
     estimate: Option<Estimate>,
 ) -> Result<Todo> {
+    let description = description
+        .as_deref()
+        .map(str::trim)
+        .filter(|description| !description.is_empty());
+    let estimate = estimate.map(Estimate::validate).transpose()?;
+    let db = state.db()?;
+    insert_new_todo(
+        &db,
+        &day,
+        &title,
+        description,
+        estimate,
+        Timestamp::now().as_second(),
+    )
+}
+
+/// Creates a todo at the end of `day` with the link `url`, at once: titled `title` (e.g. its pull request's, as GitHub
+/// tells through `preview_link`), or else as the link is shown (e.g. `todai#58`).
+#[tauri::command]
+pub async fn create_todo_from_link(
+    state: State<'_, AppState>,
+    day: Day,
+    url: String,
+    title: Option<String>,
+) -> Result<Todo> {
+    let link = links::parse(&url)?;
+    let title = title
+        .filter(|title| !title.trim().is_empty())
+        .unwrap_or_else(|| link.label.clone());
+    let mut db = state.db()?;
+    create_with_link(&mut db, &day, &title, link, Timestamp::now().as_second())
+}
+
+fn create_with_link(
+    db: &mut Connection,
+    day: &Day,
+    title: &str,
+    link: ParsedLink,
+    now: i64,
+) -> Result<Todo> {
+    let tx = db.transaction()?;
+    let mut todo = insert_new_todo(&tx, day, title, None, None, now)?;
+    todo.links = insert_links_in(&tx, &todo.id, vec![link], now)?;
+    tx.commit()?;
+    Ok(todo)
+}
+
+/// Inserts a todo at the end of `day`, created at `now`. Its `title` is trimmed, and must not be blank.
+fn insert_new_todo(
+    db: &Connection,
+    day: &Day,
+    title: &str,
+    description: Option<&str>,
+    estimate: Option<Estimate>,
+    now: i64,
+) -> Result<Todo> {
     let title = title.trim();
     if title.is_empty() {
         return Err(TodaiError::CommandError(
             "Todo title cannot be empty".into(),
         ));
     }
-    let description = description
-        .as_deref()
-        .map(str::trim)
-        .filter(|description| !description.is_empty());
-    let (estimate, estimate_unit) = estimate
-        .map(Estimate::validate)
-        .transpose()?
-        .map(Estimate::to_db)
-        .unzip();
-
-    let db = state.db()?;
-    let position = position_after_last(&db, &day)?;
-
-    let now = Timestamp::now().as_second();
+    let (estimate, estimate_unit) = estimate.map(Estimate::to_db).unzip();
+    let position = position_after_last(db, day)?;
     let todo = db
         .prepare_cached(
             "INSERT INTO todos (id, day, title, description, position, estimate, estimate_unit, created_at, updated_at)
@@ -680,6 +735,80 @@ mod tests {
         assert!(update_todo_row(&db, moved, NOW).is_err());
         assert_eq!(todo_row(&db, &id).title, "Deleted");
         assert!(update_todo_row(&db, params("unknown"), NOW).is_err());
+    }
+
+    #[test]
+    fn query_todos_includes_each_todo_tags_and_links_once() {
+        let db = open_test_database(&WORKSPACE);
+        let linked = insert_todo(&db, "2026-10-10", "Linked");
+        let unlinked = insert_todo(&db, "2026-10-10", "Unlinked");
+        db.execute_batch(
+            "INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('a', 'A', 0, 0, 0), ('b', 'B', 0, 0, 0);",
+        )
+        .unwrap();
+        for tag_id in ["a", "b"] {
+            db.execute(
+                "INSERT INTO todo_tags (todo_id, tag_id) VALUES (?1, ?2)",
+                (&linked, tag_id),
+            )
+            .unwrap();
+        }
+        for (id, number) in [("l1", 1), ("l2", 2)] {
+            db.execute(
+                "INSERT INTO todo_links (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at)
+                 VALUES (?1, ?2, 'github_issue', ?1, 'o', 'r', ?3, 0)",
+                (id, &linked, number),
+            )
+            .unwrap();
+        }
+
+        let todos = query_todos(&db, &day("2026-10-10"), &day("2026-10-10")).unwrap();
+        assert_eq!(todos.len(), 2);
+        let todo = |id: &str| todos.iter().find(|todo| todo.id == id).unwrap();
+        assert_eq!(todo(&linked).tag_ids, ["a", "b"]);
+        let labels: Vec<&str> = todo(&linked)
+            .links
+            .iter()
+            .map(|link| link.label.as_str())
+            .collect();
+        assert_eq!(labels, ["r#1", "r#2"]);
+        assert!(todo(&unlinked).links.is_empty());
+    }
+
+    #[test]
+    fn create_todo_from_link_creates_it_with_its_link_at_the_end_of_the_day() {
+        let mut db = open_test_database(&WORKSPACE);
+        let first = insert_todo(&db, "2026-10-10", "First");
+        let link = links::parse("https://github.com/pierreyoda/todai/pull/58/files").unwrap();
+
+        let todo = create_with_link(
+            &mut db,
+            &day("2026-10-10"),
+            "  Add todo_links table and link chips ",
+            link,
+            NOW,
+        )
+        .unwrap();
+        assert_eq!(todo.title, "Add todo_links table and link chips");
+        assert!(todo.position > todo_row(&db, &first).position);
+        assert_eq!(todo.links.len(), 1);
+        assert_eq!(
+            todo.links[0].url,
+            "https://github.com/pierreyoda/todai/pull/58"
+        );
+        let listed = query_todos(&db, &day("2026-10-10"), &day("2026-10-10")).unwrap();
+        assert_eq!(listed[1].links[0].label, "todai#58");
+    }
+
+    #[test]
+    fn create_todo_from_link_creates_nothing_without_a_title() {
+        let mut db = open_test_database(&WORKSPACE);
+        let link = links::parse("https://example.org").unwrap();
+        assert!(create_with_link(&mut db, &day("2026-10-10"), " ", link, NOW).is_err());
+        let count: i64 = db
+            .query_row("SELECT COUNT(*) FROM todos", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
     }
 
     #[test]

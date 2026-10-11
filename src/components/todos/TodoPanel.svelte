@@ -1,12 +1,14 @@
 <script lang="ts">
   import type { CreateQueryResult } from "@tanstack/svelte-query";
 
-  import type { Day, Tag, Todo } from "../../client/types";
+  import type { Day, GitHubProblem, Tag, Todo } from "../../client/types";
   import SearchField from "../common/SearchField.svelte";
   import TodoList from "./TodoList.svelte";
   import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoPanelFilters from "./TodoPanelFilters.svelte";
   import TodosEmptyState from "./TodosEmptyState.svelte";
+  import LinkStatusesIndicator from "../links/LinkStatusesIndicator.svelte";
+  import ConnectGitHubTip from "../links/ConnectGitHubTip.svelte";
   import { isDefined } from "../../utils";
   import { TodoSearch } from "../../utils/todoSearch.svelte";
 
@@ -17,6 +19,8 @@
     tags: readonly Tag[];
     selectedTagId: Tag["id"] | null;
     onSelectedTagChanged: (id: Tag["id"] | null) => void;
+    /** Why GitHub couldn't be asked about the statuses of the todos' links, if so. */
+    linksProblem?: GitHubProblem;
   };
   const {
     day,
@@ -24,6 +28,7 @@
     tags,
     selectedTagId,
     onSelectedTagChanged,
+    linksProblem,
   }: TodoPanelProps = $props();
 
   const search = new TodoSearch(
@@ -66,6 +71,12 @@
         if (id === selectedTagId) onSelectedTagChanged(null);
       }}
     />
+    {#if linksProblem}
+      <LinkStatusesIndicator
+        problem={linksProblem}
+        links={todos.data?.flatMap((todo) => todo.links) ?? []}
+      />
+    {/if}
   </div>
   <TodoCreateSection {day} />
   {#if todos.isPending}
@@ -75,6 +86,7 @@
   {:else}
     {#if filteredTodos.length > 0}
       <TodoList todos={filteredTodos} {tags} />
+      <ConnectGitHubTip todos={todos.data ?? []} />
     {:else}
       <!-- Keyed by the case, so switching between cases replays the entrance, but typing a search doesn't -->
       {#key `${emptySearchQuery !== null}:${emptyFilterTag?.id}`}

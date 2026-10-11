@@ -21,7 +21,7 @@ pub struct DatabaseKind {
     migrations: &'static [&'static str],
 }
 
-/// A workspace's todos, tags and notes.
+/// A workspace's todos (with their links), tags and notes.
 pub const WORKSPACE: DatabaseKind = DatabaseKind {
     name: "workspace",
     // "TDWS" (ToDai WorkSpace).
@@ -32,6 +32,8 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/003_tags_non_unique_name.sql"),
         include_str!("../migrations/004_todo_estimate.sql"),
         include_str!("../migrations/005_notes.sql"),
+        include_str!("../migrations/006_todo_links.sql"),
+        include_str!("../migrations/007_todo_link_statuses.sql"),
     ],
 };
 
@@ -43,6 +45,8 @@ pub const APP: DatabaseKind = DatabaseKind {
     migrations: &[
         include_str!("../migrations-app/001_init.sql"),
         include_str!("../migrations-app/002_workspace_backups.sql"),
+        include_str!("../migrations-app/003_workspace_github.sql"),
+        include_str!("../migrations-app/004_workspace_links.sql"),
     ],
 };
 
@@ -629,6 +633,42 @@ mod tests {
     }
 
     #[test]
+    fn open_leaves_existing_workspaces_unconnected_to_github() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.sqlite3");
+        {
+            // As left by the last version without GitHub.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &APP.migrations[..2] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 2).unwrap();
+            conn.pragma_update(None, "application_id", APP.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO workspaces (id, name, path, created_at) VALUES ('w', 'Work', '/work.sqlite3', 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open(&path, &APP).unwrap();
+        assert_eq!(header(&conn).1, APP.migrations.len() as i64);
+        let login: Option<String> = conn
+            .query_row(
+                "SELECT github_login FROM workspaces WHERE id = 'w'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(login, None);
+        // A login is never empty: disconnecting sets it back to NULL.
+        assert!(conn
+            .execute("UPDATE workspaces SET github_login = '' WHERE id = 'w'", [])
+            .is_err());
+    }
+
+    #[test]
     fn open_existing_adds_notes_to_a_workspace_database() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("workspace.sqlite3");
@@ -649,12 +689,129 @@ mod tests {
         }
 
         let conn = open_existing(&path, &WORKSPACE).unwrap();
-        assert_eq!(header(&conn).1, 5);
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
         assert_eq!(tag_names(&conn), ["Work"]);
         let notes: i64 = conn
             .query_row("SELECT COUNT(*) FROM notes", [], |r| r.get(0))
             .unwrap();
         assert_eq!(notes, 0);
+    }
+
+    #[test]
+    fn open_existing_adds_todo_links_to_a_workspace_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without links.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..5] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 5).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-10', 'Linked', 'a0', 0, 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
+        conn.execute(
+            "INSERT INTO todo_links (id, todo_id, kind, url, created_at)
+             VALUES ('l', 't', 'url', 'https://example.org/', 0)",
+            [],
+        )
+        .unwrap();
+        let links: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM todo_links WHERE todo_id = 't'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(links, 1);
+    }
+
+    #[test]
+    fn open_existing_keeps_the_links_of_a_workspace_database_without_their_statuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without links' statuses.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..6] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 6).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute_batch(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-10', 'Linked', 'a0', 0, 0);
+                 INSERT INTO todo_links (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at)
+                 VALUES ('l', 't', 'github_pull', 'https://github.com/o/r/pull/1', 'o', 'r', 1, 0);",
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
+        let never_fetched: (Option<String>, Option<i64>, Option<String>) = conn
+            .query_row(
+                "SELECT snapshot, fetched_at, fetch_error FROM todo_links WHERE id = 'l'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(never_fetched, (None, None, None));
+        let set_error = |error: &str| {
+            conn.execute(
+                "UPDATE todo_links SET fetch_error = ?1 WHERE id = 'l'",
+                [error],
+            )
+        };
+        assert!(set_error("no_access").is_ok());
+        assert!(set_error("sso_required").is_ok());
+        assert!(set_error("offline").is_err());
+    }
+
+    #[test]
+    fn open_turns_the_links_behaviors_on_for_existing_workspaces() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.sqlite3");
+        {
+            // As left by the last version without them.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &APP.migrations[..3] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 3).unwrap();
+            conn.pragma_update(None, "application_id", APP.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO workspaces (id, name, path, created_at) VALUES ('w', 'Work', '/work.sqlite3', 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open(&path, &APP).unwrap();
+        assert_eq!(header(&conn).1, APP.migrations.len() as i64);
+        let behaviors: (bool, bool, bool) = conn
+            .query_row(
+                "SELECT links_auto_refresh, links_suggest_done, links_paste_to_create FROM workspaces WHERE id = 'w'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(behaviors, (true, true, true));
+        assert!(conn
+            .execute("UPDATE workspaces SET links_suggest_done = 2", [])
+            .is_err());
     }
 
     #[test]
