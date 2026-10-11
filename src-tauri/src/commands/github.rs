@@ -2,23 +2,17 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::{
-    commands::workspaces::{workspace, Workspace},
+    commands::workspaces::workspace,
     errors::{Result, TodaiError},
-    gh::{GhAccount, GhFinder},
+    gh::GhFinder,
     github::{query::RateLimit, GitHub, GitHubError},
+    models::{
+        app::Workspace,
+        integrations::{GhAccount, GhStatus},
+    },
     state::AppState,
     workspaces::{self, LinksBehaviors},
 };
-
-/// What the GitHub CLI offers to connect workspaces with.
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GhStatus {
-    /// Where `gh` was found, if anywhere.
-    pub path: Option<String>,
-    /// The accounts it knows on github.com, signed in or not anymore: none without `gh`.
-    pub accounts: Vec<GhAccount>,
-}
 
 /// Whether the GitHub CLI is installed, with the accounts it knows on github.com. It's looked for once, then
 /// remembered: `refind` looks for it again, e.g. after installing it.
@@ -165,24 +159,5 @@ mod tests {
         assert!(ensure_signed_in(&accounts, "acme-dev").is_err());
         assert!(ensure_signed_in(&accounts, "someone-else").is_err());
         assert!(ensure_signed_in(&[], "pierreyoda").is_err());
-    }
-
-    #[test]
-    fn gh_status_serializes_in_camel_case() {
-        let status = GhStatus {
-            path: Some("/opt/homebrew/bin/gh".into()),
-            accounts: vec![GhAccount {
-                login: "pierreyoda".into(),
-                active: true,
-                signed_in: true,
-            }],
-        };
-        assert_eq!(
-            serde_json::to_value(status).unwrap(),
-            serde_json::json!({
-                "path": "/opt/homebrew/bin/gh",
-                "accounts": [{ "login": "pierreyoda", "active": true, "signedIn": true }],
-            })
-        );
     }
 }

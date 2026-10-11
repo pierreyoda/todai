@@ -2,96 +2,15 @@ use std::collections::HashSet;
 
 use jiff::Timestamp;
 use rusqlite::named_params;
-use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
 
 use crate::{
     database::models::{DbColor, DbTag},
     errors::{Result, TodaiError},
+    models::core::{Color, Tag},
     state::AppState,
 };
-
-/// A tag's color.
-///
-/// (De)serialized as a `#RRGGBB` string, matching the frontend's `Tag.color`.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(try_from = "String", into = "String")]
-pub struct Color {
-    pub raw: DbColor,
-    /// Format: #RRGGBB (uppercase).
-    pub rgb: String,
-}
-
-impl TryFrom<DbColor> for Color {
-    type Error = TodaiError;
-
-    fn try_from(raw: DbColor) -> std::result::Result<Self, Self::Error> {
-        if raw > 0xFFFFFF {
-            return Err(TodaiError::InvalidColor(format!("{raw:#X}")));
-        }
-        Ok(Self {
-            raw,
-            rgb: format!("#{raw:06X}"),
-        })
-    }
-}
-
-impl From<Color> for DbColor {
-    fn from(color: Color) -> Self {
-        color.raw
-    }
-}
-
-impl TryFrom<String> for Color {
-    type Error = TodaiError;
-
-    fn try_from(rgb: String) -> std::result::Result<Self, Self::Error> {
-        let raw = rgb
-            .strip_prefix('#')
-            .filter(|hex| hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit()))
-            .and_then(|hex| DbColor::from_str_radix(hex, 16).ok())
-            .ok_or(TodaiError::InvalidColor(rgb))?;
-        raw.try_into()
-    }
-}
-
-impl From<Color> for String {
-    fn from(color: Color) -> Self {
-        color.rgb
-    }
-}
-
-/// A tag, categorizing todos.
-#[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Tag {
-    pub id: String,
-    pub name: String,
-    pub color: Color,
-    /// Number of non-deleted todos with this tag. Only set by `list_tags`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub linked_todos_count: Option<u32>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
-    pub deleted_at: Option<Timestamp>,
-}
-
-impl TryFrom<DbTag> for Tag {
-    type Error = TodaiError;
-
-    fn try_from(tag: DbTag) -> std::result::Result<Self, Self::Error> {
-        Ok(Self {
-            id: tag.id,
-            name: tag.name,
-            color: tag.color.try_into()?,
-            linked_todos_count: None,
-            created_at: Timestamp::from_second(tag.created_at)?,
-            updated_at: Timestamp::from_second(tag.updated_at)?,
-            deleted_at: tag.deleted_at.map(Timestamp::from_second).transpose()?,
-        })
-    }
-}
 
 /// Trims `name`, which cannot be empty.
 fn validate_name(name: &str) -> Result<&str> {

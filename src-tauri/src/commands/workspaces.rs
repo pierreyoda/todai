@@ -1,81 +1,12 @@
 use jiff::{Timestamp, Zoned};
 use rusqlite::Connection;
-use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
 use crate::{
-    backups,
-    database::models::{DbTimestamp, DbWorkspace},
-    errors::Result,
-    github::GitHubError,
-    state::AppState,
-    workspaces,
+    backups, database::models::DbWorkspace, errors::Result, models::app::Workspace,
+    state::AppState, workspaces,
 };
-
-/// A workspace, with its own database.
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Workspace {
-    pub id: String,
-    pub name: String,
-    /// Absolute path of its database.
-    pub path: String,
-    pub is_active: bool,
-    /// Whether its database can be used: open for the active workspace, existing for the others.
-    pub available: bool,
-    pub created_at: Timestamp,
-    pub last_opened_at: Option<Timestamp>,
-    /// When its last backup was made, whatever its kind.
-    pub last_backup_at: Option<Timestamp>,
-    /// Whether a backup is made when it's opened, if its last automatic one is from another day.
-    pub auto_backup: bool,
-    /// Automatic backups kept: older ones are deleted.
-    pub auto_backup_keep: u32,
-    /// The GitHub CLI account it uses on github.com, if connected to GitHub.
-    pub github_login: Option<String>,
-    /// Why its GitHub connection needs the user, if it did the last time GitHub was asked: the GitHub CLI is missing, or
-    /// signed out of its account.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub github_attention: Option<GitHubError>,
-    /// Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked.
-    pub links_auto_refresh: bool,
-    /// Whether a todo whose pull request is merged (or issue completed) offers to be marked as done.
-    pub links_suggest_done: bool,
-    /// Whether pasting a pull request's or issue's link as a new todo's title offers to create it from the link.
-    pub links_paste_to_create: bool,
-}
-
-impl Workspace {
-    fn new(
-        entry: DbWorkspace,
-        is_active: bool,
-        available: bool,
-        last_backup_at: Option<DbTimestamp>,
-        github_attention: Option<GitHubError>,
-    ) -> Result<Self> {
-        Ok(Self {
-            id: entry.id,
-            name: entry.name,
-            path: entry.path,
-            is_active,
-            available,
-            created_at: Timestamp::from_second(entry.created_at)?,
-            last_opened_at: entry
-                .last_opened_at
-                .map(Timestamp::from_second)
-                .transpose()?,
-            last_backup_at: last_backup_at.map(Timestamp::from_second).transpose()?,
-            auto_backup: entry.auto_backup,
-            auto_backup_keep: entry.auto_backup_keep,
-            github_login: entry.github_login,
-            github_attention,
-            links_auto_refresh: entry.links_auto_refresh,
-            links_suggest_done: entry.links_suggest_done,
-            links_paste_to_create: entry.links_paste_to_create,
-        })
-    }
-}
 
 /// `entry`, as seen by the frontend. `app_db` is `state`'s, already locked.
 pub(crate) fn workspace(
@@ -83,24 +14,21 @@ pub(crate) fn workspace(
     app_db: &Connection,
     entry: DbWorkspace,
 ) -> Result<Workspace> {
-    let is_active = workspaces::active_id(app_db)?.as_deref() == Some(entry.id.as_str());
-    let available = if is_active {
+    let mut workspace = Workspace::try_from(entry)?;
+    workspace.is_active = workspaces::active_id(app_db)?.as_deref() == Some(workspace.id.as_str());
+    workspace.available = if workspace.is_active {
         state.has_db()
     } else {
-        Path::new(&entry.path).is_file()
+        Path::new(&workspace.path).is_file()
     };
-    let last_backup_at = backups::last_created_at(app_db, &entry.id)?;
-    let github_attention = entry
+    workspace.last_backup_at = backups::last_created_at(app_db, &workspace.id)?
+        .map(Timestamp::from_second)
+        .transpose()?;
+    workspace.github_attention = workspace
         .github_login
         .as_deref()
         .and_then(|login| state.github_attention(login));
-    Workspace::new(
-        entry,
-        is_active,
-        available,
-        last_backup_at,
-        github_attention,
-    )
+    Ok(workspace)
 }
 
 /// Makes `entry`, whose database is `db`, the active workspace.

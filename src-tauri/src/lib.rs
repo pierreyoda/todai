@@ -8,6 +8,7 @@ pub mod gh;
 pub mod github;
 pub mod links;
 pub mod logging;
+pub mod models;
 pub mod state;
 pub mod workspaces;
 

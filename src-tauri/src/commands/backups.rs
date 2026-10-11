@@ -12,12 +12,13 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     backups::{self, BackupKind},
-    commands::workspaces::{open_and_activate, workspace, Workspace},
+    commands::workspaces::{open_and_activate, workspace},
     database::{
         self,
         models::{DbWorkspace, DbWorkspaceBackup},
     },
     errors::{Result, TodaiError},
+    models::app::Workspace,
     state::AppState,
     workspaces,
 };

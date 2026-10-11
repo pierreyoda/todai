@@ -1,38 +1,13 @@
 use jiff::Timestamp;
 use rusqlite::{named_params, Connection, OptionalExtension};
-use serde::Serialize;
 use tauri::State;
 
 use crate::{
-    commands::todos::Day,
     database::models::DbNote,
-    errors::{Result, TodaiError},
+    errors::Result,
+    models::core::{Day, Note},
     state::AppState,
 };
-
-/// A day's note, in Markdown.
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Note {
-    pub day: Day,
-    /// Never blank: a note emptied is deleted.
-    pub content: String,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
-}
-
-impl TryFrom<DbNote> for Note {
-    type Error = TodaiError;
-
-    fn try_from(note: DbNote) -> std::result::Result<Self, Self::Error> {
-        Ok(Self {
-            day: note.day.try_into()?,
-            content: note.content,
-            created_at: Timestamp::from_second(note.created_at)?,
-            updated_at: Timestamp::from_second(note.updated_at)?,
-        })
-    }
-}
 
 /// The note of `day`, if it has one.
 #[tauri::command]
@@ -89,7 +64,10 @@ fn save_note_row(db: &Connection, day: &Day, content: &str, now: i64) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::{open_test_database, WORKSPACE};
+    use crate::{
+        database::{open_test_database, WORKSPACE},
+        models::core::{Day, Note},
+    };
 
     const NOW: i64 = 1_791_000_000;
 

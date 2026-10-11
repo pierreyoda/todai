@@ -9,15 +9,13 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::{
-    commands::{
-        links::{link_not_found, TodoLink},
-        todos::Day,
-    },
+    commands::links::link_not_found,
     database::models::{DbTimestamp, DbTodoLink, DbWorkspace},
     errors::{Result, TodaiError},
     gh::GhFinder,
     github::{query::ItemResult, snapshot::GitHubSnapshot, GitHub, GitHubError, TokenSource},
     links::{self, FetchError, GitHubRef, LinkKind, ParsedLink},
+    models::{core::Day, integrations::TodoLink},
     state::AppState,
     workspaces,
 };
@@ -347,6 +345,7 @@ mod tests {
             snapshot::{IssueSnapshot, IssueState, IssueStateReason, PullRequestState},
             testing::{ok, FakeGitHub, FakeTokens},
         },
+        models::core::Day,
     };
 
     const NOW: i64 = 1_791_000_000;

@@ -13,7 +13,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 
-use crate::errors::{Result, TodaiError};
+use crate::{
+    errors::{Result, TodaiError},
+    models::integrations::GhAccount,
+};
 
 /// The only GitHub host supported: links are only recognized on github.com.
 pub const HOST: &str = "github.com";
@@ -35,17 +38,6 @@ const OVERRIDING_VARS: [&str; 5] = [
 ];
 
 const EXECUTABLE: &str = if cfg!(windows) { "gh.exe" } else { "gh" };
-
-/// An account `gh` knows on github.com.
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct GhAccount {
-    pub login: String,
-    /// The one `gh` uses by default (`gh auth switch` changes it).
-    pub active: bool,
-    /// Whether its token works: not once revoked or expired, until signing in again with `gh auth login`.
-    pub signed_in: bool,
-}
 
 /// What `gh auth status --json hosts` prints: the accounts of each host.
 #[derive(Deserialize)]

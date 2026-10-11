@@ -174,8 +174,13 @@
   .panel {
     /* Reset popover defaults: positioned by script */
     @apply inset-auto m-0 border-0;
-    @apply flex w-max max-w-80 flex-col items-start gap-1.5 p-2.5;
+    @apply w-max max-w-80 flex-col items-start gap-1.5 p-2.5;
     @apply rounded-lg bg-slate-800/95 shadow-lg ring-1 ring-white/10 backdrop-blur-xl;
+
+    /* Only while shown: a display set otherwise would override the browser's hiding of closed popovers */
+    &:popover-open {
+      @apply flex;
+    }
   }
 
   .count {
