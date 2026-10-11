@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-
   import { goto } from "$app/navigation";
   import {
     basename,
@@ -13,8 +11,8 @@
   import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
   import IconPencilSquare from "../../common/icons/IconPencilSquare.svelte";
   import Table from "../../common/table/Table.svelte";
-  import { invokeApiClient, type Workspace } from "../../../client/app";
-  import { invalidateActiveWorkspace } from "../../../client/queries";
+  import type { Workspace } from "../../../client/app";
+  import { createSwitchWorkspaceMutation } from "../../../client/mutations";
   import IconTrash from "../../common/icons/IconTrash.svelte";
 
   type WorkspacesTableProps = {
@@ -24,12 +22,7 @@
   };
   const { workspaces, onEdit, onRemove }: WorkspacesTableProps = $props();
 
-  const queryClient = useQueryClient();
-  const switchWorkspace = createMutation(() => ({
-    mutationFn: ({ id }: Workspace) =>
-      invokeApiClient({ name: "switch_to_workspace", args: { id } }),
-    onSuccess: () => invalidateActiveWorkspace(queryClient),
-  }));
+  const switchWorkspace = createSwitchWorkspaceMutation();
 </script>
 
 {#snippet pathCell({ path }: Workspace)}

@@ -5,6 +5,7 @@ import { invokeApiClient, type Workspace } from "./app";
 import type { Day, Estimate, Todo, TodoLink } from "./types";
 import {
   ghKeys,
+  invalidateActiveWorkspace,
   invalidateTodosOf,
   linkStatusKeys,
   noteKeys,
@@ -16,6 +17,7 @@ import {
 import { playTodoCompletedSound } from "../utils/sounds";
 import { toasts } from "../utils/toasts.svelte";
 import { dateToTodaiDate, formatRelativeDay } from "../utils/dates";
+import { canSwitchWorkspace } from "../utils/workspaceSwitch";
 
 // TODO: migrate other mutations to this file
 
@@ -284,5 +286,29 @@ export const createRefindGhMutation = () => {
     mutationFn: () => invokeApiClient({ name: "get_gh_status", args: { refind: true } }),
     // Replaces the cached status, rather than refetching it without looking for `gh` again.
     onSuccess: (status) => queryClient.setQueryData(ghKeys.status(), status),
+  }));
+};
+
+/**
+ * Switches to another workspace, once what's being edited in the current one is saved (see `beforeWorkspaceSwitch`):
+ * resolves to whether it did. Must be called during component initialization.
+ */
+export const createSwitchWorkspaceMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: async ({ id }: Workspace) => {
+      if (!(await canSwitchWorkspace())) return false;
+      await invokeApiClient({ name: "switch_to_workspace", args: { id } });
+      return true;
+    },
+    // Returned so the mutation stays pending until everything is refetched from the other workspace's database.
+    onSuccess: (switched) => {
+      if (!switched) return;
+      return Promise.all([
+        // Dropped rather than only refetched: the note's editor is kept while its note is shown, and must start over
+        queryClient.resetQueries({ queryKey: noteKeys.all }),
+        invalidateActiveWorkspace(queryClient),
+      ]);
+    },
   }));
 };

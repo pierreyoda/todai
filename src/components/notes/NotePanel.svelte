@@ -9,6 +9,7 @@
   import { Autosave } from "../../utils/autosave.svelte";
   import { formatFullDay } from "../../utils/dates";
   import { toggleTask } from "../../utils/markdownEditing";
+  import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "../common/ErrorBanner.svelte";
   import NoteCheatsheet from "./NoteCheatsheet.svelte";
   import NoteEditor from "./NoteEditor.svelte";
@@ -80,6 +81,17 @@
   /** Saves the draft before leaving, or asks to leave without it if that fails: whether to leave. */
   const saveBeforeLeaving = async () => (await autosave.flush()) || (await confirmLeaving());
 
+  /** Once left without it for another workspace: the draft must not be saved in that one's database. */
+  let draftDiscarded = false;
+  // Switching to another workspace too, which then shows its own note
+  onMount(() =>
+    beforeWorkspaceSwitch(async () => {
+      const leave = await saveBeforeLeaving();
+      if (leave && autosave.dirty) draftDiscarded = true;
+      return leave;
+    }),
+  );
+
   // Leaving the page waits for the draft to be saved
   beforeNavigate((navigation) => {
     // Reloading or quitting can't wait: saved in the background, on destroy
@@ -101,7 +113,7 @@
     return () => {
       void unlisten.then((stop) => stop());
       // Destroyed without navigating away first (e.g. reloading): saved in the background, as the save outlives it
-      void autosave.flush();
+      if (!draftDiscarded) void autosave.flush();
     };
   });
 </script>
