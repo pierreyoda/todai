@@ -4,11 +4,14 @@ import type {
   GitHubProblem,
   GitHubSnapshot,
   ItemState,
+  ParsedLink,
   PullRequestSnapshot,
+  RelatedItem,
   Todo,
   TodoLink,
 } from "../client/types";
 import { formatTime } from "./dates";
+import { hasLink } from "./links";
 
 /**
  * How a link's status reads, which colors it and picks its glyph:
@@ -76,13 +79,33 @@ export const linkStatus = ({ snapshot, fetchError }: Pick<TodoLink, "snapshot" |
   return snapshot.type === "pull_request" ? pullRequestStatus(snapshot) : stateStatus(itemState(snapshot));
 };
 
-/** Whether `todo` could be marked as done: one of its pull requests is merged, or one of its issues completed. */
-export const suggestsDone = ({ completed, links }: Pick<Todo, "completed" | "links">): boolean =>
-  !completed &&
-  links.some((link) => {
+/**
+ * Why `todo` could be marked as done, if it isn't yet: its first pull request merged, or issue completed. Only a
+ * suggestion: todos are never completed on their own.
+ */
+export const doneSuggestion = ({
+  completed,
+  links,
+}: Pick<Todo, "completed" | "links">): { link: TodoLink; state: "merged" | "completed" } | undefined => {
+  if (completed) return undefined;
+  for (const link of links) {
     const state = link.snapshot && itemState(link.snapshot);
-    return state === "merged" || state === "completed";
-  });
+    if (state === "merged" || state === "completed") return { link, state };
+  }
+  return undefined;
+};
+
+/**
+ * The pull request worth adding along with the issue `snapshot`: the first one closing it (or set to) that wasn't
+ * closed unmerged, unless `links` already has it.
+ */
+export const closingPullRequest = (
+  snapshot: GitHubSnapshot | undefined,
+  links: readonly Pick<ParsedLink, "url">[],
+): RelatedItem | undefined =>
+  snapshot?.type === "issue"
+    ? snapshot.closedBy.find((item) => item.state !== "closed" && !hasLink(links, item.url))
+    : undefined;
 
 /** When the most recently fetched of `links` was: what their statuses are from, if any. */
 export const statusesFetchedAt = (links: readonly Pick<TodoLink, "fetchedAt">[]): Date | undefined =>

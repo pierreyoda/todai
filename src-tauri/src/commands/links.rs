@@ -109,18 +109,22 @@ pub async fn parse_link(url: String) -> Result<ParsedLink> {
     links::parse(&url)
 }
 
-/// Adds the link `url` to the non-deleted todo `todo_id`, after its other links, and returns it.
+/// Adds the links `urls` to the non-deleted todo `todo_id`, in this order after its other links, and returns them.
 ///
-/// `url` must be an http(s) URL; it's normalized first (see `links::parse`). Fails if the todo already has it.
+/// Each one must be an http(s) URL; they're normalized first (see `links::parse`). Fails without adding any if the todo
+/// already has one of them, or if two of them are the same.
 #[tauri::command]
-pub async fn add_todo_link(
+pub async fn add_todo_links(
     state: State<'_, AppState>,
     todo_id: String,
-    url: String,
-) -> Result<TodoLink> {
-    let link = links::parse(&url)?;
+    urls: Vec<String>,
+) -> Result<Vec<TodoLink>> {
+    let links = urls
+        .iter()
+        .map(|url| links::parse(url))
+        .collect::<Result<Vec<_>>>()?;
     let mut db = state.db()?;
-    insert_link(&mut db, &todo_id, link, Timestamp::now().as_second())
+    insert_links(&mut db, &todo_id, links, Timestamp::now().as_second())
 }
 
 /// Removes the link `id` from its non-deleted todo.
@@ -130,8 +134,28 @@ pub async fn remove_todo_link(state: State<'_, AppState>, id: String) -> Result<
     delete_link(&mut db, &id, Timestamp::now().as_second())
 }
 
-fn insert_link(db: &mut Connection, todo_id: &str, link: ParsedLink, now: i64) -> Result<TodoLink> {
+fn insert_links(
+    db: &mut Connection,
+    todo_id: &str,
+    links: Vec<ParsedLink>,
+    now: i64,
+) -> Result<Vec<TodoLink>> {
     let tx = db.transaction()?;
+    let inserted = insert_links_in(&tx, todo_id, links, now)?;
+    tx.commit()?;
+    Ok(inserted)
+}
+
+/// Adds `links` to the non-deleted todo `todo_id`, within the caller's transaction `tx`: see `add_todo_links`.
+pub(crate) fn insert_links_in(
+    tx: &Connection,
+    todo_id: &str,
+    links: Vec<ParsedLink>,
+    now: i64,
+) -> Result<Vec<TodoLink>> {
+    if links.is_empty() {
+        return Err(TodaiError::CommandError("No link to add".into()));
+    }
     // Like its tags, its links are part of the todo.
     let touched = tx
         .prepare_cached("UPDATE todos SET updated_at = :now WHERE id = :id AND deleted_at IS NULL")?
@@ -139,38 +163,44 @@ fn insert_link(db: &mut Connection, todo_id: &str, link: ParsedLink, now: i64) -
     if touched == 0 {
         return Err(todo_not_found(todo_id));
     }
-    let exists: bool = tx
-        .prepare_cached("SELECT EXISTS (SELECT 1 FROM todo_links WHERE todo_id = ?1 AND url = ?2)")?
-        .query_row([todo_id, &link.url], |row| row.get(0))?;
-    if exists {
-        return Err(TodaiError::CommandError(format!(
-            "The todo already links to {}",
-            link.url
-        )));
-    }
+    let mut inserted = Vec::with_capacity(links.len());
+    for link in links {
+        // Also covers the links added just before.
+        let exists: bool = tx
+            .prepare_cached(
+                "SELECT EXISTS (SELECT 1 FROM todo_links WHERE todo_id = ?1 AND url = ?2)",
+            )?
+            .query_row([todo_id, &link.url], |row| row.get(0))?;
+        if exists {
+            return Err(TodaiError::CommandError(format!(
+                "The todo already links to {}",
+                link.url
+            )));
+        }
 
-    let github = link.github.as_ref();
-    let inserted = tx
-        .prepare_cached(
-            "INSERT INTO todo_links (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at)
-             VALUES (:id, :todo_id, :kind, :url, :github_owner, :github_repo, :github_number, :now)
-             RETURNING *",
-        )?
-        .query_row(
-            named_params! {
-                ":id": Uuid::now_v7().to_string(),
-                ":todo_id": todo_id,
-                ":kind": link.kind.to_db(),
-                ":url": link.url,
-                ":github_owner": github.map(|github| &github.owner),
-                ":github_repo": github.map(|github| &github.repo),
-                ":github_number": github.map(|github| github.number),
-                ":now": now,
-            },
-            DbTodoLink::from_row,
-        )?;
-    tx.commit()?;
-    inserted.try_into()
+        let github = link.github.as_ref();
+        let row = tx
+            .prepare_cached(
+                "INSERT INTO todo_links (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at)
+                 VALUES (:id, :todo_id, :kind, :url, :github_owner, :github_repo, :github_number, :now)
+                 RETURNING *",
+            )?
+            .query_row(
+                named_params! {
+                    ":id": Uuid::now_v7().to_string(),
+                    ":todo_id": todo_id,
+                    ":kind": link.kind.to_db(),
+                    ":url": link.url,
+                    ":github_owner": github.map(|github| &github.owner),
+                    ":github_repo": github.map(|github| &github.repo),
+                    ":github_number": github.map(|github| github.number),
+                    ":now": now,
+                },
+                DbTodoLink::from_row,
+            )?;
+        inserted.push(row.try_into()?);
+    }
+    Ok(inserted)
 }
 
 fn delete_link(db: &mut Connection, id: &str, now: i64) -> Result<()> {
@@ -245,7 +275,8 @@ mod tests {
     }
 
     fn add(db: &mut Connection, todo_id: &str, url: &str, now: i64) -> Result<TodoLink> {
-        insert_link(db, todo_id, links::parse(url).unwrap(), now)
+        let mut added = insert_links(db, todo_id, vec![links::parse(url).unwrap()], now)?;
+        Ok(added.remove(0))
     }
 
     fn todo_updated_at(db: &Connection, id: &str) -> i64 {
@@ -320,6 +351,51 @@ mod tests {
         )
         .unwrap();
         assert_eq!(links_of(&db, "t", "2026-10-10"), ["todai#58"]);
+    }
+
+    #[test]
+    fn add_todo_links_adds_several_in_order_or_none() {
+        let mut db = open_test_database(&WORKSPACE);
+        insert_todo(&db, "t", "2026-10-10");
+        let parsed = |url: &str| links::parse(url).unwrap();
+
+        let added = insert_links(
+            &mut db,
+            "t",
+            vec![
+                parsed("https://github.com/o/r/issues/12"),
+                parsed("https://github.com/o/r/pull/58"),
+            ],
+            NOW,
+        )
+        .unwrap();
+        assert_eq!(added.len(), 2);
+        assert_eq!(links_of(&db, "t", "2026-10-10"), ["r#12", "r#58"]);
+
+        // One already there: none is added.
+        let result = insert_links(
+            &mut db,
+            "t",
+            vec![
+                parsed("https://example.org"),
+                parsed("https://github.com/o/r/pull/58"),
+            ],
+            NOW,
+        );
+        assert!(matches!(result, Err(TodaiError::CommandError(_))));
+        // The same twice.
+        let result = insert_links(
+            &mut db,
+            "t",
+            vec![
+                parsed("https://example.org"),
+                parsed("https://example.org/"),
+            ],
+            NOW,
+        );
+        assert!(matches!(result, Err(TodaiError::CommandError(_))));
+        assert!(insert_links(&mut db, "t", Vec::new(), NOW).is_err());
+        assert_eq!(links_of(&db, "t", "2026-10-10"), ["r#12", "r#58"]);
     }
 
     #[test]

@@ -21,6 +21,7 @@
     stateStatus,
   } from "../../utils/linkStatuses";
   import { openLink } from "../../utils/openLink";
+  import Button from "../common/Button.svelte";
   import ErrorBanner from "../common/ErrorBanner.svelte";
   import IconArrowPath from "../common/icons/IconArrowPath.svelte";
   import IconArrowTopRightOnSquare from "../common/icons/IconArrowTopRightOnSquare.svelte";
@@ -131,8 +132,9 @@
           · {github.owner}/{github.repo} <span class="number">#{github.number}</span>
         {/if}
       </span>
-      <button
-        type="button"
+      <Button
+        style="plain"
+        size="xs"
         class="refresh"
         aria-label="Refresh"
         title="Refresh"
@@ -140,7 +142,7 @@
         onclick={() => refresh.mutate(link)}
       >
         <IconArrowPath class={[refresh.isPending && "motion-safe:animate-spin"]} />
-      </button>
+      </Button>
     </div>
     <h2 id={titleId} class="title">{snapshot?.title ?? link.label}</h2>
     {#if snapshot && linkState}
@@ -314,14 +316,15 @@
         Not fetched yet
       {/if}
     </span>
-    <button
-      type="button"
+    <Button
+      style="plain"
+      size="xs"
       class="remove"
       disabled={remove.isPending}
       onclick={() => remove.mutate(link, { onSuccess: () => (open = false) })}
     >
       Remove link
-    </button>
+    </Button>
     <a
       class="open"
       href={link.url}
@@ -369,10 +372,18 @@
     @apply tabular-nums;
   }
 
-  .refresh {
-    @apply grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-slate-400;
-    @apply transition-colors hover:bg-white/10 hover:text-white disabled:cursor-default disabled:hover:bg-transparent;
-    @apply focus:not-focus-visible:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500;
+  /* A `Button`, restyled through its container as it's another component's element: more specific than its own rules */
+  .context :global(.refresh) {
+    @apply grid size-7 shrink-0 place-items-center rounded-md border-0 p-0 text-slate-400 transition-colors;
+    @apply hover:text-white disabled:cursor-default disabled:opacity-100 focus-visible:outline-offset-0;
+
+    /* Highlighted when hovered only, not when pressed */
+    &:enabled:active {
+      @apply bg-transparent;
+    }
+    &:enabled:hover {
+      @apply hover:bg-white/10;
+    }
   }
 
   .title {
@@ -487,9 +498,19 @@
     @apply flex-1 text-xs/4 text-slate-500;
   }
 
-  .remove {
-    @apply cursor-pointer rounded-md px-2 py-1 text-xs/4 font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-default disabled:opacity-50;
-    @apply focus:not-focus-visible:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500;
+  /* A `Button`, restyled as `.refresh` */
+  .footer :global(.remove) {
+    @apply rounded-md border-0 px-2 py-1 text-xs/4 font-medium text-red-400 transition-colors;
+    @apply disabled:cursor-default disabled:opacity-50 focus-visible:outline-offset-0;
+
+    /* Highlighted when hovered, even disabled, but not when pressed */
+    &:enabled:active {
+      @apply bg-transparent;
+    }
+    &:enabled:hover,
+    &:disabled:hover {
+      @apply hover:bg-red-500/10;
+    }
   }
 
   .open {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import {
-    createAddTodoLinkMutation,
+    createAddTodoLinksMutation,
     createRemoveTodoLinkMutation,
   } from "../../client/mutations";
   import type { Todo } from "../../client/types";
@@ -19,13 +19,13 @@
 
   const titleId = $props.id();
   let url = $state("");
-  const addLink = createAddTodoLinkMutation(() => todo);
+  const addLink = createAddTodoLinksMutation(() => todo);
   const removeLink = createRemoveTodoLinkMutation(() => todo);
 
   const onsubmit = (event: SubmitEvent) => {
     event.preventDefault();
     if (!url.trim() || addLink.isPending) return;
-    addLink.mutate(url, { onSuccess: () => (url = "") });
+    addLink.mutate([url], { onSuccess: () => (url = "") });
   };
 </script>
 

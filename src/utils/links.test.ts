@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ParsedLink } from "../client/types";
-import { describeLink, formatLinksCount, hasLink, isWebUrl, linkKindName } from "./links";
+import { describeLink, formatLinksCount, hasLink, isWebUrl, linkKindName, mayBeLink } from "./links";
 
 const pull: ParsedLink = {
   kind: "github_pull",
@@ -80,4 +80,22 @@ describe("isWebUrl", () => {
   ])("rejects %j", (url) => {
     expect(isWebUrl(url)).toBe(false);
   });
+});
+
+describe("mayBeLink", () => {
+  it.each([
+    "https://github.com/pierreyoda/todai/pull/58",
+    "  github.com/pierreyoda/todai/issues/12 ",
+    "www.github.com/pierreyoda/todai/pull/58",
+    "http://example.org/a?b=c",
+  ])("takes %j for a link", (text) => {
+    expect(mayBeLink(text)).toBe(true);
+  });
+
+  it.each(["Review todai#58", "https://", "github.com", "Read https://docs.rs", "docs.rs/jiff"])(
+    "takes %j for a title",
+    (text) => {
+      expect(mayBeLink(text)).toBe(false);
+    },
+  );
 });

@@ -1,5 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Day, Estimate, Note, ParsedLink, RefreshOutcome, Tag, Todo, TodoLink, TodoMonth } from "./types";
+import type {
+  Day,
+  Estimate,
+  LinkPreview,
+  Note,
+  ParsedLink,
+  RefreshOutcome,
+  Tag,
+  Todo,
+  TodoLink,
+  TodoMonth,
+} from "./types";
 import type { UUID } from "node:crypto";
 
 import { parseResponse } from "../utils/client";
@@ -113,16 +124,39 @@ type ClientInvocationCommand = {
     returns: ParsedLink;
   };
   /**
-   * Adds the link `url`, normalized as by `parse_link`, after the other links of a non-deleted todo.
+   * Adds the links `urls`, each normalized as by `parse_link`, in this order after the other links of a non-deleted
+   * todo.
    *
-   * Fails if it's not an http(s) URL, or if the todo already has it.
+   * Fails without adding any if one is not an http(s) URL, if the todo already has one, or if two are the same.
    */
-  add_todo_link: {
+  add_todo_links: {
     args: {
       todoId: UUID;
+      urls: readonly string[];
+    };
+    returns: TodoLink[];
+  };
+  /**
+   * Creates a todo at the end of `day` with the link `url`, at once: titled `title` (e.g. its pull request's, from
+   * `preview_link`), or else as the link is shown (e.g. "todai#58").
+   */
+  create_todo_from_link: {
+    args: {
+      day: Day;
+      url: string;
+      title?: string;
+    };
+    returns: Todo;
+  };
+  /**
+   * Recognizes what `url` points to, as `parse_link`, then, for a GitHub pull request or issue, asks GitHub about it
+   * through the active workspace's connection, if any. Nothing is stored.
+   */
+  preview_link: {
+    args: {
       url: string;
     };
-    returns: TodoLink;
+    returns: LinkPreview;
   };
   /** Removes a link from its non-deleted todo. */
   remove_todo_link: {

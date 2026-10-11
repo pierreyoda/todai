@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import type { Checks, GitHubSnapshot, IssueSnapshot, PullRequestSnapshot, TodoLink } from "../client/types";
+import type { Checks, GitHubSnapshot, IssueSnapshot, PullRequestSnapshot, RelatedItem, TodoLink } from "../client/types";
 import {
   checkName,
+  closingPullRequest,
   describeChecks,
   describeProblem,
   describeReview,
   itemState,
   linkStatus,
   notableChecks,
+  doneSuggestion,
   statusesFetchedAt,
-  suggestsDone,
 } from "./linkStatuses";
 
 const checks = (overrides: Partial<Checks> = {}): Checks => ({
@@ -135,23 +136,48 @@ describe("itemState", () => {
   });
 });
 
-describe("suggestsDone", () => {
+describe("doneSuggestion", () => {
   it("suggests marking a todo as done once one of its pull requests is merged or issues completed", () => {
-    const open = link(pull());
-    expect(suggestsDone({ completed: false, links: [open, link(pull({ state: "merged" }))] })).toBe(true);
-    expect(suggestsDone({ completed: false, links: [link(issue({ state: "closed", stateReason: "completed" }))] })).toBe(
-      true,
-    );
+    const merged = link(pull({ state: "merged" }));
+    expect(doneSuggestion({ completed: false, links: [link(pull()), merged] })).toEqual({
+      link: merged,
+      state: "merged",
+    });
+    const completed = link(issue({ state: "closed", stateReason: "completed" }));
+    expect(doneSuggestion({ completed: false, links: [completed] })).toEqual({ link: completed, state: "completed" });
   });
 
   it("doesn't otherwise", () => {
-    expect(suggestsDone({ completed: false, links: [link(pull()), link(pull({ state: "closed" })), link()] })).toBe(
-      false,
-    );
-    expect(suggestsDone({ completed: false, links: [link(issue({ state: "closed", stateReason: "not_planned" }))] })).toBe(
-      false,
-    );
-    expect(suggestsDone({ completed: true, links: [link(pull({ state: "merged" }))] })).toBe(false);
+    const notPlanned = link(issue({ state: "closed", stateReason: "not_planned" }));
+    expect(
+      doneSuggestion({ completed: false, links: [link(pull()), link(pull({ state: "closed" })), link(), notPlanned] }),
+    ).toBeUndefined();
+    expect(doneSuggestion({ completed: true, links: [link(pull({ state: "merged" }))] })).toBeUndefined();
+  });
+});
+
+describe("closingPullRequest", () => {
+  const related = (number: number, state: RelatedItem["state"]): RelatedItem => ({
+    kind: "github_pull",
+    url: `https://github.com/pierreyoda/todai/pull/${number}`,
+    label: `todai#${number}`,
+    github: { owner: "pierreyoda", repo: "todai", number },
+    title: `Pull request ${number}`,
+    state,
+  });
+
+  it("offers the first pull request closing an issue, unless closed unmerged or already linked", () => {
+    const closedBy = [related(50, "closed"), related(58, "open"), related(61, "draft")];
+    expect(closingPullRequest(issue({ closedBy }), [])?.label).toBe("todai#58");
+    expect(closingPullRequest(issue({ closedBy }), [{ url: closedBy[1].url }])?.label).toBe("todai#61");
+    expect(closingPullRequest(issue({ closedBy: [related(57, "merged")] }), [])?.label).toBe("todai#57");
+  });
+
+  it("offers none otherwise", () => {
+    expect(closingPullRequest(issue({ closedBy: [related(50, "closed")] }), [])).toBeUndefined();
+    expect(closingPullRequest(issue(), [])).toBeUndefined();
+    expect(closingPullRequest(pull(), [])).toBeUndefined();
+    expect(closingPullRequest(undefined, [])).toBeUndefined();
   });
 });
 

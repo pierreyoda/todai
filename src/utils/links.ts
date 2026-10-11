@@ -22,3 +22,9 @@ export const hasLink = (links: readonly Pick<ParsedLink, "url">[], url: string):
 
 /** Whether `url` is an http(s) one: the only kind of link opened, so that opening one never runs anything. */
 export const isWebUrl = (url: string): boolean => /^https?:\/\/[^/]/i.test(url);
+
+/**
+ * Whether `text` may be a link pasted or typed, worth recognizing (`parse_link`): a single word starting like a web
+ * address, e.g. "https://docs.rs" or "github.com/pierreyoda/todai/pull/58".
+ */
+export const mayBeLink = (text: string): boolean => /^(https?:\/\/|(www\.)?github\.com\/)\S+$/i.test(text.trim());

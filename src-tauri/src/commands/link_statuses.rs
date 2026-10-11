@@ -17,7 +17,7 @@ use crate::{
     errors::{Result, TodaiError},
     gh::GhFinder,
     github::{query::ItemResult, snapshot::GitHubSnapshot, GitHub, GitHubError, TokenSource},
-    links::{FetchError, GitHubRef, LinkKind},
+    links::{self, FetchError, GitHubRef, LinkKind, ParsedLink},
     state::AppState,
     workspaces,
 };
@@ -62,6 +62,68 @@ pub async fn refresh_link(
     id: String,
 ) -> Result<RefreshOutcome> {
     refresh(&state, &*finder, &github, &Target::Link(id), true).await
+}
+
+/// What a link would show once added, before adding it.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkPreview {
+    /// As recognized from its URL, or where GitHub says it is: e.g. a pull request pasted as an issue.
+    pub link: ParsedLink,
+    /// What GitHub tells about its pull request or issue, if it could be asked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<GitHubSnapshot>,
+    /// Why GitHub had nothing to tell about it, if so.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch_error: Option<FetchError>,
+    /// Why GitHub couldn't be asked, if so.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<GitHubError>,
+}
+
+/// Recognizes what `url` points to, then, for a GitHub pull request or issue, asks GitHub about it through the active
+/// workspace's connection, if any. Nothing is stored. Fails if it's not an http(s) URL, as `parse_link`.
+#[tauri::command]
+pub async fn preview_link(
+    state: State<'_, AppState>,
+    finder: State<'_, GhFinder>,
+    github: State<'_, GitHub>,
+    url: String,
+) -> Result<LinkPreview> {
+    preview(&state, &*finder, &github, &url).await
+}
+
+async fn preview(
+    state: &AppState,
+    tokens: &impl TokenSource,
+    github: &GitHub,
+    url: &str,
+) -> Result<LinkPreview> {
+    let mut preview = LinkPreview {
+        link: links::parse(url)?,
+        snapshot: None,
+        fetch_error: None,
+        problem: None,
+    };
+    let Some(github_ref) = preview.link.github.clone() else {
+        return Ok(preview);
+    };
+    let Some(login) = active_workspace(&state.app_db())?.github_login else {
+        return Ok(preview);
+    };
+    match github.fetch_items(tokens, &login, &[github_ref]).await {
+        Ok(results) => match results.into_iter().next() {
+            Some(ItemResult::Found(item)) => {
+                preview.link = item.link;
+                preview.snapshot = Some(item.snapshot);
+            }
+            Some(ItemResult::NoAccess) => preview.fetch_error = Some(FetchError::NoAccess),
+            Some(ItemResult::SsoRequired) => preview.fetch_error = Some(FetchError::SsoRequired),
+            Some(ItemResult::Unreadable) | None => {}
+        },
+        Err(problem) => preview.problem = Some(problem),
+    }
+    Ok(preview)
 }
 
 /// The links to refresh.
@@ -281,7 +343,6 @@ mod tests {
             snapshot::{IssueSnapshot, IssueState, IssueStateReason, PullRequestState},
             testing::{ok, FakeGitHub, FakeTokens},
         },
-        links,
     };
 
     const NOW: i64 = 1_791_000_000;
@@ -682,6 +743,106 @@ mod tests {
         assert_eq!(outcome, RefreshOutcome::default());
         assert_eq!(tokens.asked(), 0);
         assert!(stored(&s.state, "a").fetched_at.is_none());
+    }
+
+    #[tokio::test]
+    async fn preview_asks_github_about_pull_requests_and_issues_only() {
+        let s = setup(true);
+        let server = FakeGitHub::serve(vec![
+            // A pull request pasted as an issue.
+            ok(answer(&[raw_pull("https://github.com/o/r/pull/7", "OPEN")])),
+            ok(answer(&[Value::Null])),
+        ]);
+        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let tokens = FakeTokens::default();
+
+        let found = preview(&s.state, &tokens, &github, "github.com/o/r/issues/7")
+            .await
+            .unwrap();
+        assert_eq!(found.link.url, "https://github.com/o/r/pull/7");
+        assert_eq!(found.link.kind, LinkKind::GithubPull);
+        assert!(matches!(
+            found.snapshot,
+            Some(GitHubSnapshot::PullRequest(_))
+        ));
+
+        let hidden = preview(
+            &s.state,
+            &tokens,
+            &github,
+            "https://github.com/acme/infra/pull/311",
+        )
+        .await
+        .unwrap();
+        assert_eq!(hidden.link.label, "infra#311");
+        assert_eq!(hidden.fetch_error, Some(FetchError::NoAccess));
+        assert_eq!(hidden.snapshot, None);
+
+        let page = preview(&s.state, &tokens, &github, "https://docs.rs/jiff")
+            .await
+            .unwrap();
+        assert_eq!(page.link.label, "docs.rs");
+        assert_eq!(server.authorizations().len(), 2);
+        assert!(preview(&s.state, &tokens, &github, "javascript:alert(1)")
+            .await
+            .is_err());
+        // Nothing was stored.
+        let links: i64 = s
+            .state
+            .db()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM todo_links", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(links, 0);
+    }
+
+    #[tokio::test]
+    async fn preview_without_a_github_connection_tells_what_the_url_does() {
+        let s = setup(false);
+        let server = FakeGitHub::serve(Vec::new());
+        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+
+        let preview = preview(
+            &s.state,
+            &FakeTokens::default(),
+            &github,
+            "https://github.com/o/r/pull/7",
+        )
+        .await
+        .unwrap();
+        assert_eq!(preview.link.label, "r#7");
+        assert_eq!(
+            (preview.snapshot, preview.fetch_error, preview.problem),
+            (None, None, None)
+        );
+        assert!(server.authorizations().is_empty());
+    }
+
+    #[tokio::test]
+    async fn preview_tells_why_github_could_not_be_asked() {
+        let s = setup(true);
+        let github = GitHub::with_endpoint(&FakeGitHub::unreachable_endpoint()).unwrap();
+        let preview = preview(
+            &s.state,
+            &FakeTokens::default(),
+            &github,
+            "https://github.com/o/r/pull/7",
+        )
+        .await
+        .unwrap();
+        assert_eq!(preview.problem, Some(GitHubError::Offline));
+        assert_eq!(
+            serde_json::to_value(&preview).unwrap(),
+            json!({
+                "link": {
+                    "kind": "github_pull",
+                    "url": "https://github.com/o/r/pull/7",
+                    "label": "r#7",
+                    "github": { "owner": "o", "repo": "r", "number": 7 },
+                },
+                "problem": { "kind": "offline" },
+            })
+        );
     }
 
     /// Switches to another workspace while giving its token, as if the user did while GitHub was being asked.

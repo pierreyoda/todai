@@ -191,6 +191,18 @@ export type GitHubProblem =
   | { kind: "rate_limited"; resetAt: Date }
   | { kind: "failed"; message: string };
 
+/** What a link would show once added, before adding it (`preview_link`). */
+export interface LinkPreview {
+  /** As recognized from its URL, or where GitHub says it is: e.g. a pull request pasted as an issue. */
+  link: ParsedLink;
+  /** What GitHub tells about its pull request or issue, if it could be asked. */
+  snapshot?: GitHubSnapshot;
+  /** Why GitHub had nothing to tell about it, if so. */
+  fetchError?: LinkFetchError;
+  /** Why GitHub couldn't be asked, if so: e.g. offline. */
+  problem?: GitHubProblem;
+}
+
 /** What refreshing links' statuses did. */
 export interface RefreshOutcome {
   /** Links whose status was fetched: the todos are worth listing again if any. */

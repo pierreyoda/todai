@@ -19,6 +19,8 @@
   import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
   import IconClock from "../common/icons/IconClock.svelte";
   import TodoLinkChip from "../links/TodoLinkChip.svelte";
+  import IconCheckCircle from "../common/icons/IconCheckCircle.svelte";
+  import { doneSuggestion } from "../../utils/linkStatuses";
   import { formatEstimates } from "../../utils";
 
   type TodoLineItemProps = {
@@ -39,6 +41,10 @@
   const toggleCompleted = createToggleTodoMutation(
     () => item,
     () => (completed = item.completed),
+  );
+  /** Its merged pull request or completed issue, if any, which suggests marking it as done. */
+  const doneBecause = $derived(
+    connected ? doneSuggestion({ completed, links: item.links }) : undefined,
   );
 
   const queryClient = useQueryClient();
@@ -111,7 +117,24 @@
     </div>
   </div>
   <div class="shrink-0">
-    <div class="flex items-center">
+    <div class="flex items-center gap-2">
+      {#if doneBecause}
+        <!-- Only suggested: a todo is never completed on its own -->
+        <Button
+          style="plain"
+          size="xs"
+          class="suggest-done"
+          title={`${doneBecause.link.label} was ${doneBecause.state}`}
+          disabled={toggleCompleted.isPending}
+          onclick={() => {
+            completed = true;
+            toggleCompleted.mutate(true);
+          }}
+        >
+          <IconCheckCircle />
+          {doneBecause.state === "merged" ? "Merged" : "Completed"} · mark as done
+        </Button>
+      {/if}
       {#if item.estimate}
         <div class="flex items-center gap-1 text-white">
           {#if item.estimate.unit === "minutes"}
@@ -141,6 +164,26 @@
 
 <style lang="postcss">
   @reference "tailwindcss";
+
+  /* A `Button`, restyled through its line as it's another component's element: more specific than its own rules */
+  .todo-item :global(.suggest-done) {
+    @apply inline-flex h-6.5 shrink-0 items-center gap-1.5 rounded-md border-0 px-2.5 py-0;
+    @apply bg-purple-400/16 text-xs/4 font-semibold text-purple-200 ring-1 ring-purple-400/35 ring-inset;
+    @apply transition-colors disabled:cursor-default disabled:opacity-60 focus-visible:outline-offset-0;
+
+    /* Highlighted when hovered, even disabled, but not when pressed */
+    &:enabled:active {
+      @apply bg-purple-400/16;
+    }
+    &:enabled:hover,
+    &:disabled:hover {
+      @apply hover:bg-purple-400/25;
+    }
+
+    > :global(svg) {
+      @apply size-3.5;
+    }
+  }
 
   .todo-item {
     @apply flex items-center justify-between gap-1 px-4 py-3 rounded-lg;

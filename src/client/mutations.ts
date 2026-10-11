@@ -84,22 +84,39 @@ export const createDeleteTodoMutation = (getTodo: () => Todo) => {
 };
 
 /**
- * Adds a link to `getTodo()`, from a URL as typed or pasted: normalized by the backend. Must be called during component
- * initialization.
+ * Adds links to `getTodo()`, in this order, from URLs as typed or pasted: normalized by the backend. Must be called
+ * during component initialization.
  */
-export const createAddTodoLinkMutation = (getTodo: () => Todo) => {
+export const createAddTodoLinksMutation = (getTodo: () => Todo) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (url: string) =>
+    mutationFn: (urls: readonly string[]) =>
       invokeClient({
-        name: "add_todo_link",
-        args: { todoId: getTodo().id, url },
+        name: "add_todo_links",
+        args: { todoId: getTodo().id, urls },
       }),
     onSuccess: () => {
-      // Its status, if it's a GitHub one, without waiting for GitHub
+      // Their status, if they're GitHub ones, without waiting for GitHub
       queryClient.invalidateQueries({ queryKey: linkStatusKeys.day(getTodo().day) });
-      // Returned so the mutation stays pending until the lists are refetched, with the link.
+      // Returned so the mutation stays pending until the lists are refetched, with the links.
       return invalidateTodosOf(queryClient, getTodo().day);
+    },
+  }));
+};
+
+/**
+ * Creates a todo at the end of `getDay()` with a link, titled after its pull request or issue if known. Must be called
+ * during component initialization.
+ */
+export const createAddTodoFromLinkMutation = (getDay: () => Day) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({ url, title }: { url: string; title?: string }) =>
+      invokeClient({ name: "create_todo_from_link", args: { day: getDay(), url, title } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: linkStatusKeys.day(getDay()) });
+      // Returned so the mutation stays pending until the list is refetched, with the todo.
+      return invalidateTodosOf(queryClient, getDay());
     },
   }));
 };

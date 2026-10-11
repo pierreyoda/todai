@@ -8,6 +8,7 @@
   import TodoPanelFilters from "./TodoPanelFilters.svelte";
   import TodosEmptyState from "./TodosEmptyState.svelte";
   import LinkStatusesIndicator from "../links/LinkStatusesIndicator.svelte";
+  import ConnectGitHubTip from "../links/ConnectGitHubTip.svelte";
   import { isDefined } from "../../utils";
   import { TodoSearch } from "../../utils/todoSearch.svelte";
 
@@ -85,6 +86,7 @@
   {:else}
     {#if filteredTodos.length > 0}
       <TodoList todos={filteredTodos} {tags} />
+      <ConnectGitHubTip todos={todos.data ?? []} />
     {:else}
       <!-- Keyed by the case, so switching between cases replays the entrance, but typing a search doesn't -->
       {#key `${emptySearchQuery !== null}:${emptyFilterTag?.id}`}

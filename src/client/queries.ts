@@ -98,6 +98,8 @@ export const noteQueryOptions = (day: Day) =>
 export const linkStatusKeys = {
   all: ["linkStatuses"] as const,
   day: (day: Day) => [...linkStatusKeys.all, day] as const,
+  /** Days are `YYYY-MM-DD`, so they never collide with `"preview"`. */
+  preview: (url: string) => [...linkStatusKeys.all, "preview", url] as const,
 };
 
 /** How often the GitHub links' statuses are refreshed while shown. Only the ones fetched long enough ago are. */
@@ -119,6 +121,17 @@ export const linkStatusesQueryOptions = (day: Day) =>
     staleTime: 0,
     refetchInterval: LINK_STATUSES_INTERVAL,
     refetchOnWindowFocus: true,
+  });
+
+/**
+ * What `url` would show once added: what GitHub tells about its pull request or issue, through the active workspace's
+ * connection. Kept a minute, as it's asked for while typing.
+ */
+export const linkPreviewQueryOptions = (url: string) =>
+  queryOptions({
+    queryKey: linkStatusKeys.preview(url),
+    queryFn: () => invokeClient({ name: "preview_link", args: { url } }),
+    staleTime: 60 * 1000,
   });
 
 /**
