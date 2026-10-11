@@ -2,7 +2,7 @@ import { createMutation, useQueryClient, type QueryClient } from "@tanstack/svel
 
 import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
-import type { Day, Estimate, Todo, TodoLink } from "./types";
+import type { Day, Estimate, Placement, Todo, TodoLink } from "./types";
 import {
   ghKeys,
   invalidateActiveWorkspace,
@@ -12,12 +12,14 @@ import {
   refreshGitHubAttention,
   refreshLinksOf,
   tagKeys,
+  todoKeys,
   workspaceKeys,
 } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 import { toasts } from "../utils/toasts.svelte";
 import { dateToTodaiDate, formatRelativeDay } from "../utils/dates";
 import { canSwitchWorkspace } from "../utils/workspaceSwitch";
+import { reorderTodos } from "../utils/todoOrder";
 
 // TODO: migrate other mutations to this file
 
@@ -110,6 +112,34 @@ export const createMoveTodosMutation = (getDay: () => Day) => {
       const days = new Set([getDay(), ...todos.map(({ day }) => day)]);
       return Promise.all([...days].map((day) => invalidateTodosOf(queryClient, day)));
     },
+  }));
+};
+
+/**
+ * Moves `todo`, of `getDay()`, right before or after the todo `targetId`: shown so right away, then put back if that
+ * fails. Must be called during component initialization.
+ */
+export const createReorderTodoMutation = (getDay: () => Day) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({ todo, targetId, placement }: { todo: Todo; targetId: Todo["id"]; placement: Placement }) =>
+      invokeClient({ name: "reorder_todo", args: { id: todo.id, targetId, placement } }),
+    onMutate: async ({ todo, targetId, placement }) => {
+      const queryKey = todoKeys.day(getDay());
+      // So that a refetch in flight doesn't show the former order back
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Todo[]>(queryKey);
+      if (previous) {
+        queryClient.setQueryData(queryKey, reorderTodos(previous, todo.id, targetId, placement));
+      }
+      return { previous };
+    },
+    onError: (_, { todo }, result) => {
+      if (result?.previous) queryClient.setQueryData(todoKeys.day(getDay()), result.previous);
+      toasts.show(`Could not move “${todo.title}”`, { tone: "error" });
+    },
+    // Returned so the mutation stays pending until the lists, and the calendar's, are refetched in the new order.
+    onSettled: () => invalidateTodosOf(queryClient, getDay()),
   }));
 };
 

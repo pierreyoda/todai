@@ -5,6 +5,7 @@ import type {
   LinkPreview,
   Note,
   ParsedLink,
+  Placement,
   RefreshOutcome,
   Tag,
   Todo,
@@ -90,6 +91,20 @@ type ClientInvocationCommand = {
     args: {
       ids: readonly UUID[];
       day: Day;
+    };
+    returns: never;
+  };
+  /**
+   * Moves a todo right before or after `targetId`, a todo of the same day, among all the todos of that day: e.g. dropped
+   * there in a list showing only some of them. Moving it next to itself changes nothing.
+   *
+   * Fails if either is deleted or unknown, or if they're not on the same day.
+   */
+  reorder_todo: {
+    args: {
+      id: UUID;
+      targetId: UUID;
+      placement: Placement;
     };
     returns: never;
   };

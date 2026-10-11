@@ -51,6 +51,7 @@ pub fn run() {
             commands::todos::toggle_todo,
             commands::todos::update_todo,
             commands::todos::move_todos,
+            commands::todos::reorder_todo,
             commands::todos::set_todo_estimate,
             commands::todos::delete_todo,
             commands::todos::restore_todo,

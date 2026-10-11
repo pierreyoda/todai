@@ -328,6 +328,94 @@ fn move_todo_rows(db: &mut Connection, ids: Vec<String>, day: &Day, now: i64) ->
     Ok(())
 }
 
+/// Where `reorder_todo` puts a todo, next to its target.
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum Placement {
+    Before,
+    After,
+}
+
+/// Moves the non-deleted todo `id` right before or after the non-deleted todo `target_id` of the same day, among all the
+/// todos of that day: e.g. dropped there in a list showing only some of them. Moving it next to itself changes nothing.
+#[tauri::command]
+pub async fn reorder_todo(
+    state: State<'_, AppState>,
+    id: String,
+    target_id: String,
+    placement: Placement,
+) -> Result<()> {
+    let mut db = state.db()?;
+    reorder_todo_row(
+        &mut db,
+        &id,
+        &target_id,
+        placement,
+        Timestamp::now().as_second(),
+    )
+}
+
+fn reorder_todo_row(
+    db: &mut Connection,
+    id: &str,
+    target_id: &str,
+    placement: Placement,
+    now: i64,
+) -> Result<()> {
+    if id == target_id {
+        return Ok(());
+    }
+    let tx = db.transaction()?;
+    let day_and_position = |id: &str| -> Result<(DbDay, String)> {
+        tx.prepare_cached("SELECT day, position FROM todos WHERE id = ?1 AND deleted_at IS NULL")?
+            .query_row([id], |row| Ok((row.get(0)?, row.get(1)?)))
+            .optional()?
+            .ok_or_else(|| TodaiError::CommandError(format!("Todo {id} not found")))
+    };
+    let (day, _) = day_and_position(id)?;
+    let (target_day, target_position) = day_and_position(target_id)?;
+    if day != target_day {
+        return Err(TodaiError::CommandError(format!(
+            "Todos {id} and {target_id} are not on the same day"
+        )));
+    }
+
+    // The closest position on the target's other side, the todo's own left out. Deleted todos are counted, so that
+    // restoring one never collides with the new position (see `position_after_last`).
+    let neighbor_query = match placement {
+        Placement::Before => {
+            "SELECT MAX(position) FROM todos WHERE day = ?1 AND position < ?2 AND id != ?3"
+        }
+        Placement::After => {
+            "SELECT MIN(position) FROM todos WHERE day = ?1 AND position > ?2 AND id != ?3"
+        }
+    };
+    let neighbor: Option<String> = tx
+        .prepare_cached(neighbor_query)?
+        .query_row([&day, &target_position, id], |row| row.get(0))?;
+    let parse = |position: &str| {
+        FractionalIndex::from_string(position)
+            .map_err(|_| TodaiError::InvalidPosition(position.to_string()))
+    };
+    let target = parse(&target_position)?;
+    let neighbor = neighbor.as_deref().map(parse).transpose()?;
+    let (lower, upper) = match placement {
+        Placement::Before => (neighbor.as_ref(), Some(&target)),
+        Placement::After => (Some(&target), neighbor.as_ref()),
+    };
+    let position = FractionalIndex::new(lower, upper)
+        .ok_or_else(|| TodaiError::InvalidPosition(target_position.clone()))?;
+
+    tx.prepare_cached("UPDATE todos SET position = :position, updated_at = :now WHERE id = :id")?
+        .execute(named_params! {
+            ":id": id,
+            ":position": position.to_string(),
+            ":now": now,
+        })?;
+    tx.commit()?;
+    Ok(())
+}
+
 /// Sets a non-deleted todo's estimate, replacing any previous one (whatever its unit), or removes it if `None`.
 ///
 /// The value must be positive and at most `Estimate::MAX_MINUTES` or `Estimate::MAX_POINTS`, depending on its unit.
@@ -690,6 +778,110 @@ mod tests {
             .collect();
         // The one already there keeps its place, before the moved ones
         assert_eq!(listed, [today, older, newer]);
+    }
+
+    /// Inserts todos titled `titles` on 2026-10-04, in this order, returning their IDs.
+    fn insert_day(db: &Connection, titles: &[&str]) -> Vec<String> {
+        titles
+            .iter()
+            .map(|title| insert_todo(db, "2026-10-04", title))
+            .collect()
+    }
+
+    /// The titles of the non-deleted todos of 2026-10-04, in display order.
+    fn day_titles(db: &Connection) -> Vec<String> {
+        day_todos(db, "2026-10-04")
+            .into_iter()
+            .map(|todo| todo.title)
+            .collect()
+    }
+
+    #[test]
+    fn reorder_todo_puts_it_before_or_after_its_target() {
+        let mut db = open_test_database(&WORKSPACE);
+        let [a, b, c, d] = insert_day(&db, &["A", "B", "C", "D"]).try_into().unwrap();
+        reorder_todo_row(&mut db, &d, &b, Placement::Before, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["A", "D", "B", "C"]);
+        reorder_todo_row(&mut db, &a, &b, Placement::After, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["D", "B", "A", "C"]);
+        assert_eq!(todo_row(&db, &a).updated_at, NOW);
+        // At either end
+        reorder_todo_row(&mut db, &c, &d, Placement::Before, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["C", "D", "B", "A"]);
+        reorder_todo_row(&mut db, &c, &a, Placement::After, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["D", "B", "A", "C"]);
+    }
+
+    #[test]
+    fn reorder_todo_moves_it_past_its_neighbor() {
+        let mut db = open_test_database(&WORKSPACE);
+        let [a, b, c] = insert_day(&db, &["A", "B", "C"]).try_into().unwrap();
+        // Its own position, right next to the target, is left out
+        reorder_todo_row(&mut db, &a, &b, Placement::After, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["B", "A", "C"]);
+        reorder_todo_row(&mut db, &c, &a, Placement::Before, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["B", "C", "A"]);
+        // Already there
+        reorder_todo_row(&mut db, &b, &c, Placement::Before, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["B", "C", "A"]);
+    }
+
+    #[test]
+    fn reorder_todo_never_collides_with_a_deleted_todo() {
+        let mut db = open_test_database(&WORKSPACE);
+        let [a, deleted, _, moved] = insert_day(&db, &["A", "Deleted", "B", "Moved"])
+            .try_into()
+            .unwrap();
+        delete_at(&db, "todos", &deleted, NOW);
+        // Between A and B as shown, so between A and the deleted todo in fact
+        reorder_todo_row(&mut db, &moved, &a, Placement::After, NOW).unwrap();
+        assert_eq!(day_titles(&db), ["A", "Moved", "B"]);
+        restore_todo_row(&mut db, &deleted, &[], NOW).unwrap();
+        assert_eq!(day_titles(&db), ["A", "Moved", "Deleted", "B"]);
+    }
+
+    #[test]
+    fn reorder_todo_ignores_the_todo_itself() {
+        let mut db = open_test_database(&WORKSPACE);
+        let [a, _] = insert_day(&db, &["A", "B"]).try_into().unwrap();
+        let before = todo_row(&db, &a);
+        reorder_todo_row(&mut db, &a, &a, Placement::After, NOW).unwrap();
+        let after = todo_row(&db, &a);
+        assert_eq!(
+            (after.position, after.updated_at),
+            (before.position, before.updated_at)
+        );
+    }
+
+    #[test]
+    fn reorder_todo_fails_across_days_and_for_deleted_or_unknown_todos() {
+        let mut db = open_test_database(&WORKSPACE);
+        let [a, deleted] = insert_day(&db, &["A", "Deleted"]).try_into().unwrap();
+        let other_day = insert_todo(&db, "2026-10-05", "Other day");
+        delete_at(&db, "todos", &deleted, NOW);
+        let unknown = "unknown".to_string();
+        for (id, target) in [
+            (&a, &other_day),
+            (&other_day, &a),
+            (&a, &deleted),
+            (&deleted, &a),
+            (&a, &unknown),
+            (&unknown, &a),
+        ] {
+            assert!(
+                reorder_todo_row(&mut db, id, target, Placement::Before, NOW).is_err(),
+                "{id} before {target}"
+            );
+        }
+        assert_eq!(day_titles(&db), ["A"]);
+        assert_eq!(todo_row(&db, &a).updated_at, 0);
+    }
+
+    #[test]
+    fn reorder_todo_placement_deserializes_from_camel_case() {
+        let placement: Placement = serde_json::from_value(serde_json::json!("before")).unwrap();
+        assert_eq!(placement, Placement::Before);
+        assert!(serde_json::from_value::<Placement>(serde_json::json!("Before")).is_err());
     }
 
     #[test]
