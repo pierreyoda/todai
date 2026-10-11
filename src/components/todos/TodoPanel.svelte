@@ -7,6 +7,7 @@
   import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoPanelFilters from "./TodoPanelFilters.svelte";
   import TodosEmptyState from "./TodosEmptyState.svelte";
+  import UnfinishedTodosBanner from "./UnfinishedTodosBanner.svelte";
   import LinkStatusesIndicator from "../links/LinkStatusesIndicator.svelte";
   import ConnectGitHubTip from "../links/ConnectGitHubTip.svelte";
   import { isDefined } from "../../utils";
@@ -79,6 +80,7 @@
     {/if}
   </div>
   <TodoCreateSection {day} />
+  <UnfinishedTodosBanner {day} {tags} />
   {#if todos.isPending}
     <p class="status">Loading…</p>
   {:else if todos.isError}

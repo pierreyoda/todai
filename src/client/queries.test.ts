@@ -23,10 +23,11 @@ describe("invalidateTodosOf", () => {
     months: todoKeys.months(),
     otherMonth: todoKeys.month("2026-09"),
     otherMonthDay: todoKeys.day("2026-09-30"),
+    unfinished: todoKeys.unfinishedBefore("2026-11-02"),
     tags: tagKeys.all,
   };
 
-  it("refreshes the day's month, its days and the months statistics only", async () => {
+  it("refreshes the day's month, its days, the months statistics and the unfinished todos only", async () => {
     const queryClient = new QueryClient();
     for (const key of Object.values(keys)) {
       queryClient.setQueryData(key, []);
@@ -47,6 +48,8 @@ describe("invalidateTodosOf", () => {
       months: true,
       otherMonth: false,
       otherMonthDay: false,
+      // Possibly from another month than the day's
+      unfinished: true,
       tags: false,
     });
   });

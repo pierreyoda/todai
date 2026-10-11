@@ -74,6 +74,23 @@ export const createMoveTodoMutation = (getTodo: () => Todo) => {
   }));
 };
 
+/** Moves todos to the end of `getDay()`, in this order, at once. Must be called during component initialization. */
+export const createMoveTodosMutation = (getDay: () => Day) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (todos: readonly Todo[]) =>
+      invokeClient({
+        name: "move_todos",
+        args: { ids: todos.map(({ id }) => id), day: getDay() },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched: the todos leave their days for `getDay()`.
+    onSuccess: (_, todos) => {
+      const days = new Set([getDay(), ...todos.map(({ day }) => day)]);
+      return Promise.all([...days].map((day) => invalidateTodosOf(queryClient, day)));
+    },
+  }));
+};
+
 /** Deletes `getTodo()`. Must be called during component initialization. */
 export const createDeleteTodoMutation = (getTodo: () => Todo) => {
   const queryClient = useQueryClient();

@@ -48,6 +48,7 @@ pub fn run() {
             commands::todos::create_todo_from_link,
             commands::todos::toggle_todo,
             commands::todos::update_todo,
+            commands::todos::move_todos,
             commands::todos::set_todo_estimate,
             commands::todos::delete_todo,
             commands::tags::list_tags,

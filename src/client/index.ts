@@ -69,6 +69,17 @@ type ClientInvocationCommand = {
     };
     returns: never;
   };
+  /**
+   * Moves todos to the end of `day`, in this order, as `update_todo` would one by one: those already on `day` stay in
+   * place. Fails without moving any if one of them is deleted or unknown.
+   */
+  move_todos: {
+    args: {
+      ids: readonly UUID[];
+      day: Day;
+    };
+    returns: never;
+  };
   /** Replaces the todo's estimate, whatever its unit, or removes it if `null`. */
   set_todo_estimate: {
     args: {

@@ -301,6 +301,31 @@ fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Resul
     Ok(())
 }
 
+/// Moves the non-deleted todos `ids` to the end of `day`, in this order, as `update_todo` would one by one: those already
+/// on `day` stay in place.
+///
+/// Fails without moving any if one of them is deleted or unknown.
+#[tauri::command]
+pub async fn move_todos(state: State<'_, AppState>, ids: Vec<String>, day: Day) -> Result<()> {
+    let mut db = state.db()?;
+    move_todo_rows(&mut db, ids, &day, Timestamp::now().as_second())
+}
+
+fn move_todo_rows(db: &mut Connection, ids: Vec<String>, day: &Day, now: i64) -> Result<()> {
+    let tx = db.transaction()?;
+    for id in ids {
+        let params = UpdateTodoParams {
+            id,
+            title: None,
+            day: Some(day.clone()),
+            completed: None,
+        };
+        update_todo_row(&tx, params, now)?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
 /// Sets a non-deleted todo's estimate, replacing any previous one (whatever its unit), or removes it if `None`.
 ///
 /// The value must be positive and at most `Estimate::MAX_MINUTES` or `Estimate::MAX_POINTS`, depending on its unit.
@@ -583,6 +608,42 @@ mod tests {
         assert!(update_todo_row(&db, moved, NOW).is_err());
         assert_eq!(todo_row(&db, &id).title, "Deleted");
         assert!(update_todo_row(&db, params("unknown"), NOW).is_err());
+    }
+
+    #[test]
+    fn move_todos_moves_them_in_order_to_the_end_of_the_day() {
+        let mut db = open_test_database(&WORKSPACE);
+        let older = insert_todo(&db, "2026-10-04", "Older");
+        let newer = insert_todo(&db, "2026-10-06", "Newer");
+        let today = insert_todo(&db, "2026-10-07", "Today");
+        move_todo_rows(
+            &mut db,
+            vec![older.clone(), newer.clone(), today.clone()],
+            &day("2026-10-07"),
+            NOW,
+        )
+        .unwrap();
+        let listed: Vec<String> = query_todos(&db, &day("2026-10-07"), &day("2026-10-07"))
+            .unwrap()
+            .into_iter()
+            .map(|todo| todo.id)
+            .collect();
+        // The one already there keeps its place, before the moved ones
+        assert_eq!(listed, [today, older, newer]);
+    }
+
+    #[test]
+    fn move_todos_moves_none_if_one_is_deleted_or_unknown() {
+        let mut db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Kept");
+        let deleted = insert_todo(&db, "2026-10-04", "Deleted");
+        db.execute("UPDATE todos SET deleted_at = 1 WHERE id = ?1", [&deleted])
+            .unwrap();
+        for other in [deleted, "unknown".to_string()] {
+            let result = move_todo_rows(&mut db, vec![id.clone(), other], &day("2026-10-07"), NOW);
+            assert!(result.is_err());
+            assert_eq!(todo_row(&db, &id).day, "2026-10-04");
+        }
     }
 
     #[test]
