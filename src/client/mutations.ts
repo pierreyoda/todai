@@ -1,4 +1,4 @@
-import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { createMutation, useQueryClient, type QueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
@@ -14,6 +14,7 @@ import {
   workspaceKeys,
 } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
+import { toasts } from "../utils/toasts.svelte";
 
 // TODO: migrate other mutations to this file
 
@@ -91,7 +92,28 @@ export const createMoveTodosMutation = (getDay: () => Day) => {
   }));
 };
 
-/** Deletes `getTodo()`. Must be called during component initialization. */
+/** Refreshes what depends on the todos of `day` and on whether they're deleted: tags count their linked todos. */
+const invalidateDeletionOf = (queryClient: QueryClient, day: Day) =>
+  Promise.all([
+    invalidateTodosOf(queryClient, day),
+    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
+  ]);
+
+/**
+ * Restores `todo`, just deleted, at its place: its tags weren't deleted along with it. Tells if it fails, as it's
+ * asked from a toast, once the todo's component is gone.
+ */
+const undoDeletion = async (queryClient: QueryClient, todo: Todo) => {
+  try {
+    await invokeClient({ name: "restore_todo", args: { id: todo.id, tagIds: [] } });
+  } catch {
+    toasts.show(`Could not restore “${todo.title}”`, { tone: "error" });
+    return;
+  }
+  await invalidateDeletionOf(queryClient, todo.day);
+};
+
+/** Deletes `getTodo()`, offering to undo it. Must be called during component initialization. */
 export const createDeleteTodoMutation = (getTodo: () => Todo) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
@@ -100,12 +122,15 @@ export const createDeleteTodoMutation = (getTodo: () => Todo) => {
         name: "delete_todo",
         args: { id: getTodo().id },
       }),
-    // Returned so the mutation stays pending until the lists are refetched; tags count their linked todos.
-    onSuccess: () =>
-      Promise.all([
-        invalidateTodosOf(queryClient, getTodo().day),
-        queryClient.invalidateQueries({ queryKey: tagKeys.all }),
-      ]),
+    onSuccess: () => {
+      // Kept as it is now: the undo outlives the todo's component
+      const todo = getTodo();
+      toasts.show(`Deleted “${todo.title}”`, {
+        action: { label: "Undo", onClick: () => void undoDeletion(queryClient, todo) },
+      });
+      // Returned so the mutation stays pending until the lists are refetched.
+      return invalidateDeletionOf(queryClient, todo.day);
+    },
   }));
 };
 

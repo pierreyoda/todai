@@ -51,6 +51,7 @@ pub fn run() {
             commands::todos::move_todos,
             commands::todos::set_todo_estimate,
             commands::todos::delete_todo,
+            commands::todos::restore_todo,
             commands::tags::list_tags,
             commands::tags::create_tag,
             commands::tags::update_tag,
