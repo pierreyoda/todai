@@ -5,8 +5,10 @@
     useQueryClient,
   } from "@tanstack/svelte-query";
 
+  import { attachDraggable, attachDroppable } from "@thisux/sveltednd";
+
   import { invokeClient } from "../../client";
-  import type { Tag, Todo } from "../../client/types";
+  import type { Placement, Tag, Todo } from "../../client/types";
   import {
     activeWorkspaceQueryOptions,
     invalidateTodosOf,
@@ -20,14 +22,40 @@
   import IconClock from "../common/icons/IconClock.svelte";
   import TodoLinkChip from "../links/TodoLinkChip.svelte";
   import IconCheckCircle from "../common/icons/IconCheckCircle.svelte";
+  import IconGripVertical from "../common/icons/IconGripVertical.svelte";
   import { doneSuggestion } from "../../utils/linkStatuses";
   import { formatEstimates } from "../../utils";
 
   type TodoLineItemProps = {
     item: Todo;
     tags: readonly Tag[];
+    /**
+     * Set to let it be reordered among the todos as completed as it, by dragging its handle (or from the keyboard, with
+     * the handle focused): called with each one dropped on it.
+     */
+    onReorder?: (droppedId: Todo["id"], placement: Placement) => void;
   };
-  const { item, tags }: TodoLineItemProps = $props();
+  const { item, tags, onReorder }: TodoLineItemProps = $props();
+
+  /** What's dragged: as plain data, as it's serialized during a drag. Its title is announced from the keyboard. */
+  type DraggedTodo = Pick<Todo, "id" | "title">;
+  /** Completed todos and the others are reordered separately, as they're listed. */
+  const dropGroup = $derived(item.completed ? "completed-todos" : "todos");
+
+  let row = $state<HTMLLIElement>();
+  /** While dragged or moved from the keyboard: not on a mere click of the handle, which also starts a drag. */
+  let dragged = $state(false);
+  /**
+   * Whether the pointer is over it: tracked rather than read from `:hover`, which WebKit leaves on the row a drag started
+   * from until the next click, as it never gets the mouse's release during a drag.
+   */
+  let hovered = $state(false);
+  /** The row follows the pointer while its handle is dragged, rather than the handle alone. */
+  const setRowDragImage = (event: DragEvent) => {
+    if (!row || !event.dataTransfer) return;
+    const { left, top } = row.getBoundingClientRect();
+    event.dataTransfer.setDragImage(row, event.clientX - left, event.clientY - top);
+  };
 
   // Its GitHub links show their status through the workspace's connection, if any
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
@@ -76,7 +104,56 @@
   let menuButton = $state<HTMLButtonElement>();
 </script>
 
-<li class={["todo-item", item.completed && "completed"]}>
+<li
+  bind:this={row}
+  class={[
+    "todo-item",
+    item.completed && "completed",
+    dragged && "dragged",
+    hovered && "hovered",
+  ]}
+  onpointerenter={() => (hovered = true)}
+  onpointerleave={() => (hovered = false)}
+  {@attach attachDroppable<DraggedTodo>(() => ({
+    container: item.id,
+    containerGroup: dropGroup,
+    disabled: !onReorder,
+    attributes: { dragOverClass: "drop-target" },
+    callbacks: {
+      onDrop: ({ draggedItem, dropPosition }) => {
+        if (dropPosition) onReorder?.(draggedItem.id, dropPosition);
+      },
+    },
+  }))}
+>
+  {#if onReorder}
+    <!-- The only part to drag the todo by: dragging the whole row would get in the way of selecting text in its
+         title's field. Focusable, to move it with the keyboard (Space, arrows, Space). -->
+    <span
+      class="drag-handle"
+      role="button"
+      tabindex="0"
+      aria-label={`Reorder “${item.title}”`}
+      title="Drag to reorder"
+      ondragstart={setRowDragImage}
+      {@attach attachDraggable<DraggedTodo>(() => ({
+        container: item.id,
+        containerGroup: dropGroup,
+        dragData: { id: item.id, title: item.title },
+        keyboard: true,
+        attributes: { draggingClass: "grabbed" },
+        callbacks: {
+          // Once its drag image is taken, so that it isn't dimmed too
+          onDragStart: ({ dragInput }) => {
+            if (dragInput !== "pointer") setTimeout(() => (dragged = true));
+          },
+          onDragEnd: () => (dragged = false),
+        },
+      }))}
+    >
+      <IconGripVertical class="size-5" />
+    </span>
+  {/if}
   <div class="flex items-center">
     <FieldCheckbox
       label="Completed?"
@@ -188,12 +265,53 @@
   }
 
   .todo-item {
-    @apply flex items-center justify-between gap-1 px-4 py-3 rounded-lg;
+    /* Room on the left for the drag handle, kept without it (e.g. while filtered) so that rows never shift */
+    @apply relative flex items-center justify-between gap-1 py-3 pr-4 pl-7.5 rounded-lg;
     @apply border border-slate-600 bg-slate-800;
-    @apply transition-colors hover:border-slate-400 hover:bg-slate-600;
-    &.completed {
-      @apply border-gray-700 bg-gray-900 hover:bg-gray-700;
+    @apply transition-colors;
+    /* Rather than `:hover`: see `hovered` */
+    &.hovered {
+      @apply border-slate-400 bg-slate-600;
     }
+    &.completed {
+      @apply border-gray-700 bg-gray-900;
+      &.hovered {
+        @apply bg-gray-700;
+      }
+    }
+    &.dragged {
+      @apply opacity-40;
+    }
+  }
+
+  /* In the row's padding, before the checkbox: shown with the row's hover, or when focused. Centered on the checkbox
+     rather than the row: `FieldCheckbox` keeps its box 2px lower, on its label's first line, even with the label hidden. */
+  .drag-handle {
+    @apply absolute top-[calc(50%+2px)] left-1.5 flex h-8 w-5 -translate-y-1/2 cursor-grab items-center justify-center rounded-md;
+    @apply text-slate-500 opacity-0 transition-opacity hover:text-slate-200;
+    @apply focus:not-focus-visible:outline-hidden focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-blue-500;
+    .todo-item.hovered &,
+    &:global(.grabbed) {
+      @apply opacity-100;
+    }
+  }
+
+  /* Where a dragged todo would go: a line centered in the gap above or below the row (the list's `gap-1.5`, past the
+     row's border). The library draws it; only its look is the app's. */
+  .todo-item:global(.drop-before)::before,
+  .todo-item:global(.drop-after)::after {
+    @apply h-0.5 rounded-full bg-pink-400;
+  }
+  .todo-item:global(.drop-before)::before {
+    @apply top-[-5px];
+  }
+  .todo-item:global(.drop-after)::after {
+    @apply bottom-[-5px];
+  }
+  /* Not around the dragged todo itself, where dropping it changes nothing */
+  .todo-item.dragged:global(.drop-before)::before,
+  .todo-item.dragged:global(.drop-after)::after {
+    @apply hidden;
   }
 
   /* Between the tags and the links, which are told apart at a glance */

@@ -15,6 +15,9 @@ export interface TodoMonth {
   estimatedPoints: number;
 }
 
+/** Where a todo is put next to another one, e.g. when reordering them. */
+export type Placement = "before" | "after";
+
 /** A todo's estimate: either a duration or story points. */
 export type Estimate =
   | {

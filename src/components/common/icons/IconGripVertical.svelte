@@ -1,0 +1,23 @@
+<script lang="ts">
+  import type { ClassValue } from "svelte/elements";
+
+  type IconGripVerticalProps = {
+    class?: ClassValue;
+  };
+  const { class: extraClass }: IconGripVerticalProps = $props();
+</script>
+
+<!-- Two columns of three dots, as drag handles usually show -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="currentColor"
+  viewBox="0 0 24 24"
+  class={["size-4", extraClass]}
+>
+  <circle cx="9" cy="6" r="1.5" />
+  <circle cx="15" cy="6" r="1.5" />
+  <circle cx="9" cy="12" r="1.5" />
+  <circle cx="15" cy="12" r="1.5" />
+  <circle cx="9" cy="18" r="1.5" />
+  <circle cx="15" cy="18" r="1.5" />
+</svg>

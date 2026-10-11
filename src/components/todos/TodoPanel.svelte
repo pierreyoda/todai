@@ -87,7 +87,13 @@
     <p class="error" role="alert">{String(todos.error)}</p>
   {:else}
     {#if filteredTodos.length > 0}
-      <TodoList todos={filteredTodos} {tags} />
+      <!-- Not while a search or a tag hides some of them, which would leave dropped todos among hidden ones -->
+      <TodoList
+        todos={filteredTodos}
+        {day}
+        {tags}
+        reorderable={!search.active && !selectedTagId}
+      />
       <ConnectGitHubTip todos={todos.data ?? []} />
     {:else}
       <!-- Keyed by the case, so switching between cases replays the entrance, but typing a search doesn't -->

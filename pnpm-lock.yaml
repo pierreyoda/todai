@@ -184,6 +184,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: 2.7.0
         version: 2.7.0
+      '@thisux/sveltednd':
+        specifier: 0.8.0
+        version: 0.8.0(svelte@5.57.2)
       date-fns:
         specifier: 4.4.0
         version: 4.4.0
@@ -609,6 +612,11 @@ packages:
 
   '@tauri-apps/plugin-opener@2.7.0':
     resolution: {integrity: sha512-mBorYfVKh9Lt7s4ZFtKbMUTxBw+Y/sVmSlKCtkkoBgMTC/DIbt/kaPm67L/2djAUqDI1wbixy5OHHVmipjuGMw==}
+
+  '@thisux/sveltednd@0.8.0':
+    resolution: {integrity: sha512-W6A7qDSPLOLvJREBpTEsidjWeEEnQmu42KWERXxGCVccGj4ze6aRmjNi+8Y6k3PNMoMlKNmTitMPpbPBGo8OhA==}
+    peerDependencies:
+      svelte: ^5.0.0
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -1378,6 +1386,10 @@ snapshots:
   '@tauri-apps/plugin-opener@2.7.0':
     dependencies:
       '@tauri-apps/api': 2.12.2
+
+  '@thisux/sveltednd@0.8.0(svelte@5.57.2)':
+    dependencies:
+      svelte: 5.57.2
 
   '@types/chai@5.2.3':
     dependencies:
