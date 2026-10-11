@@ -17,6 +17,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Restores the window's size, position, and maximized or fullscreen state as it was when todai was last closed
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             logging::init(&app.path().app_log_dir()?)?;
             log::info!("Starting todai v{}", app.package_info().version);
