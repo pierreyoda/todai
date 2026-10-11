@@ -57,6 +57,13 @@
     refresh.data?.problem && describeProblem(refresh.data.problem),
   );
 
+  const CHECK_OUTCOMES = {
+    passed: "Passed",
+    failed: "Failed",
+    running: "Running",
+    skipped: "Skipped",
+  } as const;
+
   let popover = $state<HTMLDivElement>();
 
   const position = () => {
@@ -136,8 +143,8 @@
         style="plain"
         size="xs"
         class="refresh"
-        aria-label="Refresh"
-        title="Refresh"
+        aria-label="Refresh from GitHub"
+        title="Refresh from GitHub"
         disabled={refresh.isPending}
         onclick={() => refresh.mutate(link)}
       >
@@ -157,7 +164,11 @@
         {:else}
           {#each snapshot.labels as label (label.name)}
             <span class="label">
-              <span class="dot" style:background-color={label.color}></span>
+              <span
+                class="dot"
+                style:background-color={label.color}
+                aria-hidden="true"
+              ></span>
               {label.name}
             </span>
           {/each}
@@ -223,6 +234,8 @@
                 {:else}
                   <span class="ring" aria-hidden="true"></span>
                 {/if}
+                <!-- Told by its glyph, or else in words -->
+                <span class="sr-only">{CHECK_OUTCOMES[check.outcome]}:</span>
                 <span class="check-name">
                   {checkName(check)}{#if check.outcome === "running" && check.startedAt},
                     started {formatRelativeTime(check.startedAt)}{/if}
@@ -254,8 +267,12 @@
       <div class="row">
         <dt>Changes</dt>
         <dd class="tabular-nums">
-          <span class="text-green-300">+{snapshot.additions}</span>
-          <span class="text-red-300">−{snapshot.deletions}</span>
+          <span class="text-green-300">
+            +{snapshot.additions}<span class="sr-only"> lines added,</span>
+          </span>
+          <span class="text-red-300">
+            −{snapshot.deletions}<span class="sr-only"> removed,</span>
+          </span>
           · {snapshot.changedFiles}
           {snapshot.changedFiles === 1 ? "file" : "files"}
         </dd>
@@ -307,7 +324,8 @@
   {/if}
 
   <footer class="footer">
-    <span class="fetched">
+    <!-- Announced as it's refreshed, then fetched -->
+    <span class="fetched" role="status">
       {#if refresh.isPending}
         Refreshing…
       {:else if link.fetchedAt}
@@ -495,7 +513,8 @@
   }
 
   .fetched {
-    @apply flex-1 text-xs/4 text-slate-500;
+    /* Dimmer than the rest, yet readable enough (WCAG AA) */
+    @apply flex-1 text-xs/4 text-slate-400;
   }
 
   /* A `Button`, restyled as `.refresh` */

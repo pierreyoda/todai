@@ -46,6 +46,7 @@ pub const APP: DatabaseKind = DatabaseKind {
         include_str!("../migrations-app/001_init.sql"),
         include_str!("../migrations-app/002_workspace_backups.sql"),
         include_str!("../migrations-app/003_workspace_github.sql"),
+        include_str!("../migrations-app/004_workspace_links.sql"),
     ],
 };
 
@@ -652,7 +653,7 @@ mod tests {
         }
 
         let conn = open(&path, &APP).unwrap();
-        assert_eq!(header(&conn).1, 3);
+        assert_eq!(header(&conn).1, APP.migrations.len() as i64);
         let login: Option<String> = conn
             .query_row(
                 "SELECT github_login FROM workspaces WHERE id = 'w'",
@@ -776,6 +777,41 @@ mod tests {
         assert!(set_error("no_access").is_ok());
         assert!(set_error("sso_required").is_ok());
         assert!(set_error("offline").is_err());
+    }
+
+    #[test]
+    fn open_turns_the_links_behaviors_on_for_existing_workspaces() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.sqlite3");
+        {
+            // As left by the last version without them.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &APP.migrations[..3] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 3).unwrap();
+            conn.pragma_update(None, "application_id", APP.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO workspaces (id, name, path, created_at) VALUES ('w', 'Work', '/work.sqlite3', 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open(&path, &APP).unwrap();
+        assert_eq!(header(&conn).1, APP.migrations.len() as i64);
+        let behaviors: (bool, bool, bool) = conn
+            .query_row(
+                "SELECT links_auto_refresh, links_suggest_done, links_paste_to_create FROM workspaces WHERE id = 'w'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(behaviors, (true, true, true));
+        assert!(conn
+            .execute("UPDATE workspaces SET links_suggest_done = 2", [])
+            .is_err());
     }
 
     #[test]

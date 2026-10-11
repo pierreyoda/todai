@@ -3,7 +3,16 @@ import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
 import type { Day, Estimate, Todo, TodoLink } from "./types";
-import { ghKeys, invalidateTodosOf, linkStatusKeys, noteKeys, tagKeys, workspaceKeys } from "./queries";
+import {
+  ghKeys,
+  invalidateTodosOf,
+  linkStatusKeys,
+  noteKeys,
+  refreshGitHubAttention,
+  refreshLinksOf,
+  tagKeys,
+  workspaceKeys,
+} from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 
 // TODO: migrate other mutations to this file
@@ -96,8 +105,8 @@ export const createAddTodoLinksMutation = (getTodo: () => Todo) => {
         args: { todoId: getTodo().id, urls },
       }),
     onSuccess: () => {
-      // Their status, if they're GitHub ones, without waiting for GitHub
-      queryClient.invalidateQueries({ queryKey: linkStatusKeys.day(getTodo().day) });
+      // Their status, if they're GitHub ones, even if not refreshed on their own; without waiting for GitHub
+      refreshLinksOf(queryClient, getTodo().day);
       // Returned so the mutation stays pending until the lists are refetched, with the links.
       return invalidateTodosOf(queryClient, getTodo().day);
     },
@@ -114,7 +123,7 @@ export const createAddTodoFromLinkMutation = (getDay: () => Day) => {
     mutationFn: ({ url, title }: { url: string; title?: string }) =>
       invokeClient({ name: "create_todo_from_link", args: { day: getDay(), url, title } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: linkStatusKeys.day(getDay()) });
+      refreshLinksOf(queryClient, getDay());
       // Returned so the mutation stays pending until the list is refetched, with the todo.
       return invalidateTodosOf(queryClient, getDay());
     },
@@ -147,6 +156,7 @@ export const createRefreshTodoLinkMutation = (getTodo: () => Todo) => {
     mutationFn: (link: TodoLink) => invokeClient({ name: "refresh_link", args: { id: link.id } }),
     // Returned so the mutation stays pending until the lists are refetched, with the status.
     onSuccess: (outcome) => {
+      refreshGitHubAttention(queryClient);
       if (outcome.refreshed > 0) return invalidateTodosOf(queryClient, getTodo().day);
     },
   }));

@@ -7,7 +7,7 @@ use crate::{
     gh::{GhAccount, GhFinder},
     github::{query::RateLimit, GitHub, GitHubError},
     state::AppState,
-    workspaces,
+    workspaces::{self, LinksBehaviors},
 };
 
 /// What the GitHub CLI offers to connect workspaces with.
@@ -96,7 +96,9 @@ pub async fn get_github_api_status(
                 "Workspace {workspace_id} isn't connected to GitHub"
             ))
         })?;
-    Ok(match github.rate_limit(&*finder, &login).await {
+    let result = github.rate_limit(&*finder, &login).await;
+    state.note_github(&login, &result);
+    Ok(match result {
         Ok(rate_limit) => GitHubApiStatus {
             rate_limit: Some(rate_limit),
             problem: None,
@@ -106,6 +108,29 @@ pub async fn get_github_api_status(
             problem: Some(problem),
         },
     })
+}
+
+/// Sets how the links of the workspace `workspace_id` behave: see `Workspace`.
+#[tauri::command]
+pub async fn set_workspace_links_behaviors(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    links_auto_refresh: bool,
+    links_suggest_done: bool,
+    links_paste_to_create: bool,
+) -> Result<Workspace> {
+    let app_db = state.app_db();
+    let behaviors = LinksBehaviors {
+        auto_refresh: links_auto_refresh,
+        suggest_done: links_suggest_done,
+        paste_to_create: links_paste_to_create,
+    };
+    let entry = workspaces::set_links_behaviors(&app_db, &workspace_id, behaviors)?;
+    log::info!(
+        "Set the links behaviors of workspace {:?}: {behaviors:?}",
+        entry.name
+    );
+    workspace(&state, &app_db, entry)
 }
 
 /// Fails unless `login` is among `accounts`, signed in.

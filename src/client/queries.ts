@@ -115,6 +115,7 @@ export const linkStatusesQueryOptions = (day: Day) =>
     queryKey: linkStatusKeys.day(day),
     queryFn: async () => {
       const outcome = await invokeClient({ name: "refresh_links", args: { day } });
+      refreshGitHubAttention(queryClient);
       if (outcome.refreshed > 0) await invalidateTodosOf(queryClient, day);
       return outcome;
     },
@@ -124,13 +125,34 @@ export const linkStatusesQueryOptions = (day: Day) =>
   });
 
 /**
+ * Refreshes the statuses of the GitHub links of the todos of `day` that are due, whether they're refreshed on their own
+ * or not (e.g. once one is added). Resolves once done, even if it fails.
+ */
+export const refreshLinksOf = (queryClient: QueryClient, day: Day) =>
+  queryClient.fetchQuery({ ...linkStatusesQueryOptions(day), staleTime: 0 }).catch(() => undefined);
+
+/**
+ * Refreshes the workspaces once GitHub was asked: they tell whether their connection needs the user (`githubAttention`).
+ * Only them, not what's nested in their keys (e.g. their GitHub API status, which may have just been asked).
+ */
+export const refreshGitHubAttention = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true }),
+    queryClient.invalidateQueries({ queryKey: workspaceKeys.active(), exact: true }),
+  ]);
+
+/**
  * What `url` would show once added: what GitHub tells about its pull request or issue, through the active workspace's
  * connection. Kept a minute, as it's asked for while typing.
  */
 export const linkPreviewQueryOptions = (url: string) =>
   queryOptions({
     queryKey: linkStatusKeys.preview(url),
-    queryFn: () => invokeClient({ name: "preview_link", args: { url } }),
+    queryFn: async () => {
+      const preview = await invokeClient({ name: "preview_link", args: { url } });
+      refreshGitHubAttention(queryClient);
+      return preview;
+    },
     staleTime: 60 * 1000,
   });
 
@@ -233,7 +255,11 @@ export const workspaceBackupsQueryOptions = (workspaceId: UUID) =>
 export const githubApiStatusQueryOptions = (workspaceId: UUID) =>
   queryOptions({
     queryKey: workspaceKeys.github(workspaceId),
-    queryFn: () => invokeApiClient({ name: "get_github_api_status", args: { workspaceId } }),
+    queryFn: async () => {
+      const status = await invokeApiClient({ name: "get_github_api_status", args: { workspaceId } });
+      refreshGitHubAttention(queryClient);
+      return status;
+    },
     staleTime: 0,
   });
 

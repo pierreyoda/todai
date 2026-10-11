@@ -4,6 +4,7 @@
   import WorkspacePicker from "../../common/WorkspacePicker.svelte";
   import SettingsContainer from "../SettingsContainer.svelte";
   import GitHubCard from "./GitHubCard.svelte";
+  import LinksBehaviorSettings from "./LinksBehaviorSettings.svelte";
 
   type IntegrationsSettingsProps = {
     workspaces: readonly Workspace[];
@@ -39,6 +40,7 @@
     <!-- Recreated for each workspace, so that outcomes (e.g. a failed disconnection) don't carry over -->
     {#key workspace.id}
       <GitHubCard {workspace} />
+      <LinksBehaviorSettings {workspace} />
     {/key}
   </div>
 </SettingsContainer>

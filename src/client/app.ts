@@ -25,6 +25,17 @@ export interface Workspace {
   autoBackupKeep: number;
   /** The GitHub CLI account it uses on github.com, if connected to GitHub. */
   githubLogin?: string;
+  /**
+   * Why its GitHub connection needs the user, if it did the last time GitHub was asked (since todai was opened): the
+   * GitHub CLI is missing, or signed out of its account.
+   */
+  githubAttention?: Extract<GitHubProblem, { kind: "gh_missing" | "signed_out" }>;
+  /** Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked. */
+  linksAutoRefresh: boolean;
+  /** Whether a todo whose pull request is merged (or issue completed) offers to be marked as done. */
+  linksSuggestDone: boolean;
+  /** Whether pasting a pull request's or issue's link as a new todo's title offers to create it from the link. */
+  linksPasteToCreate: boolean;
 }
 
 /** An account the GitHub CLI (`gh`) knows on github.com. */
@@ -260,6 +271,15 @@ export type ClientInvocationAppCommand = {
       workspaceId: UUID;
     };
     returns: GitHubApiStatus;
+  };
+  set_workspace_links_behaviors: {
+    args: {
+      workspaceId: UUID;
+      linksAutoRefresh: boolean;
+      linksSuggestDone: boolean;
+      linksPasteToCreate: boolean;
+    };
+    returns: Workspace;
   };
 };
 

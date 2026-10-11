@@ -111,7 +111,9 @@ async fn preview(
     let Some(login) = active_workspace(&state.app_db())?.github_login else {
         return Ok(preview);
     };
-    match github.fetch_items(tokens, &login, &[github_ref]).await {
+    let results = github.fetch_items(tokens, &login, &[github_ref]).await;
+    state.note_github(&login, &results);
+    match results {
         Ok(results) => match results.into_iter().next() {
             Some(ItemResult::Found(item)) => {
                 preview.link = item.link;
@@ -172,7 +174,9 @@ async fn refresh(
             refs.push(link.github.clone());
         }
     }
-    let results = match github.fetch_items(tokens, login, &refs).await {
+    let results = github.fetch_items(tokens, login, &refs).await;
+    state.note_github(login, &results);
+    let results = match results {
         Ok(results) => results,
         Err(problem) => {
             log::warn!("Could not refresh {} links: {problem}", due.len());
@@ -843,6 +847,47 @@ mod tests {
                 "problem": { "kind": "offline" },
             })
         );
+    }
+
+    #[tokio::test]
+    async fn refresh_remembers_when_the_connection_needs_the_user() {
+        let s = setup(true);
+        add_link(&s.state, "a", "t", "https://github.com/o/r/issues/1", None);
+        let server = FakeGitHub::serve(vec![
+            (401, Vec::new(), r#"{"message":"Bad credentials"}"#.into()),
+            ok(answer(&[raw_issue(
+                "https://github.com/o/r/issues/1",
+                "OPEN",
+            )])),
+        ]);
+        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let signed_out = GitHubError::SignedOut {
+            login: "octocat".into(),
+        };
+
+        let outcome = refresh(
+            &s.state,
+            &FakeTokens::default(),
+            &github,
+            &Target::Day(day()),
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome.problem, Some(signed_out.clone()));
+        assert_eq!(s.state.github_attention("octocat"), Some(signed_out));
+
+        // Signed in again since.
+        refresh(
+            &s.state,
+            &FakeTokens::default(),
+            &github,
+            &Target::Day(day()),
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(s.state.github_attention("octocat"), None);
     }
 
     /// Switches to another workspace while giving its token, as if the user did while GitHub was being asked.

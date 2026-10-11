@@ -149,6 +149,12 @@ pub struct DbWorkspace {
     pub auto_backup_keep: u32,
     /// The GitHub CLI account it uses on github.com, if connected.
     pub github_login: Option<String>,
+    /// Whether its links' GitHub statuses are refreshed on their own while todai is open.
+    pub links_auto_refresh: bool,
+    /// Whether a todo whose pull request is merged (or issue completed) offers to be marked as done.
+    pub links_suggest_done: bool,
+    /// Whether pasting a pull request's or issue's link as a new todo's title offers to create it from the link.
+    pub links_paste_to_create: bool,
 }
 
 impl DbWorkspace {
@@ -162,6 +168,9 @@ impl DbWorkspace {
             auto_backup: row.get("auto_backup")?,
             auto_backup_keep: row.get("auto_backup_keep")?,
             github_login: row.get("github_login")?,
+            links_auto_refresh: row.get("links_auto_refresh")?,
+            links_suggest_done: row.get("links_suggest_done")?,
+            links_paste_to_create: row.get("links_paste_to_create")?,
         })
     }
 }

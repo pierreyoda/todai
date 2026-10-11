@@ -32,15 +32,19 @@
   }));
   let selectedTagId = $state<Tag["id"] | null>(null);
 
-  // The statuses of the todos' GitHub links, through the workspace's connection: refreshed as shown, then regularly
+  // The statuses of the todos' GitHub links, through the workspace's connection: refreshed as shown, then regularly,
+  // unless only when asked (e.g. once a link is added)
   const connected = $derived(ready && !!activeWorkspace.data?.githubLogin);
+  const autoRefresh = $derived(
+    connected && !!activeWorkspace.data?.linksAutoRefresh,
+  );
   const linkStatuses = createQuery(() => ({
     ...linkStatusesQueryOptions(day),
-    enabled: connected,
+    enabled: autoRefresh,
   }));
   // Also when coming back to the app: TanStack Query only watches the page's visibility, which switching apps leaves
   $effect(() => {
-    if (!connected) return;
+    if (!autoRefresh) return;
     const refresh = () => linkStatuses.refetch({ cancelRefetch: false });
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);

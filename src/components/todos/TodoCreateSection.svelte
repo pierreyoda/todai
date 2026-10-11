@@ -42,16 +42,18 @@
   }));
   const addFromLink = createAddTodoFromLinkMutation(() => day);
 
-  // A pasted GitHub pull request or issue can become a todo titled after it, with its link
+  // A pasted GitHub pull request or issue can become a todo titled after it, with its link, unless turned off
+  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+  const offered = $derived(!!activeWorkspace.data?.linksPasteToCreate);
   const typed = $derived(title.trim());
+  const linkTyped = $derived(offered && mayBeLink(typed));
   const parsed = createQuery(() => ({
     ...parseLinkQueryOptions(typed),
-    enabled: mayBeLink(typed),
+    enabled: linkTyped,
   }));
   const recognized = $derived(
-    mayBeLink(typed) && parsed.data?.github ? parsed.data : undefined,
+    linkTyped && parsed.data?.github ? parsed.data : undefined,
   );
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
   const connected = $derived(!!activeWorkspace.data?.githubLogin);
   const previewed = createQuery(() => ({
     ...linkPreviewQueryOptions(recognized?.url ?? ""),
@@ -117,7 +119,7 @@
       return;
     }
     // Submitted right after pasting a link, before it's recognized: created from it, as it would have been suggested
-    if (mayBeLink(typed) && dismissed !== typed && !parsed.isFetched) {
+    if (linkTyped && dismissed !== typed && !parsed.isFetched) {
       const target = await queryClient
         .fetchQuery(parseLinkQueryOptions(typed))
         .catch(() => undefined);
@@ -166,6 +168,13 @@
     onblur={() => (dismissed = typed)}
     onfocus={() => (dismissed = null)}
   />
+  <!-- What the keys do, for screen readers: the suggestions only show it with key caps -->
+  <span class="sr-only" role="status">
+    {#if suggesting}
+      Enter creates a todo from this link, Shift+Enter keeps the URL as its
+      title.
+    {/if}
+  </span>
   {#if suggesting && link}
     <div
       id={listboxId}
@@ -230,7 +239,7 @@
             </p>
           {/if}
         </div>
-        <kbd>↵</kbd>
+        <kbd aria-hidden="true">↵</kbd>
       </div>
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <div
@@ -248,7 +257,7 @@
           <p class="option-title">Keep the URL as the title</p>
           <p class="option-detail">Plain text, no link attached</p>
         </div>
-        <kbd>⇧↵</kbd>
+        <kbd aria-hidden="true">⇧↵</kbd>
       </div>
     </div>
   {/if}

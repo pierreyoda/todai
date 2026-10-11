@@ -15,6 +15,9 @@ const workspace = (id: string, isActive = false): Workspace => ({
   createdAt: DATE,
   autoBackup: true,
   autoBackupKeep: 7,
+  linksAutoRefresh: true,
+  linksSuggestDone: true,
+  linksPasteToCreate: true,
 });
 
 describe("pickedWorkspace", () => {

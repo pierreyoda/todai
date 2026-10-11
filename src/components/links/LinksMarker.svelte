@@ -187,6 +187,7 @@
   }
 
   .hint {
-    @apply text-[11px]/4 text-slate-500;
+    /* Dimmer than the rest, yet readable enough (WCAG AA) */
+    @apply text-[11px]/4 text-slate-400;
   }
 </style>

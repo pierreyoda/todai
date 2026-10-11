@@ -327,7 +327,8 @@
   }
 
   .settings-link {
-    @apply mt-1 self-start text-xs/5 font-medium text-pink-400 underline underline-offset-2 hover:text-pink-300;
+    @apply mt-1 self-start rounded-sm text-xs/5 font-medium text-pink-400 underline underline-offset-2 hover:text-pink-300;
+    @apply focus:not-focus-visible:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500;
   }
 
   .invalid {

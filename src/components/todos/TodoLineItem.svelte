@@ -44,7 +44,9 @@
   );
   /** Its merged pull request or completed issue, if any, which suggests marking it as done. */
   const doneBecause = $derived(
-    connected ? doneSuggestion({ completed, links: item.links }) : undefined,
+    connected && activeWorkspace.data?.linksSuggestDone
+      ? doneSuggestion({ completed, links: item.links })
+      : undefined,
   );
 
   const queryClient = useQueryClient();

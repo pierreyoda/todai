@@ -148,7 +148,14 @@
         <IconArchiveBox />
       {/snippet}
     </SidePanelLink>
-    <SidePanelLink label="Integrations" routeId="/settings/integrations">
+    <SidePanelLink
+      label="Integrations"
+      routeId="/settings/integrations"
+      indicator={activeWorkspace.data?.githubAttention
+        ? "An integration needs your attention"
+        : undefined}
+      indicatorTone="warning"
+    >
       {#snippet icon()}
         <IconLink />
       {/snippet}
