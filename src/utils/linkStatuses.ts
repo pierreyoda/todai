@@ -129,8 +129,8 @@ export const describeChecks = ({ passed, failed, running, skipped }: Checks): st
 
 const CHECK_ORDER: Record<Check["outcome"], number> = { failed: 0, running: 1, passed: 2, skipped: 3 };
 
-/** The checks worth listing, failing then running then passed ones, without the skipped ones: at most `max`. */
-export const notableChecks = (checks: Checks, max = 5): Check[] =>
+/** The checks worth listing, failing then running then passed ones, without the skipped ones: at most `max`, if given. */
+export const notableChecks = (checks: Checks, max?: number): Check[] =>
   checks.runs
     .filter((check) => check.outcome !== "skipped")
     .sort((a, b) => CHECK_ORDER[a.outcome] - CHECK_ORDER[b.outcome])

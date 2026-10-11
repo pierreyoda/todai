@@ -102,7 +102,10 @@
   $effect(() => {
     if (!open) return;
     window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, { capture: true, passive: true });
+    window.addEventListener("scroll", position, {
+      capture: true,
+      passive: true,
+    });
     return () => {
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position, { capture: true });
@@ -136,7 +139,8 @@
       <span class="where">
         {isIssue ? "Issue" : "Pull request"}
         {#if github}
-          · {github.owner}/{github.repo} <span class="number">#{github.number}</span>
+          · {github.owner}/{github.repo}
+          <span class="number">#{github.number}</span>
         {/if}
       </span>
       <Button
@@ -148,7 +152,9 @@
         disabled={refresh.isPending}
         onclick={() => refresh.mutate(link)}
       >
-        <IconArrowPath class={[refresh.isPending && "motion-safe:animate-spin"]} />
+        <IconArrowPath
+          class={[refresh.isPending && "motion-safe:animate-spin"]}
+        />
       </Button>
     </div>
     <h2 id={titleId} class="title">{snapshot?.title ?? link.label}</h2>
@@ -221,27 +227,46 @@
           <dt>Checks</dt>
           <dd class="checks">
             <span>{describeChecks(snapshot.checks)}</span>
-            {#each notableChecks(snapshot.checks) as check, i (i)}
-              <span class={["check", check.outcome]}>
-                {#if check.outcome === "passed"}
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                  </svg>
-                {:else if check.outcome === "failed"}
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                    <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-                  </svg>
-                {:else}
-                  <span class="ring" aria-hidden="true"></span>
-                {/if}
-                <!-- Told by its glyph, or else in words -->
-                <span class="sr-only">{CHECK_OUTCOMES[check.outcome]}:</span>
-                <span class="check-name">
-                  {checkName(check)}{#if check.outcome === "running" && check.startedAt},
-                    started {formatRelativeTime(check.startedAt)}{/if}
+            <span class="check-list">
+              {#each notableChecks(snapshot.checks) as check, i (i)}
+                <span class={["check", check.outcome]}>
+                  {#if check.outcome === "passed"}
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+                    </svg>
+                  {:else if check.outcome === "failed"}
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+                    </svg>
+                  {:else}
+                    <span class="ring" aria-hidden="true"></span>
+                  {/if}
+                  <!-- Told by its glyph, or else in words -->
+                  <span class="sr-only">{CHECK_OUTCOMES[check.outcome]}:</span>
+                  <span class="check-name">
+                    {checkName(
+                      check,
+                    )}{#if check.outcome === "running" && check.startedAt},
+                      started {formatRelativeTime(check.startedAt)}{/if}
+                  </span>
                 </span>
-              </span>
-            {/each}
+              {/each}
+            </span>
           </dd>
         </div>
       {/if}
@@ -255,7 +280,11 @@
           <dd class="related">
             {#each snapshot.closes as item (item.url)}
               <span class="related-item">
-                <LinkChip link={item} state={item.state} status={stateStatus(item.state)} />
+                <LinkChip
+                  link={item}
+                  state={item.state}
+                  status={stateStatus(item.state)}
+                />
                 {#if hasLink(todo.links, item.url)}
                   <span class="hint">Already on this todo</span>
                 {/if}
@@ -280,8 +309,8 @@
       <div class="row">
         <dt>Updated</dt>
         <dd>
-          {formatRelativeTime(snapshot.updatedAt)}{#if snapshot.author}
-            by {snapshot.author}{/if}
+          {formatRelativeTime(snapshot.updatedAt)}
+          {#if snapshot.author}by {snapshot.author}{/if}
         </dd>
       </div>
     </dl>
@@ -293,7 +322,11 @@
           <dd class="related">
             {#each snapshot.closedBy as item (item.url)}
               <span class="related-item">
-                <LinkChip link={item} state={item.state} status={stateStatus(item.state)} />
+                <LinkChip
+                  link={item}
+                  state={item.state}
+                  status={stateStatus(item.state)}
+                />
                 {#if hasLink(todo.links, item.url)}
                   <span class="hint">Already on this todo</span>
                 {/if}
@@ -315,8 +348,9 @@
       <div class="row">
         <dt>Updated</dt>
         <dd>
-          {formatRelativeTime(snapshot.updatedAt)}{#if snapshot.author}
-            · opened by {snapshot.author}{/if} · {snapshot.comments}
+          {formatRelativeTime(snapshot.updatedAt)}
+          {#if snapshot.author}· opened by {snapshot.author}{/if}
+          · {snapshot.comments}
           {snapshot.comments === 1 ? "comment" : "comments"}
         </dd>
       </div>
@@ -473,6 +507,11 @@
 
   .checks {
     @apply flex flex-col gap-0.5;
+  }
+
+  /* Scrolls past about seven checks, the next one cut to show there's more */
+  .check-list {
+    @apply flex max-h-40 flex-col gap-0.5 overflow-y-auto overscroll-contain;
   }
 
   .check {
