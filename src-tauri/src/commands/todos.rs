@@ -453,6 +453,43 @@ pub async fn set_todo_estimate(
     Ok(())
 }
 
+/// Sets a non-deleted todo's description, in Markdown, as typed (not trimmed: leading spaces matter in Markdown), or
+/// removes it if blank. Returns it as stored: `None` once removed.
+#[tauri::command]
+pub async fn set_todo_description(
+    state: State<'_, AppState>,
+    id: String,
+    description: String,
+) -> Result<Option<String>> {
+    let db = state.db()?;
+    set_todo_description_row(&db, &id, &description, Timestamp::now().as_second())
+}
+
+fn set_todo_description_row(
+    db: &Connection,
+    id: &str,
+    description: &str,
+    now: i64,
+) -> Result<Option<String>> {
+    let description = (!description.trim().is_empty()).then_some(description);
+    let updated = db
+        .prepare_cached(
+            "UPDATE todos
+                 SET description = :description,
+                     updated_at = :now
+                 WHERE id = :id AND deleted_at IS NULL",
+        )?
+        .execute(named_params! {
+            ":id": id,
+            ":description": description,
+            ":now": now,
+        })?;
+    if updated == 0 {
+        return Err(TodaiError::CommandError(format!("Todo {id} not found")));
+    }
+    Ok(description.map(str::to_string))
+}
+
 /// Update a todo's completeness status.
 #[tauri::command]
 pub async fn toggle_todo(state: State<'_, AppState>, id: String, completed: bool) -> Result<()> {
@@ -756,6 +793,52 @@ mod tests {
         assert!(update_todo_row(&db, moved, NOW).is_err());
         assert_eq!(todo_row(&db, &id).title, "Deleted");
         assert!(update_todo_row(&db, params("unknown"), NOW).is_err());
+    }
+
+    #[test]
+    fn set_todo_description_stores_it_as_typed() {
+        let db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        let description = "    indented code\n\n- [ ] task\n";
+        assert_eq!(
+            set_todo_description_row(&db, &id, description, NOW).unwrap(),
+            Some(description.to_string())
+        );
+        let todo = todo_row(&db, &id);
+        assert_eq!(todo.description.as_deref(), Some(description));
+        assert_eq!(todo.title, "Title");
+        assert_eq!(todo.updated_at, NOW);
+        assert_eq!(
+            day_todos(&db, "2026-10-04")[0].description.as_deref(),
+            Some(description)
+        );
+    }
+
+    #[test]
+    fn set_todo_description_removes_it_if_blank() {
+        let db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        set_todo_description_row(&db, &id, "Some details", NOW).unwrap();
+        assert_eq!(
+            set_todo_description_row(&db, &id, " \n\t\n", NOW + 60).unwrap(),
+            None
+        );
+        let todo = todo_row(&db, &id);
+        assert_eq!(todo.description, None);
+        assert_eq!(todo.updated_at, NOW + 60);
+    }
+
+    #[test]
+    fn set_todo_description_fails_for_deleted_and_unknown_todos() {
+        let db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Deleted");
+        set_todo_description_row(&db, &id, "Kept", NOW).unwrap();
+        delete_at(&db, "todos", &id, NOW);
+        assert!(set_todo_description_row(&db, &id, "Changed", NOW + 60).is_err());
+        let todo = todo_row(&db, &id);
+        assert_eq!(todo.description.as_deref(), Some("Kept"));
+        assert_eq!(todo.updated_at, NOW);
+        assert!(set_todo_description_row(&db, "unknown", "Changed", NOW).is_err());
     }
 
     #[test]
