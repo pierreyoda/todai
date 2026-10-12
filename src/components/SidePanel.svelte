@@ -4,6 +4,7 @@
   import { activeWorkspaceQueryOptions, noteQueryOptions } from "../client/queries";
   import type { Tag } from "../client/types";
   import { dateToTodaiDate, formatDay } from "../utils/dates";
+  import { noteDrafts } from "../utils/noteDrafts.svelte";
   import Collapse from "./common/Collapse.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";
   import IconSun from "./common/icons/IconSun.svelte";
@@ -41,6 +42,8 @@
     ...noteQueryOptions(day),
     enabled: activeWorkspace.data?.available === true,
   }));
+  // As written while it's open, rather than once saved
+  const todayHasNote = $derived(noteDrafts.hasNote(day, !!note.data));
 
   // TODO: add closing mechanism (click outside, button with icon)
 </script>
@@ -61,7 +64,7 @@
               label="Notes"
               routeId="/today/notes"
               nested
-              indicator={note.data ? "Today has a note" : undefined}
+              indicator={todayHasNote ? "Today has a note" : undefined}
             >
               {#snippet icon()}
                 <IconDocumentText />

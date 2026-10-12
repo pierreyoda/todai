@@ -9,6 +9,7 @@
   import { Autosave } from "../../utils/autosave.svelte";
   import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
   import { toggleTask } from "../../utils/markdownEditing";
+  import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "../common/ErrorBanner.svelte";
   import NoteCheatsheet from "./NoteCheatsheet.svelte";
@@ -35,6 +36,9 @@
   const autosave = new Autosave(note?.content ?? "", (content) =>
     saveNote.mutateAsync({ day, content }),
   );
+
+  // Whether the day has a note then shows what's written, e.g. in the side panel, rather than waiting for its autosave
+  onMount(() => noteDrafts.open(day, () => autosave.draft));
 
   let editor = $state<ReturnType<typeof NoteEditor>>();
   let preview = $state<ReturnType<typeof NotePreview>>();
