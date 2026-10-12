@@ -67,6 +67,8 @@ pub fn run() {
             commands::link_statuses::refresh_link,
             commands::link_statuses::preview_link,
             commands::notes::get_note,
+            commands::notes::list_notes_between,
+            commands::notes::list_note_months,
             commands::notes::save_note,
             commands::workspaces::list_workspaces,
             commands::workspaces::get_active_workspace,

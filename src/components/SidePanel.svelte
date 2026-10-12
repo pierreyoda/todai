@@ -71,7 +71,7 @@
         </ul>
       </li>
       <li>
-        <SidePanelLink label="Calendar" routeId="/calendar">
+        <SidePanelLink label="Calendar" routeId="/calendar" currentOnSubPages>
           {#snippet icon()}
             <IconCalendar />
           {/snippet}

@@ -5,11 +5,13 @@
   type NoteLeaveModalProps = {
     /** Bindable. Closing it otherwise than by leaving means staying. */
     show: boolean;
+    /** E.g. "Today’s note", or "The note of Saturday, October 10, 2026". */
+    noteName: string;
     /** Why the note couldn't be saved. */
     error: unknown;
     onLeave: () => void;
   };
-  let { show = $bindable(), error, onLeave }: NoteLeaveModalProps = $props();
+  let { show = $bindable(), noteName, error, onLeave }: NoteLeaveModalProps = $props();
 
   const message = $derived(
     typeof error === "string" ? error : error instanceof Error ? error.message : undefined,
@@ -19,7 +21,7 @@
 <div class="modal-container">
   <Modal bind:show>
     {#snippet header()}
-      Today’s note isn’t saved
+      {noteName} isn’t saved
     {/snippet}
     <div class="content">
       <p>

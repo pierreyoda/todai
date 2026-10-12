@@ -1,7 +1,10 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import { todoMonthsQueryOptions } from "../../../client/queries";
+  import {
+    noteMonthsQueryOptions,
+    todoMonthsQueryOptions,
+  } from "../../../client/queries";
   import type { Day, Tag } from "../../../client/types";
   import {
     addMonths,
@@ -15,9 +18,9 @@
   import { formatTodoCounts } from "./counts";
 
   /**
-   * History of the todos, month by month, most recent first: from the current month back to the one of the earliest
-   * todo. The current and previous months are initially expanded (unless they have no todos), which loads their todos;
-   * the others load theirs when first expanded.
+   * History of the todos and notes, month by month, most recent first: from the current month back to the one of the
+   * earliest todo or note. The current and previous months are initially expanded (unless they have neither), which
+   * loads their todos and notes; the others load theirs when first expanded.
    */
   type VerticalCalendarProps = {
     tags: readonly Tag[];
@@ -36,28 +39,35 @@
   const previousMonth = addMonths(currentMonth, -1);
 
   const todoMonths = createQuery(() => todoMonthsQueryOptions);
+  const noteMonths = createQuery(() => noteMonthsQueryOptions);
 
   const statsByMonth = $derived(
     new Map((todoMonths.data ?? []).map((stats) => [stats.month, stats])),
   );
-  /** Future months are left out; the current one is always listed, even without todos. */
+  const monthsWithNotes = $derived(new Set(noteMonths.data ?? []));
+  /** Future months are left out; the current one is always listed, even without todos or notes. */
   const months = $derived.by(() => {
-    const earliest = todoMonths.data?.at(-1)?.month;
+    const earliest = [todoMonths.data?.at(-1)?.month, noteMonths.data?.at(-1)]
+      .filter((month) => month !== undefined)
+      .sort()[0];
     const oldest = earliest && earliest < currentMonth ? earliest : currentMonth;
     return monthsBetween(currentMonth, oldest);
   });
 </script>
 
-{#if todoMonths.isPending}
+{#if todoMonths.isPending || noteMonths.isPending}
   <p class="status">Loading…</p>
-{:else if todoMonths.isError}
-  <p class="status error" role="alert">{String(todoMonths.error)}</p>
+{:else if todoMonths.isError || noteMonths.isError}
+  <p class="status error" role="alert">
+    {String(todoMonths.error ?? noteMonths.error)}
+  </p>
 {:else}
   <div class="calendar">
     {#each months as month (month)}
       {@const stats = statsByMonth.get(month)}
+      {@const hasContent = !!stats || monthsWithNotes.has(month)}
       <Collapse
-        open={!!stats && (month === currentMonth || month === previousMonth)}
+        open={hasContent && (month === currentMonth || month === previousMonth)}
         headingLevel={2}
       >
         {#snippet summary()}
@@ -70,7 +80,7 @@
             </span>
           </span>
         {/snippet}
-        {#if stats}
+        {#if hasContent}
           <CalendarMonth {month} {tags} {selectedTagId} {today} />
         {:else}
           <!-- Nothing to load -->

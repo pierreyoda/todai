@@ -3,6 +3,7 @@ import type {
   Day,
   Estimate,
   LinkPreview,
+  Month,
   Note,
   ParsedLink,
   Placement,
@@ -229,6 +230,19 @@ type ClientInvocationCommand = {
       day: Day;
     };
     returns: Note | null;
+  };
+  /** The notes from `start` to `end` (inclusive), by day. */
+  list_notes_between: {
+    args: {
+      start: Day;
+      end: Day;
+    };
+    returns: Note[];
+  };
+  /** Months having notes, most recent first. */
+  list_note_months: {
+    args?: never;
+    returns: Month[];
   };
   /**
    * Saves `content` as the note of `day`, as typed (not trimmed). A blank `content` deletes the note instead, returning
