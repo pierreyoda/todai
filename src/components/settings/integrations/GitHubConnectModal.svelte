@@ -64,124 +64,122 @@
   };
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      Connect GitHub to {workspace.name}
-    {/snippet}
-    <div class="body">
-      <p class="intro">
-        For this workspace only, through an account of the GitHub CLI (<code
-          >gh</code
-        >). todai only reads pull requests and issues, and stores no token: it
-        asks <code>gh</code> for the account's when needed.
-      </p>
+<Modal bind:show>
+  {#snippet header()}
+    Connect GitHub to {workspace.name}
+  {/snippet}
+  <div class="body">
+    <p class="intro">
+      For this workspace only, through an account of the GitHub CLI (<code
+        >gh</code
+      >). todai only reads pull requests and issues, and stores no token: it
+      asks <code>gh</code> for the account's when needed.
+    </p>
 
-      {#if ghStatus.data === undefined}
-        {#if ghStatus.isError}
-          <ErrorBanner
-            title="Could not ask the GitHub CLI"
-            error={ghStatus.error}
-          />
-        {:else}
-          <p class="status" role="status">Looking for the GitHub CLI…</p>
-        {/if}
-      {:else if ghStatus.data.path === null}
-        <div class="setup">
-          <p class="setup-title">The GitHub CLI isn't installed</p>
-          <ol class="steps">
-            <li>
-              Install it: <code>brew install gh</code>, or see
-              <a
-                href="https://cli.github.com"
-                onclick={(event) => {
-                  event.preventDefault();
-                  openLink("https://cli.github.com");
-                }}>cli.github.com</a
-              >
-            </li>
-            <li>Sign in, in a terminal: <code>gh auth login</code></li>
-            <li>Check again</li>
-          </ol>
-        </div>
-      {:else if signedIn.length === 0}
-        <div class="setup">
-          <p class="setup-title">
-            The GitHub CLI isn't signed in to any account on github.com
-          </p>
-          <ol class="steps">
-            <li>Sign in, in a terminal: <code>gh auth login</code></li>
-            <li>Check again</li>
-          </ol>
-        </div>
-      {:else}
-        <form id={formId} {onsubmit}>
-          <fieldset class="accounts">
-            <legend class="label">Account</legend>
-            {#each accounts as account (account.login)}
-              <label
-                class={[
-                  "account",
-                  picked === account.login && "picked",
-                  !account.signedIn && "unavailable",
-                ]}
-              >
-                <input
-                  type="radio"
-                  name="gh-account"
-                  value={account.login}
-                  disabled={!account.signedIn}
-                  bind:group={picked}
-                />
-                <span class="login">{account.login}</span>
-                {#if !account.signedIn}
-                  <span class="tag warning">Signed out: run gh auth login</span>
-                {:else if account.active}
-                  <span class="tag">Default in gh</span>
-                {/if}
-              </label>
-            {/each}
-          </fieldset>
-        </form>
-        <p class="path">GitHub CLI at {ghStatus.data.path}</p>
-      {/if}
-
-      {#if refind.isError}
+    {#if ghStatus.data === undefined}
+      {#if ghStatus.isError}
         <ErrorBanner
           title="Could not ask the GitHub CLI"
-          error={refind.error}
-          onDismiss={() => refind.reset()}
+          error={ghStatus.error}
         />
-      {/if}
-      {#if connect.isError}
-        <ErrorBanner
-          title="Could not connect to GitHub"
-          error={connect.error}
-          onDismiss={() => connect.reset()}
-        />
-      {/if}
-    </div>
-    {#snippet actions()}
-      <Button style="plain" onclick={() => (show = false)}>Cancel</Button>
-      {#if signedIn.length > 0}
-        <Button
-          type="submit"
-          form={formId}
-          disabled={!picked || connect.isPending}
-        >
-          Connect
-        </Button>
       {:else}
-        <Button
-          disabled={refind.isPending || ghStatus.isFetching}
-          onclick={() => refind.mutate()}
-        >
-          Check again
-        </Button>
+        <p class="status" role="status">Looking for the GitHub CLI…</p>
       {/if}
-    {/snippet}
-  </Modal>
-</div>
+    {:else if ghStatus.data.path === null}
+      <div class="setup">
+        <p class="setup-title">The GitHub CLI isn't installed</p>
+        <ol class="steps">
+          <li>
+            Install it: <code>brew install gh</code>, or see
+            <a
+              href="https://cli.github.com"
+              onclick={(event) => {
+                event.preventDefault();
+                openLink("https://cli.github.com");
+              }}>cli.github.com</a
+            >
+          </li>
+          <li>Sign in, in a terminal: <code>gh auth login</code></li>
+          <li>Check again</li>
+        </ol>
+      </div>
+    {:else if signedIn.length === 0}
+      <div class="setup">
+        <p class="setup-title">
+          The GitHub CLI isn't signed in to any account on github.com
+        </p>
+        <ol class="steps">
+          <li>Sign in, in a terminal: <code>gh auth login</code></li>
+          <li>Check again</li>
+        </ol>
+      </div>
+    {:else}
+      <form id={formId} {onsubmit}>
+        <fieldset class="accounts">
+          <legend class="label">Account</legend>
+          {#each accounts as account (account.login)}
+            <label
+              class={[
+                "account",
+                picked === account.login && "picked",
+                !account.signedIn && "unavailable",
+              ]}
+            >
+              <input
+                type="radio"
+                name="gh-account"
+                value={account.login}
+                disabled={!account.signedIn}
+                bind:group={picked}
+              />
+              <span class="login">{account.login}</span>
+              {#if !account.signedIn}
+                <span class="tag warning">Signed out: run gh auth login</span>
+              {:else if account.active}
+                <span class="tag">Default in gh</span>
+              {/if}
+            </label>
+          {/each}
+        </fieldset>
+      </form>
+      <p class="path">GitHub CLI at {ghStatus.data.path}</p>
+    {/if}
+
+    {#if refind.isError}
+      <ErrorBanner
+        title="Could not ask the GitHub CLI"
+        error={refind.error}
+        onDismiss={() => refind.reset()}
+      />
+    {/if}
+    {#if connect.isError}
+      <ErrorBanner
+        title="Could not connect to GitHub"
+        error={connect.error}
+        onDismiss={() => connect.reset()}
+      />
+    {/if}
+  </div>
+  {#snippet actions()}
+    <Button style="plain" onclick={() => (show = false)}>Cancel</Button>
+    {#if signedIn.length > 0}
+      <Button
+        type="submit"
+        form={formId}
+        disabled={!picked || connect.isPending}
+      >
+        Connect
+      </Button>
+    {:else}
+      <Button
+        disabled={refind.isPending || ghStatus.isFetching}
+        onclick={() => refind.mutate()}
+      >
+        Check again
+      </Button>
+    {/if}
+  {/snippet}
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";

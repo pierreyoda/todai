@@ -52,32 +52,30 @@
   });
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      Restore as a new workspace
-    {/snippet}
-    <div class="content">
-      {#if restoreAsNew.isError}
-        <ErrorBanner
-          title="Could not restore the backup"
-          error={restoreAsNew.error}
-          onDismiss={() => restoreAsNew.reset()}
-        />
-      {/if}
-      <p>
-        A copy of {workspace.name}'s backup from
-        <strong>{formatDateTime(backup.createdAt)}</strong>, as another
-        workspace: {workspace.name} stays as it is, and you then switch to the copy.
-      </p>
-      <WorkspaceForm
-        initialName={`${workspace.name} (${formatShortDate(backup.createdAt)})`}
-        submitLabel="Restore"
-        onSubmit={(data) => restoreAsNew.mutate(data)}
+<Modal bind:show>
+  {#snippet header()}
+    Restore as a new workspace
+  {/snippet}
+  <div class="content">
+    {#if restoreAsNew.isError}
+      <ErrorBanner
+        title="Could not restore the backup"
+        error={restoreAsNew.error}
+        onDismiss={() => restoreAsNew.reset()}
       />
-    </div>
-  </Modal>
-</div>
+    {/if}
+    <p>
+      A copy of {workspace.name}'s backup from
+      <strong>{formatDateTime(backup.createdAt)}</strong>, as another
+      workspace: {workspace.name} stays as it is, and you then switch to the copy.
+    </p>
+    <WorkspaceForm
+      initialName={`${workspace.name} (${formatShortDate(backup.createdAt)})`}
+      submitLabel="Restore"
+      onSubmit={(data) => restoreAsNew.mutate(data)}
+    />
+  </div>
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";

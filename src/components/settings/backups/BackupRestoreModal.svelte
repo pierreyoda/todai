@@ -45,53 +45,51 @@
   });
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      Restore {workspace.name}?
-    {/snippet}
-    <div class="content">
-      {#if restore.isError}
-        <ErrorBanner
-          title="Could not restore the backup"
-          error={restore.error}
-          onDismiss={() => restore.reset()}
-        />
-      {/if}
-      {#if workspace.available}
+<Modal bind:show>
+  {#snippet header()}
+    Restore {workspace.name}?
+  {/snippet}
+  <div class="content">
+    {#if restore.isError}
+      <ErrorBanner
+        title="Could not restore the backup"
+        error={restore.error}
+        onDismiss={() => restore.reset()}
+      />
+    {/if}
+    {#if workspace.available}
+      <p>
+        Its todos and tags will be replaced by those of its backup from
+        <strong>{formatDateTime(backup.createdAt)}</strong>.
+      </p>
+      <div class="callout">
+        <span class="callout-icon">
+          <IconShieldCheck class="size-5" />
+        </span>
         <p>
-          Its todos and tags will be replaced by those of its backup from
-          <strong>{formatDateTime(backup.createdAt)}</strong>.
+          Its current state is backed up first, as <strong>Before restore</strong>:
+          restoring that backup undoes this.
         </p>
-        <div class="callout">
-          <span class="callout-icon">
-            <IconShieldCheck class="size-5" />
-          </span>
-          <p>
-            Its current state is backed up first, as <strong>Before restore</strong>:
-            restoring that backup undoes this.
-          </p>
-        </div>
-      {:else}
-        <p>
-          Its database will be recreated at
-          <code class="path">{workspace.path}</code> from its backup of
-          <strong>{formatDateTime(backup.createdAt)}</strong>.
-        </p>
-        <p class="hint">
-          If a file is still there, nothing is changed: move it away first.
-        </p>
-      {/if}
-    </div>
-    {#snippet actions()}
-      <Button style="outline" onclick={() => (show = false)}>Cancel</Button>
-      <Button disabled={restore.isPending} onclick={() => restore.mutate(backup)}>
-        <span data-slot="icon"><IconArrowUturnLeft class="size-full" /></span>
-        Restore
-      </Button>
-    {/snippet}
-  </Modal>
-</div>
+      </div>
+    {:else}
+      <p>
+        Its database will be recreated at
+        <code class="path">{workspace.path}</code> from its backup of
+        <strong>{formatDateTime(backup.createdAt)}</strong>.
+      </p>
+      <p class="hint">
+        If a file is still there, nothing is changed: move it away first.
+      </p>
+    {/if}
+  </div>
+  {#snippet actions()}
+    <Button style="outline" onclick={() => (show = false)}>Cancel</Button>
+    <Button disabled={restore.isPending} onclick={() => restore.mutate(backup)}>
+      <span data-slot="icon"><IconArrowUturnLeft class="size-full" /></span>
+      Restore
+    </Button>
+  {/snippet}
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";

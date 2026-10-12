@@ -26,26 +26,24 @@
   );
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      {name} isn’t saved
-    {/snippet}
-    <div class="content">
-      <p>
-        Its latest changes couldn’t be saved: {wording.now} loses them. Stay to try again, or to copy them elsewhere
-        first.
-      </p>
-      {#if message}
-        <p class="error">{message}</p>
-      {/if}
-    </div>
-    {#snippet actions()}
-      <Button style="outline" onclick={() => (show = false)}>Stay</Button>
-      <Button color="red" onclick={onLeave}>{wording.button}</Button>
-    {/snippet}
-  </Modal>
-</div>
+<Modal bind:show>
+  {#snippet header()}
+    {name} isn’t saved
+  {/snippet}
+  <div class="content">
+    <p>
+      Its latest changes couldn’t be saved: {wording.now} loses them. Stay to try again, or to copy them elsewhere
+      first.
+    </p>
+    {#if message}
+      <p class="error">{message}</p>
+    {/if}
+  </div>
+  {#snippet actions()}
+    <Button style="outline" onclick={() => (show = false)}>Stay</Button>
+    <Button color="red" onclick={onLeave}>{wording.button}</Button>
+  {/snippet}
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";

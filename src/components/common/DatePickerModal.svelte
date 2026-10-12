@@ -136,99 +136,97 @@
   };
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      {label}
-    {/snippet}
-    <div class="calendar">
-      <div class="month-navigation">
-        <Button
-          style="plain"
-          size="sm"
-          aria-label="Previous month"
-          disabled={!canShowMonth(-1)}
-          onclick={() =>
-            setFocusedDay(() => shiftMonths(focusedDay, -1), false)}
+<Modal bind:show>
+  {#snippet header()}
+    {label}
+  {/snippet}
+  <div class="calendar">
+    <div class="month-navigation">
+      <Button
+        style="plain"
+        size="sm"
+        aria-label="Previous month"
+        disabled={!canShowMonth(-1)}
+        onclick={() =>
+          setFocusedDay(() => shiftMonths(focusedDay, -1), false)}
+      >
+        <svg
+          data-slot="icon"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
         >
-          <svg
-            data-slot="icon"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </Button>
-        <h3 id={monthId} class="month" aria-live="polite">
-          {formatMonth(month)}
-        </h3>
-        <Button
-          style="plain"
-          size="sm"
-          aria-label="Next month"
-          disabled={!canShowMonth(1)}
-          onclick={() => setFocusedDay(() => shiftMonths(focusedDay, 1), false)}
+          <path
+            fill-rule="evenodd"
+            d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </Button>
+      <h3 id={monthId} class="month" aria-live="polite">
+        {formatMonth(month)}
+      </h3>
+      <Button
+        style="plain"
+        size="sm"
+        aria-label="Next month"
+        disabled={!canShowMonth(1)}
+        onclick={() => setFocusedDay(() => shiftMonths(focusedDay, 1), false)}
+      >
+        <svg
+          data-slot="icon"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
         >
-          <svg
-            data-slot="icon"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </Button>
-      </div>
-      <table bind:this={grid} role="grid" aria-labelledby={monthId} {onkeydown}>
-        <thead>
+          <path
+            fill-rule="evenodd"
+            d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </Button>
+    </div>
+    <table bind:this={grid} role="grid" aria-labelledby={monthId} {onkeydown}>
+      <thead>
+        <tr>
+          {#each WEEKDAYS as [short, long] (long)}
+            <th scope="col" abbr={long}>{short}</th>
+          {/each}
+        </tr>
+      </thead>
+      <tbody>
+        {#each weeks as week (week[0])}
           <tr>
-            {#each WEEKDAYS as [short, long] (long)}
-              <th scope="col" abbr={long}>{short}</th>
+            {#each week as weekDay (weekDay)}
+              <td role="gridcell" aria-selected={weekDay === day}>
+                <button
+                  type="button"
+                  data-day={weekDay}
+                  tabindex={weekDay === focusedDay ? 0 : -1}
+                  aria-label={formatFullDay(weekDay)}
+                  aria-current={weekDay === today ? "date" : undefined}
+                  class={[
+                    "day",
+                    monthOf(weekDay) !== month && "outside",
+                    weekDay === today && "today",
+                    weekDay === day && "selected",
+                  ]}
+                  onclick={() => pick(weekDay)}
+                >
+                  {Number(weekDay.slice(8))}
+                </button>
+              </td>
             {/each}
           </tr>
-        </thead>
-        <tbody>
-          {#each weeks as week (week[0])}
-            <tr>
-              {#each week as weekDay (weekDay)}
-                <td role="gridcell" aria-selected={weekDay === day}>
-                  <button
-                    type="button"
-                    data-day={weekDay}
-                    tabindex={weekDay === focusedDay ? 0 : -1}
-                    aria-label={formatFullDay(weekDay)}
-                    aria-current={weekDay === today ? "date" : undefined}
-                    class={[
-                      "day",
-                      monthOf(weekDay) !== month && "outside",
-                      weekDay === today && "today",
-                      weekDay === day && "selected",
-                    ]}
-                    onclick={() => pick(weekDay)}
-                  >
-                    {Number(weekDay.slice(8))}
-                  </button>
-                </td>
-              {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-    {#snippet actions()}
-      <Button style="outline" onclick={() => pick(today)}>Today</Button>
-    {/snippet}
-  </Modal>
-</div>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+  {#snippet actions()}
+    <Button style="outline" onclick={() => pick(today)}>Today</Button>
+  {/snippet}
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";

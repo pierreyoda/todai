@@ -53,30 +53,28 @@
   }));
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      {#if existing}
-        Edit an existing todo
-      {:else}
-        Create a new todo
-      {/if}
-    {/snippet}
+<Modal bind:show>
+  {#snippet header()}
     {#if existing}
-      <TodoForm
-        data={{
-          day: existing.day,
-          completed: existing.completed,
-          title: existing.title,
-        }}
-        onSubmit={(data) => updateTodo.mutate({ todo: existing, data })}
-      >
-        {#snippet fields()}
-          <TodoLinksEditor todo={existing} />
-        {/snippet}
-      </TodoForm>
+      Edit an existing todo
     {:else}
-      <TodoForm onSubmit={(data) => createTodo.mutate(data)} />
+      Create a new todo
     {/if}
-  </Modal>
-</div>
+  {/snippet}
+  {#if existing}
+    <TodoForm
+      data={{
+        day: existing.day,
+        completed: existing.completed,
+        title: existing.title,
+      }}
+      onSubmit={(data) => updateTodo.mutate({ todo: existing, data })}
+    >
+      {#snippet fields()}
+        <TodoLinksEditor todo={existing} />
+      {/snippet}
+    </TodoForm>
+  {:else}
+    <TodoForm onSubmit={(data) => createTodo.mutate(data)} />
+  {/if}
+</Modal>

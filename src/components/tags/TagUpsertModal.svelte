@@ -62,32 +62,30 @@
   }));
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      {#if existingTag}
-        {#if mode === "color"}
-          Edit {existingTag.name} color
-        {:else}
-          Edit {existingTag.name}
-        {/if}
-      {:else}
-        Create a new tag
-      {/if}
-    {/snippet}
+<Modal bind:show>
+  {#snippet header()}
     {#if existingTag}
-      <TagForm
-        {mode}
-        data={{ name: existingTag.name, color: existingTag.color }}
-        onSubmit={(name, color) =>
-          updateTag.mutate({ id: existingTag.id, name, color })}
-        onDelete={() => deleteTag.mutate({ id: existingTag.id })}
-      />
+      {#if mode === "color"}
+        Edit {existingTag.name} color
+      {:else}
+        Edit {existingTag.name}
+      {/if}
     {:else}
-      <TagForm
-        mode="all"
-        onSubmit={(name, color) => createTag.mutate({ name, color })}
-      />
+      Create a new tag
     {/if}
-  </Modal>
-</div>
+  {/snippet}
+  {#if existingTag}
+    <TagForm
+      {mode}
+      data={{ name: existingTag.name, color: existingTag.color }}
+      onSubmit={(name, color) =>
+        updateTag.mutate({ id: existingTag.id, name, color })}
+      onDelete={() => deleteTag.mutate({ id: existingTag.id })}
+    />
+  {:else}
+    <TagForm
+      mode="all"
+      onSubmit={(name, color) => createTag.mutate({ name, color })}
+    />
+  {/if}
+</Modal>

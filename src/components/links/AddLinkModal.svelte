@@ -106,142 +106,140 @@
   };
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      Add a link
-    {/snippet}
-    <form id={formId} class="form" {onsubmit}>
-      <p class="target">To “{todo.title}”</p>
-      <FieldText
-        label="URL"
-        placeholder="A GitHub pull request or issue, or any link"
-        autocomplete="off"
-        spellcheck={false}
-        aria-invalid={!!invalid}
-        bind:value={url}
-        bind:ref={input}
-      />
-      {#if link && preview?.fetchError}
-        <div class="recognized warning" role="status">
-          <span class="kind-icon"><IconExclamationTriangle /></span>
-          <div class="details">
-            <p class="kind">
-              {linkKindName(link.kind)} · {link.github?.owner}/{link.github?.repo}
-              <span class="number">#{link.github?.number}</span>
+<Modal bind:show>
+  {#snippet header()}
+    Add a link
+  {/snippet}
+  <form id={formId} class="form" {onsubmit}>
+    <p class="target">To “{todo.title}”</p>
+    <FieldText
+      label="URL"
+      placeholder="A GitHub pull request or issue, or any link"
+      autocomplete="off"
+      spellcheck={false}
+      aria-invalid={!!invalid}
+      bind:value={url}
+      bind:ref={input}
+    />
+    {#if link && preview?.fetchError}
+      <div class="recognized warning" role="status">
+        <span class="kind-icon"><IconExclamationTriangle /></span>
+        <div class="details">
+          <p class="kind">
+            {linkKindName(link.kind)} · {link.github?.owner}/{link.github?.repo}
+            <span class="number">#{link.github?.number}</span>
+          </p>
+          {#if preview.fetchError === "sso_required"}
+            <p class="name">Its organization requires single sign-on</p>
+            <p class="note">
+              Authorize the GitHub CLI's token for {link.github?.owner} on github.com
+              to see its status. You can still add it: it shows as {link.label},
+              without a status.
             </p>
-            {#if preview.fetchError === "sso_required"}
-              <p class="name">Its organization requires single sign-on</p>
-              <p class="note">
-                Authorize the GitHub CLI's token for {link.github?.owner} on github.com
-                to see its status. You can still add it: it shows as {link.label},
-                without a status.
-              </p>
-            {:else}
-              <p class="name">This workspace's GitHub account can't see it</p>
-              <p class="note">
-                {activeWorkspace.data?.name} is connected as {login}, who can't
-                see {link.github?.owner}/{link.github?.repo}: it may be private, or
-                belong in another workspace. You can still add it here: it shows as
-                {link.label}, without a status.
-              </p>
-            {/if}
-            <a
-              class="settings-link"
-              href="/settings/integrations"
-              onclick={(event) => {
-                event.preventDefault();
-                show = false;
-                goto("/settings/integrations");
-              }}
-            >
-              Check {activeWorkspace.data?.name}'s GitHub connection
-            </a>
-          </div>
+          {:else}
+            <p class="name">This workspace's GitHub account can't see it</p>
+            <p class="note">
+              {activeWorkspace.data?.name} is connected as {login}, who can't
+              see {link.github?.owner}/{link.github?.repo}: it may be private, or
+              belong in another workspace. You can still add it here: it shows as
+              {link.label}, without a status.
+            </p>
+          {/if}
+          <a
+            class="settings-link"
+            href="/settings/integrations"
+            onclick={(event) => {
+              event.preventDefault();
+              show = false;
+              goto("/settings/integrations");
+            }}
+          >
+            Check {activeWorkspace.data?.name}'s GitHub connection
+          </a>
         </div>
-      {:else if link}
-        <div class="recognized" role="status">
-          <span class="kind-icon">
-            <LinkKindIcon kind={link.kind} state={snapshot && itemState(snapshot)} />
-          </span>
-          <div class="details">
-            <p class="kind">
-              {linkKindName(link.kind)}
-              {#if link.github}
-                · {link.github.owner}/{link.github.repo}
-                <span class="number">#{link.github.number}</span>
+      </div>
+    {:else if link}
+      <div class="recognized" role="status">
+        <span class="kind-icon">
+          <LinkKindIcon kind={link.kind} state={snapshot && itemState(snapshot)} />
+        </span>
+        <div class="details">
+          <p class="kind">
+            {linkKindName(link.kind)}
+            {#if link.github}
+              · {link.github.owner}/{link.github.repo}
+              <span class="number">#{link.github.number}</span>
+            {/if}
+          </p>
+          {#if snapshot}
+            <p class="name">{snapshot.title}</p>
+            <p class="facts">
+              {#if status}
+                <span class={["word", stateStatus(itemState(snapshot)).tone]}>
+                  {stateStatus(itemState(snapshot)).word}
+                </span>
+                {#if status.word !== stateStatus(itemState(snapshot)).word}
+                  · <span class={["word", status.tone]}>{status.word}</span>
+                {/if}
+              {/if}
+              {#if snapshot.type === "issue"}
+                {#each snapshot.labels as label (label.name)}
+                  · {label.name}
+                {/each}
+                {#if snapshot.milestone}
+                  · milestone {snapshot.milestone}
+                {/if}
               {/if}
             </p>
-            {#if snapshot}
-              <p class="name">{snapshot.title}</p>
-              <p class="facts">
-                {#if status}
-                  <span class={["word", stateStatus(itemState(snapshot)).tone]}>
-                    {stateStatus(itemState(snapshot)).word}
-                  </span>
-                  {#if status.word !== stateStatus(itemState(snapshot)).word}
-                    · <span class={["word", status.tone]}>{status.word}</span>
-                  {/if}
-                {/if}
-                {#if snapshot.type === "issue"}
-                  {#each snapshot.labels as label (label.name)}
-                    · {label.name}
-                  {/each}
-                  {#if snapshot.milestone}
-                    · milestone {snapshot.milestone}
-                  {/if}
-                {/if}
-              </p>
-            {:else if !link.github}
-              <p class="name url" title={link.url}>{link.url}</p>
-            {/if}
-            {#if alreadyLinked}
-              <p class="note warning">Already on this todo.</p>
-            {:else if lookingUp}
-              <p class="note">Looking it up on GitHub…</p>
-            {:else if !snapshot}
-              <p class="note">
-                {#if !link.github}
-                  Not a GitHub pull request or issue: shown by its domain,
-                {:else}
-                  Shown on the todo as
-                {/if}
-                <LinkChip {link} />
-              </p>
-              {#if problem}
-                <p class="note">
-                  Its status will show once GitHub can be asked:
-                  {problem.label.toLowerCase()}.
-                </p>
+          {:else if !link.github}
+            <p class="name url" title={link.url}>{link.url}</p>
+          {/if}
+          {#if alreadyLinked}
+            <p class="note warning">Already on this todo.</p>
+          {:else if lookingUp}
+            <p class="note">Looking it up on GitHub…</p>
+          {:else if !snapshot}
+            <p class="note">
+              {#if !link.github}
+                Not a GitHub pull request or issue: shown by its domain,
+              {:else}
+                Shown on the todo as
               {/if}
+              <LinkChip {link} />
+            </p>
+            {#if problem}
+              <p class="note">
+                Its status will show once GitHub can be asked:
+                {problem.label.toLowerCase()}.
+              </p>
             {/if}
-          </div>
+          {/if}
         </div>
-        {#if closing && !alreadyLinked}
-          <FieldCheckbox
-            label={`Also add ${closing.label}, the pull request that closes it`}
-            bind:checked={alsoAddClosing}
-          />
-        {/if}
-      {:else if invalid}
-        <p class="invalid" role="status">{invalid}</p>
-      {/if}
-      {#if addLinks.isError}
-        <ErrorBanner
-          title={urls.length > 1 ? "Could not add the links" : "Could not add the link"}
-          error={addLinks.error}
-          onDismiss={() => addLinks.reset()}
+      </div>
+      {#if closing && !alreadyLinked}
+        <FieldCheckbox
+          label={`Also add ${closing.label}, the pull request that closes it`}
+          bind:checked={alsoAddClosing}
         />
       {/if}
-    </form>
-    {#snippet actions()}
-      <Button style="plain" onclick={() => (show = false)}>Cancel</Button>
-      <Button type="submit" form={formId} disabled={!canAdd}>
-        {urls.length > 1 ? `Add ${urls.length} links` : "Add link"}
-      </Button>
-    {/snippet}
-  </Modal>
-</div>
+    {:else if invalid}
+      <p class="invalid" role="status">{invalid}</p>
+    {/if}
+    {#if addLinks.isError}
+      <ErrorBanner
+        title={urls.length > 1 ? "Could not add the links" : "Could not add the link"}
+        error={addLinks.error}
+        onDismiss={() => addLinks.reset()}
+      />
+    {/if}
+  </form>
+  {#snippet actions()}
+    <Button style="plain" onclick={() => (show = false)}>Cancel</Button>
+    <Button type="submit" form={formId} disabled={!canAdd}>
+      {urls.length > 1 ? `Add ${urls.length} links` : "Add link"}
+    </Button>
+  {/snippet}
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";

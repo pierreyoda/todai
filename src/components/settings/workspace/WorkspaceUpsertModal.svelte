@@ -61,33 +61,31 @@
   });
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      {#if existing}
-        Edit the Workspace
-      {:else}
-        Create a new Workspace
-      {/if}
-    {/snippet}
-    {#if failed.isError}
-      <div class="mb-4">
-        <ErrorBanner
-          title={existing
-            ? "Could not rename the workspace"
-            : "Could not create the workspace"}
-          error={failed.error}
-          onDismiss={() => failed.reset()}
-        />
-      </div>
-    {/if}
+<Modal bind:show>
+  {#snippet header()}
     {#if existing}
-      <WorkspaceForm
-        data={{ name: existing.name, path: existing.path }}
-        onSubmit={(data) => updateWorkspace.mutate({ workspace: existing, data })}
-      />
+      Edit the Workspace
     {:else}
-      <WorkspaceForm onSubmit={(data) => createWorkspace.mutate(data)} />
+      Create a new Workspace
     {/if}
-  </Modal>
-</div>
+  {/snippet}
+  {#if failed.isError}
+    <div class="mb-4">
+      <ErrorBanner
+        title={existing
+          ? "Could not rename the workspace"
+          : "Could not create the workspace"}
+        error={failed.error}
+        onDismiss={() => failed.reset()}
+      />
+    </div>
+  {/if}
+  {#if existing}
+    <WorkspaceForm
+      data={{ name: existing.name, path: existing.path }}
+      onSubmit={(data) => updateWorkspace.mutate({ workspace: existing, data })}
+    />
+  {:else}
+    <WorkspaceForm onSubmit={(data) => createWorkspace.mutate(data)} />
+  {/if}
+</Modal>
