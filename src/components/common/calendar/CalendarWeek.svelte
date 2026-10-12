@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Day, Note, Tag, Todo } from "../../../client/types";
-  import { formatDay, formatWeek, type Week } from "../../../utils/dates";
+  import { formatDay, formatFullDay, formatWeek, type Week } from "../../../utils/dates";
+  import { notePath } from "../../../utils/notes";
+  import IconDocumentText from "../icons/IconDocumentText.svelte";
   import Collapse from "../Collapse.svelte";
   import TodoSummaryItem from "../../todos/TodoSummaryItem.svelte";
   import NoteMarker from "../../notes/NoteMarker.svelte";
@@ -74,11 +76,21 @@
   {/snippet}
   <div class="days">
     {#each days as [day, { todos: dayTodos, note }] (day)}
-      <section>
+      <section class="day-section">
         <div class="day-header">
           <h4 class="day">{formatDay(day)}</h4>
           {#if note}
             <NoteMarker {note} {today} />
+          {:else}
+            <!-- Where its note's marker would be, grayed: shown with the day's hover or focus -->
+            <a
+              class="add-note"
+              href={notePath(day, today)}
+              title="Add a note"
+              aria-label={`Add a note for ${formatFullDay(day)}`}
+            >
+              <IconDocumentText />
+            </a>
           {/if}
         </div>
         {#if dayTodos.length > 0}
@@ -125,6 +137,20 @@
 
   .day {
     @apply text-xs font-medium text-slate-400;
+  }
+
+  /* As the note's marker, in its box, grayed until hovered */
+  .add-note {
+    @apply flex h-5.5 w-6 shrink-0 items-center justify-center rounded-md text-slate-500 opacity-0 transition;
+    @apply hover:bg-white/10 hover:text-slate-300;
+    @apply focus:not-focus-visible:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500;
+    > :global(svg) {
+      @apply size-3.5;
+    }
+  }
+  .day-section:hover .add-note,
+  .day-section:focus-within .add-note {
+    @apply opacity-100;
   }
 
   /* As a todo's row */

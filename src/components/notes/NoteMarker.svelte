@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Day, Note } from "../../client/types";
   import { formatDateTime, formatFullDay } from "../../utils/dates";
+  import { notePath } from "../../utils/notes";
   import { computePosition } from "../common/dropdown/positioning";
   import Button from "../common/Button.svelte";
   import IconDocumentText from "../common/icons/IconDocumentText.svelte";
@@ -20,9 +21,7 @@
 
   const panelId = $props.id();
   const dayName = $derived(formatFullDay(note.day));
-  const href = $derived(
-    note.day === today ? "/today/notes" : `/calendar/notes/${note.day}`,
-  );
+  const href = $derived(notePath(note.day, today));
 
   let open = $state(false);
   let button = $state<HTMLButtonElement>();
