@@ -5,7 +5,7 @@
   import { computePosition } from "../common/dropdown/positioning";
   import Button from "../common/Button.svelte";
   import IconDocumentText from "../common/icons/IconDocumentText.svelte";
-  import NoteContent from "./NoteContent.svelte";
+  import MarkdownContent from "../markdown/MarkdownContent.svelte";
 
   /** A day's note, in little: an icon after the day, then the note on hover or click, to read it or open it. */
   type NoteMarkerProps = {
@@ -128,7 +128,7 @@
     <span class="heading">Note · {dayName}</span>
     <!-- Read only: tasks are checked from the note's page -->
     <div class="body" bind:this={body}>
-      <NoteContent content={note.content} scroller={body} />
+      <MarkdownContent content={note.content} scroller={body} />
     </div>
     <div class="footer">
       <time class="edited" datetime={note.updatedAt.toISOString()}>

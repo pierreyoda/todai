@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
 
   import { beforeNavigate, goto } from "$app/navigation";
 
@@ -12,11 +12,10 @@
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "../common/ErrorBanner.svelte";
-  import NoteCheatsheet from "./NoteCheatsheet.svelte";
-  import NoteEditor from "./NoteEditor.svelte";
-  import NoteLeaveModal from "./NoteLeaveModal.svelte";
-  import NotePreview from "./NotePreview.svelte";
-  import NoteSaveStatus from "./NoteSaveStatus.svelte";
+  import SaveStatus from "../common/SaveStatus.svelte";
+  import UnsavedLeaveModal from "../common/UnsavedLeaveModal.svelte";
+  import MarkdownCheatsheet from "../markdown/MarkdownCheatsheet.svelte";
+  import MarkdownSplitEditor from "../markdown/MarkdownSplitEditor.svelte";
 
   type NotePanelProps = {
     day: Day;
@@ -145,8 +144,8 @@
     <h1 class="title">{isToday ? "Today’s note" : "Note"}</h1>
     <time class="day" datetime={day}>{formatFullDay(day)}</time>
     <div class="actions">
-      <NoteSaveStatus status={autosave.status} savedAt={note?.updatedAt} />
-      <NoteCheatsheet />
+      <SaveStatus status={autosave.status} savedAt={note?.updatedAt} />
+      <MarkdownCheatsheet />
     </div>
   </header>
   {#if autosave.status === "error" && !errorDismissed}
@@ -160,23 +159,18 @@
       />
     </div>
   {/if}
-  <div class="panes">
-    <NoteEditor
-      bind:this={editor}
-      bind:value={autosave.draft}
-      onScroll={syncPreviewScroll}
-    />
-    <NotePreview
-      bind:this={preview}
-      content={autosave.draft}
-      {onToggleTask}
-      dayName={isToday ? "today" : formatFullDay(day)}
-    />
-  </div>
+  <MarkdownSplitEditor
+    bind:value={autosave.draft}
+    class="px-2 pb-2"
+    placeholder={"Write about your day…\n\n# Headings, **bold**, - lists, - [ ] tasks"}
+    autofocus
+    emptyTitle={`A blank page for ${isToday ? "today" : formatFullDay(day)}`}
+    emptyHint="it shows up here, rendered, and saves as you type."
+  />
 </section>
-<NoteLeaveModal
+<UnsavedLeaveModal
   bind:show={showLeaveModal}
-  {noteName}
+  name={noteName}
   error={autosave.error}
   onLeave={() => answer(true)}
 />
@@ -213,10 +207,5 @@
 
   .actions {
     @apply ml-auto flex items-center gap-2;
-  }
-
-  /* Side by side, as tall as the page allows rather than their content: each scrolls on its own */
-  .panes {
-    @apply grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-4 px-2 pb-2;
   }
 </style>

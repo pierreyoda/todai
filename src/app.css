@@ -8,9 +8,9 @@
 
 @layer utilities {
   .modal-container {
-    /* Modal dialogs live in the top layer: center them in the viewport (preflight resets margin to 0) */
+    /* Modal dialogs live in the top layer: center them in the viewport (preflight resets margin to 0). Sized by `Modal`. */
     > dialog {
-      @apply fixed inset-0 m-auto w-full max-w-lg;
+      @apply fixed inset-0 m-auto;
     }
   }
 }

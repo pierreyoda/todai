@@ -6,24 +6,24 @@
   import IconArrowTopRightOnSquare from "../common/icons/IconArrowTopRightOnSquare.svelte";
   import IconPhoto from "../common/icons/IconPhoto.svelte";
 
-  /** A note's Markdown, rendered: e.g. in the editor's preview, or in the calendar's preview of a day's note. */
-  type NoteContentProps = {
+  /** Markdown, rendered: e.g. in an editor's preview, or in the calendar's preview of a day's note. */
+  type MarkdownContentProps = {
     content: string;
     /**
      * Checks or unchecks the task shown `index`-th, `checked` before, with `text` as its text. Returns whether it did:
      * not if its line can't be found in `content`. Without it, tasks can't be checked.
      */
     onToggleTask?: (task: { index: number; checked: boolean; text: string }) => boolean;
-    /** What in-note links (`#heading`) scroll, if they can. */
+    /** What in-text links (`#heading`) scroll, if they can. */
     scroller?: HTMLElement;
   };
-  const { content, onToggleTask, scroller }: NoteContentProps = $props();
+  const { content, onToggleTask, scroller }: MarkdownContentProps = $props();
 
-  /** HTML isn't interpreted but shown as typed: a note can neither load remote content, nor navigate the app. */
+  /** HTML isn't interpreted but shown as typed: the text can neither load remote content, nor navigate the app. */
   const NO_HTML: MarkedExtension = {
     tokenizer: { html: () => undefined, tag: () => undefined },
   };
-  // The same array at each render: a new one would have the whole note parsed again
+  // The same array at each render: a new one would have the whole text parsed again
   const extensions = [NO_HTML];
 
   let root = $state<HTMLElement>();
@@ -40,13 +40,13 @@
       event.preventDefault();
       return;
     }
-    // Rendered again from the edited note: focus follows, for the keyboard
+    // Rendered again from the edited text: focus follows, for the keyboard
     if (focused) void tick().then(() => taskBoxes()[index]?.focus());
   };
 
   const isExternal = (href: string) => /^(https?|mailto|tel):/i.test(href);
 
-  /** Opens external links in their default application, and in-note ones (`#heading`) here: never in the app. */
+  /** Opens external links in their default application, and in-text ones (`#heading`) here: never in the app. */
   const onLinkClick = (event: MouseEvent, href: string | undefined) => {
     event.preventDefault();
     if (!href) return;
@@ -97,7 +97,7 @@
       >
     {/snippet}
     {#snippet image({ href, title, text })}
-      <!-- Not loaded: remote images would be fetched as the note is written -->
+      <!-- Not loaded: remote images would be fetched as the text is written -->
       <span class="image" title={title ?? href}>
         <IconPhoto class="shrink-0" />
         {text || "Image"}
@@ -109,7 +109,7 @@
 <style lang="postcss">
   @reference "tailwindcss";
 
-  /* The rendered note: its elements come from the Markdown renderers, out of this component's scope */
+  /* The rendered text: its elements come from the Markdown renderers, out of this component's scope */
   .markdown {
     @apply text-sm/6 wrap-break-word text-slate-300;
 

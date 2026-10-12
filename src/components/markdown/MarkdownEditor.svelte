@@ -9,21 +9,32 @@
   } from "../../utils/markdownEditing";
   import FieldTextArea from "../common/FieldTextArea.svelte";
 
-  type NoteEditorProps = {
-    /** Bindable: the note's Markdown. */
+  type MarkdownEditorProps = {
+    /** Bindable: the edited Markdown. */
     value: string;
+    /** What to write about, then a reminder of the syntax. */
+    placeholder: string;
+    /** Whether to focus it once shown, at the end of its text, to resume writing. */
+    autofocus?: boolean;
+    /** Keeps its "Markdown" label for screen readers only, e.g. while tabs name it. */
+    hideLabel?: boolean;
     /** When scrolled, e.g. to scroll the preview along: see `scrollRatio`. */
     onScroll?: () => void;
   };
-  let { value = $bindable(), onScroll }: NoteEditorProps = $props();
+  let {
+    value = $bindable(),
+    placeholder,
+    autofocus = false,
+    hideLabel = false,
+    onScroll,
+  }: MarkdownEditorProps = $props();
 
   let textarea = $state<HTMLTextAreaElement>();
 
   const isMac = navigator.platform.startsWith("Mac");
 
-  // Focused once opened, at the end of the note, to resume writing
   $effect(() => {
-    if (!textarea) return;
+    if (!textarea || !autofocus) return;
     textarea.focus();
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
   });
@@ -102,7 +113,11 @@
 
   /** Where `offset` is once `edit` is made: moved with the text after it, or to the end of the text replacing it. */
   const offsetAfter = (offset: number, { from, to, insert }: TextEdit) =>
-    offset <= from ? offset : offset >= to ? offset + insert.length - (to - from) : from + insert.length;
+    offset <= from
+      ? offset
+      : offset >= to
+        ? offset + insert.length - (to - from)
+        : from + insert.length;
 
   /**
    * Makes `edit` from outside of the editor (e.g. a task checked in the preview), undoable like the others, leaving
@@ -123,7 +138,11 @@
     });
     textarea.scrollTop = scrollTop;
     if (focused === textarea) return;
-    if (focused instanceof HTMLElement && focused !== document.body && focused.isConnected) {
+    if (
+      focused instanceof HTMLElement &&
+      focused !== document.body &&
+      focused.isConnected
+    ) {
       focused.focus({ preventScroll: true });
     } else {
       textarea.blur();
@@ -131,14 +150,16 @@
   };
 
   /**
-   * How far the note is scrolled, from 0 (its top shown) to 1 (its bottom shown). While it all fits, where the caret
-   * is in it instead: as it's written.
+   * How far the text is scrolled, from 0 (its top shown) to 1 (its bottom shown). While it all fits, or while hidden,
+   * where the caret is in it instead: as it's written.
    */
   export const scrollRatio = (): number => {
     if (!textarea) return 0;
     const scrollable = textarea.scrollHeight - textarea.clientHeight;
     if (scrollable > 0) return textarea.scrollTop / scrollable;
-    return textarea.value.length > 0 ? textarea.selectionEnd / textarea.value.length : 0;
+    return textarea.value.length > 0
+      ? textarea.selectionEnd / textarea.value.length
+      : 0;
   };
 </script>
 
@@ -146,9 +167,10 @@
   bind:value
   bind:ref={textarea}
   label="Markdown"
+  {hideLabel}
   mono
   fill
-  placeholder={"Write about your day…\n\n# Headings, **bold**, - lists, - [ ] tasks"}
+  {placeholder}
   spellcheck
   {onkeydown}
   onscroll={onScroll}
