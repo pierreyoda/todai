@@ -7,7 +7,7 @@
   import { createSaveNoteMutation } from "../../client/mutations";
   import type { Day, Note } from "../../client/types";
   import { Autosave } from "../../utils/autosave.svelte";
-  import { formatFullDay } from "../../utils/dates";
+  import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
   import { toggleTask } from "../../utils/markdownEditing";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "../common/ErrorBanner.svelte";
@@ -23,6 +23,12 @@
     note: Note | null;
   };
   const { day, note }: NotePanelProps = $props();
+
+  // Today's, or a past day's, opened from the calendar: fixed once opened, like the day itself
+  // svelte-ignore state_referenced_locally: fixed once mounted
+  const isToday = day === dateToTodaiDate(new Date());
+  // svelte-ignore state_referenced_locally: fixed once mounted
+  const noteName = isToday ? "Today’s note" : `The note of ${formatFullDay(day)}`;
 
   const saveNote = createSaveNoteMutation();
   // svelte-ignore state_referenced_locally: the draft starts from the loaded note, then is the one written
@@ -120,7 +126,19 @@
 
 <section class="container">
   <header class="header">
-    <h1 class="title">Today’s note</h1>
+    {#if !isToday}
+      <a href="/calendar" class="back">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            d="M9.78 4.22a.75.75 0 0 1 0 1.06L7.06 8l2.72 2.72a.75.75 0 1 1-1.06 1.06L5.47 8.53a.75.75 0 0 1 0-1.06l3.25-3.25a.75.75 0 0 1 1.06 0Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        Calendar
+      </a>
+    {/if}
+    <h1 class="title">{isToday ? "Today’s note" : "Note"}</h1>
     <time class="day" datetime={day}>{formatFullDay(day)}</time>
     <div class="actions">
       <NoteSaveStatus status={autosave.status} savedAt={note?.updatedAt} />
@@ -130,7 +148,7 @@
   {#if autosave.status === "error" && !errorDismissed}
     <div class="px-2">
       <ErrorBanner
-        title="Could not save today’s note"
+        title={`Could not save ${isToday ? "today’s note" : "this note"}`}
         error={autosave.error}
         hint="Your text is kept here: it’s saved again with your next edit."
         action={{ label: "Try again", onClick: () => void autosave.flush() }}
@@ -144,10 +162,20 @@
       bind:value={autosave.draft}
       onScroll={syncPreviewScroll}
     />
-    <NotePreview bind:this={preview} content={autosave.draft} {onToggleTask} />
+    <NotePreview
+      bind:this={preview}
+      content={autosave.draft}
+      {onToggleTask}
+      dayName={isToday ? "today" : formatFullDay(day)}
+    />
   </div>
 </section>
-<NoteLeaveModal bind:show={showLeaveModal} error={autosave.error} onLeave={() => answer(true)} />
+<NoteLeaveModal
+  bind:show={showLeaveModal}
+  {noteName}
+  error={autosave.error}
+  onLeave={() => answer(true)}
+/>
 
 <style lang="postcss">
   @reference "tailwindcss";
@@ -163,6 +191,16 @@
 
   .title {
     @apply text-lg/7 font-semibold text-white;
+  }
+
+  /* Back to the calendar, where a past day's note is opened from: as the side panel's muted links */
+  .back {
+    @apply -ml-1.5 inline-flex items-center gap-0.5 rounded-md py-0.5 pr-2 pl-1 text-sm text-slate-400 transition-colors;
+    @apply hover:bg-white/5 hover:text-white;
+    @apply focus:not-focus-visible:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500;
+    > svg {
+      @apply size-4;
+    }
   }
 
   .day {

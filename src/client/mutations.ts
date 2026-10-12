@@ -266,8 +266,12 @@ export const createSaveNoteMutation = () => {
   return createMutation(() => ({
     mutationFn: ({ day, content }: { day: Day; content: string }) =>
       invokeClient({ name: "save_note", args: { day, content } }),
-    // The saved note (or `null`, once deleted) replaces the cached one, rather than being refetched.
-    onSuccess: (note, { day }) => queryClient.setQueryData(noteKeys.day(day), note),
+    // The saved note (or `null`, once deleted) replaces the cached one, rather than being refetched. The calendar's
+    // notes are only marked stale: refetched once shown, rather than at each autosave.
+    onSuccess: (note, { day }) => {
+      queryClient.setQueryData(noteKeys.day(day), note);
+      void queryClient.invalidateQueries({ queryKey: noteKeys.months(), refetchType: "none" });
+    },
   }));
 };
 

@@ -17,6 +17,8 @@
     indicator?: string;
     /** The dot's color: `warning` when something needs the user, e.g. a connection. */
     indicatorTone?: "accent" | "warning";
+    /** Whether it's also current on its sub-pages, e.g. the calendar's on a day's note opened from it. */
+    currentOnSubPages?: boolean;
   };
   const {
     label,
@@ -26,9 +28,13 @@
     nested = false,
     indicator,
     indicatorTone = "accent",
+    currentOnSubPages = false,
   }: SidePanelLinkProps = $props();
 
-  const current = $derived((page.route.id ?? "/") === routeId);
+  const current = $derived.by(() => {
+    const id = page.route.id ?? "/";
+    return id === routeId || (currentOnSubPages && id.startsWith(`${routeId}/`));
+  });
 </script>
 
 <a href={routeId} class={["link", nested && "nested"]} aria-current={current ? "page" : undefined}>

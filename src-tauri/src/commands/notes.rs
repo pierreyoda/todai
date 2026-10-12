@@ -4,7 +4,7 @@ use tauri::State;
 
 use crate::{
     database::models::DbNote,
-    errors::Result,
+    errors::{Result, TodaiError},
     models::core::{Day, Note},
     state::AppState,
 };
@@ -14,6 +14,30 @@ use crate::{
 pub async fn get_note(state: State<'_, AppState>, day: Day) -> Result<Option<Note>> {
     let db = state.db()?;
     query_note(&db, &day)
+}
+
+/// The notes from `start` to `end` (inclusive), by day.
+#[tauri::command]
+pub async fn list_notes_between(
+    state: State<'_, AppState>,
+    start: Day,
+    end: Day,
+) -> Result<Vec<Note>> {
+    if start > end {
+        return Err(TodaiError::CommandError(format!(
+            "Start day {} is after end day {}",
+            start.raw, end.raw
+        )));
+    }
+    let db = state.db()?;
+    query_notes_between(&db, &start, &end)
+}
+
+/// The months having notes, as `YYYY-MM`, most recent first.
+#[tauri::command]
+pub async fn list_note_months(state: State<'_, AppState>) -> Result<Vec<String>> {
+    let db = state.db()?;
+    query_note_months(&db)
 }
 
 /// Saves `content` as the note of `day`, as typed (not trimmed), and returns it. A blank `content` deletes the note
@@ -36,6 +60,24 @@ fn query_note(db: &Connection, day: &Day) -> Result<Option<Note>> {
         .optional()?
         .map(Note::try_from)
         .transpose()
+}
+
+fn query_notes_between(db: &Connection, start: &Day, end: &Day) -> Result<Vec<Note>> {
+    db.prepare_cached("SELECT * FROM notes WHERE day BETWEEN ?1 AND ?2 ORDER BY day")?
+        .query_map([&start.raw, &end.raw], DbNote::from_row)?
+        .map(|note| Note::try_from(note?))
+        .collect()
+}
+
+fn query_note_months(db: &Connection) -> Result<Vec<String>> {
+    // `day` is YYYY-MM-DD: its first 7 characters are the month. Covered by the primary key.
+    let months = db
+        .prepare_cached(
+            "SELECT DISTINCT substr(day, 1, 7) AS month FROM notes ORDER BY month DESC",
+        )?
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
+    Ok(months)
 }
 
 fn save_note_row(db: &Connection, day: &Day, content: &str, now: i64) -> Result<Option<Note>> {
@@ -156,6 +198,41 @@ mod tests {
         save(&db, "2026-10-10", "", NOW + 60);
         assert_eq!(get(&db, "2026-10-09").unwrap().content, "Friday");
         assert!(get(&db, "2026-10-10").is_none());
+    }
+
+    #[test]
+    fn list_notes_between_lists_the_days_notes_in_order() {
+        let db = open_test_database(&WORKSPACE);
+        for (day_raw, content) in [
+            ("2026-10-31", "Last"),
+            ("2026-09-30", "Before"),
+            ("2026-10-01", "First"),
+            ("2026-11-01", "After"),
+            ("2026-10-15", "Middle"),
+        ] {
+            save(&db, day_raw, content, NOW);
+        }
+        let notes = query_notes_between(&db, &day("2026-10-01"), &day("2026-10-31")).unwrap();
+        let contents: Vec<&str> = notes.iter().map(|note| note.content.as_str()).collect();
+        assert_eq!(contents, ["First", "Middle", "Last"]);
+        assert!(
+            query_notes_between(&db, &day("2026-12-01"), &day("2026-12-31"))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn list_note_months_lists_each_month_once_most_recent_first() {
+        let db = open_test_database(&WORKSPACE);
+        assert!(query_note_months(&db).unwrap().is_empty());
+        for day_raw in ["2026-09-30", "2026-10-01", "2026-10-15", "2025-12-31"] {
+            save(&db, day_raw, "Note", NOW);
+        }
+        assert_eq!(
+            query_note_months(&db).unwrap(),
+            ["2026-10", "2026-09", "2025-12"]
+        );
     }
 
     #[test]

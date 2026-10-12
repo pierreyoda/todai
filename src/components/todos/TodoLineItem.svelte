@@ -4,7 +4,6 @@
     createQuery,
     useQueryClient,
   } from "@tanstack/svelte-query";
-
   import { attachDraggable, attachDroppable } from "@thisux/sveltednd";
 
   import { invokeClient } from "../../client";
@@ -54,7 +53,11 @@
   const setRowDragImage = (event: DragEvent) => {
     if (!row || !event.dataTransfer) return;
     const { left, top } = row.getBoundingClientRect();
-    event.dataTransfer.setDragImage(row, event.clientX - left, event.clientY - top);
+    event.dataTransfer.setDragImage(
+      row,
+      event.clientX - left,
+      event.clientY - top,
+    );
   };
 
   // Its GitHub links show their status through the workspace's connection, if any

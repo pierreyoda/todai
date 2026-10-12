@@ -1,12 +1,15 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import { monthTodosQueryOptions } from "../../../client/queries";
+  import {
+    monthNotesQueryOptions,
+    monthTodosQueryOptions,
+  } from "../../../client/queries";
   import type { Day, Month, Tag } from "../../../client/types";
   import { weekOf, weeksOfMonth } from "../../../utils/dates";
   import CalendarWeek from "./CalendarWeek.svelte";
 
-  /** Content of a month: loads its todos when created, i.e. when the month is first expanded. */
+  /** Content of a month: loads its todos and notes when created, i.e. when the month is first expanded. */
   type CalendarMonthProps = {
     month: Month;
     tags: readonly Tag[];
@@ -16,9 +19,11 @@
   const { month, tags, selectedTagId, today }: CalendarMonthProps = $props();
 
   const todos = createQuery(() => monthTodosQueryOptions(month));
+  // Without them if they can't be loaded: the todos are still worth showing
+  const notes = createQuery(() => monthNotesQueryOptions(month));
   const currentWeekStart = $derived(weekOf(today).start);
 
-  /** Most recent first, without the empty ones. */
+  /** Most recent first, without the ones having neither todos nor notes. */
   const weeks = $derived(
     weeksOfMonth(month)
       .map((week) => ({
@@ -26,13 +31,16 @@
         todos: (todos.data ?? []).filter(
           (todo) => todo.day >= week.start && todo.day <= week.end,
         ),
+        notes: (notes.data ?? []).filter(
+          (note) => note.day >= week.start && note.day <= week.end,
+        ),
       }))
-      .filter((week) => week.todos.length > 0)
+      .filter((week) => week.todos.length > 0 || week.notes.length > 0)
       .reverse(),
   );
 </script>
 
-{#if todos.isPending}
+{#if todos.isPending || notes.isPending}
   <p class="status">Loading…</p>
 {:else if todos.isError}
   <p class="status error" role="alert">{String(todos.error)}</p>
@@ -40,9 +48,10 @@
   <p class="status">No todos</p>
 {:else}
   <div class="weeks">
-    {#each weeks as { week, todos } (week.start)}
+    {#each weeks as { week, todos, notes } (week.start)}
       <CalendarWeek
         {week}
+        {notes}
         {todos}
         {tags}
         {selectedTagId}

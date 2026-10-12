@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tokio::{process::Command, time::timeout};
 
 use crate::{

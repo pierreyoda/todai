@@ -97,9 +97,15 @@ export const tagsQueryOptions = queryOptions({
   queryFn: () => invokeClient({ name: "list_tags" }),
 });
 
+/**
+ * Days are `YYYY-MM-DD`, so they never collide with `"months"`. The months' notes are nested in the list of months, so
+ * that refreshing it after saving a note also refreshes them.
+ */
 export const noteKeys = {
   all: ["notes"] as const,
   day: (day: Day) => [...noteKeys.all, day] as const,
+  months: () => [...noteKeys.all, "months"] as const,
+  month: (month: Month) => [...noteKeys.months(), month] as const,
 };
 
 /** `null` if `day` has no note. */
@@ -107,6 +113,22 @@ export const noteQueryOptions = (day: Day) =>
   queryOptions({
     queryKey: noteKeys.day(day),
     queryFn: () => invokeClient({ name: "get_note", args: { day } }),
+  });
+
+/** Months having notes, most recent first. */
+export const noteMonthsQueryOptions = queryOptions({
+  queryKey: noteKeys.months(),
+  queryFn: () => invokeClient({ name: "list_note_months" }),
+});
+
+/** The notes of `month`, by day. */
+export const monthNotesQueryOptions = (month: Month) =>
+  queryOptions({
+    queryKey: noteKeys.month(month),
+    queryFn: () => {
+      const [start, end] = monthBounds(month);
+      return invokeClient({ name: "list_notes_between", args: { start, end } });
+    },
   });
 
 /**
