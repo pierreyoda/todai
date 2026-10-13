@@ -5,7 +5,7 @@
   import { dateToTodaiDate } from "#core/time";
   import { tagsQueryOptions } from "#domains/tags";
   import SidePanel from "../../components/SidePanel.svelte";
-  import VerticalCalendar from "../../components/common/calendar/VerticalCalendar.svelte";
+  import { VerticalCalendar } from "#domains/agenda";
 
   const day = dateToTodaiDate(new Date());
   const tags = createQuery(() => tagsQueryOptions);

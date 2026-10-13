@@ -14,7 +14,7 @@
   } from "#core/time";
   import Collapse from "#shared/ui/Collapse.svelte";
   import CalendarMonth from "./CalendarMonth.svelte";
-  import { formatTodoCounts } from "./counts";
+  import { formatTodoCounts } from "../model/counts";
 
   /**
    * History of the todos and notes, month by month, most recent first: from the current month back to the one of the

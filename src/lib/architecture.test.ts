@@ -25,7 +25,7 @@ const DOMAINS: Readonly<Record<string, readonly string[]>> = {
   workspaces: [],
   notes: ["workspaces"],
   todos: ["workspaces", "tags"],
-  agenda: ["todos", "notes"],
+  agenda: ["todos", "notes", "tags"],
   integrations: ["workspaces", "todos"],
 };
 

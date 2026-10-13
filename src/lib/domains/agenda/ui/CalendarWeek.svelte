@@ -9,7 +9,7 @@
   import Collapse from "#shared/ui/Collapse.svelte";
   import { TodoSummaryItem } from "#domains/todos";
   import { NoteMarker } from "#domains/notes";
-  import { formatTodoCounts } from "./counts";
+  import { formatTodoCounts } from "../model/counts";
 
   type CalendarWeekProps = {
     week: Week;
