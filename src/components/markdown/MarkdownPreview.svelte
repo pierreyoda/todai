@@ -1,19 +1,23 @@
 <script lang="ts">
   import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
-  import NoteContent from "./NoteContent.svelte";
+  import MarkdownContent from "./MarkdownContent.svelte";
 
-  type NotePreviewProps = {
-    /** The note's Markdown, as being written. */
+  type MarkdownPreviewProps = {
+    /** The Markdown, as being written. */
     content: string;
     /**
      * Checks or unchecks the task shown `index`-th, `checked` before, with `text` as its text. Returns whether it did:
      * not if its line can't be found in `content`.
      */
     onToggleTask: (task: { index: number; checked: boolean; text: string }) => boolean;
-    /** The note's day, as said in a sentence: "today", or e.g. "Saturday, October 10, 2026". */
-    dayName: string;
+    /** Shown while `content` is blank, e.g. "A blank page for today". */
+    emptyTitle: string;
+    /** Under `emptyTitle`, e.g. where to write. */
+    emptyHint: string;
+    /** Keeps its "Preview" title for screen readers only, e.g. while tabs name it. */
+    hideTitle?: boolean;
   };
-  const { content, onToggleTask, dayName }: NotePreviewProps = $props();
+  const { content, onToggleTask, emptyTitle, emptyHint, hideTitle = false }: MarkdownPreviewProps = $props();
 
   const titleId = $props.id();
   const blank = $derived(content.trim() === "");
@@ -28,18 +32,18 @@
 </script>
 
 <section class="preview" aria-labelledby={titleId}>
-  <h2 id={titleId} class="title">Preview</h2>
+  <h2 id={titleId} class={["title", hideTitle && "sr-only"]}>Preview</h2>
   <div class="surface" bind:this={surface}>
     {#if blank}
       <div class="empty" role="status">
         <div class="disc" aria-hidden="true">
           <IconPencilSquare class="size-11" />
         </div>
-        <h3 class="empty-title">A blank page for {dayName}</h3>
-        <p class="hint">Write on the left: it shows up here, rendered, and saves as you type.</p>
+        <h3 class="empty-title">{emptyTitle}</h3>
+        <p class="hint">{emptyHint}</p>
       </div>
     {:else}
-      <NoteContent {content} {onToggleTask} scroller={surface} />
+      <MarkdownContent {content} {onToggleTask} scroller={surface} />
     {/if}
   </div>
 </section>
@@ -56,7 +60,7 @@
     @apply text-sm font-medium text-slate-300;
   }
 
-  /* Surface: barely lifted from the background, scrolling on its own. Positioned, so that the note's elements
+  /* Surface: barely lifted from the background, scrolling on its own. Positioned, so that the rendered elements
      positioned absolutely (e.g. screen readers' texts) scroll with it, rather than overflowing the page. */
   .surface {
     @apply relative min-h-0 flex-1 overflow-y-auto rounded-xl bg-white/3 px-5 py-4 ring-1 ring-white/10;

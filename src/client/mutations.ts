@@ -4,6 +4,7 @@ import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
 import type { Day, Estimate, Placement, Todo, TodoLink } from "./types";
 import {
+  cancelTodoListsOf,
   ghKeys,
   invalidateActiveWorkspace,
   invalidateTodosOf,
@@ -11,6 +12,7 @@ import {
   noteKeys,
   refreshGitHubAttention,
   refreshLinksOf,
+  setCachedTodoDescription,
   tagKeys,
   todoKeys,
   workspaceKeys,
@@ -60,6 +62,50 @@ export const createSetTodoEstimateMutation = (getTodo: () => Todo) => {
       }),
     // Returned so the mutation stays pending until the lists (and the months' estimate totals) are refetched.
     onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+  }));
+};
+
+/**
+ * Sets the description of `getTodo()`, in Markdown, as typed, or removes it if blank. Must be called during component
+ * initialization.
+ *
+ * The saved description replaces the cached one in the lists, rather than refetching them at each autosave.
+ *
+ * @param optimistic Whether to show the description in the lists right away, then tell if saving it fails and show the
+ * saved one back: e.g. for a task checked from the lists. The editor rather tells about failures itself, and keeps the
+ * text that couldn't be saved.
+ */
+export const createSetTodoDescriptionMutation = (getTodo: () => Todo, { optimistic = false } = {}) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (description: string) =>
+      invokeClient({
+        name: "set_todo_description",
+        args: { id: getTodo().id, description },
+      }),
+    // The todo as it was when saving started: the lists to update are its day's, even if it's moved meanwhile
+    onMutate: async (description) => {
+      const todo = getTodo();
+      if (optimistic) {
+        // So that a refetch in flight doesn't show the former description back
+        await cancelTodoListsOf(queryClient, todo);
+        // As the backend stores it: a blank description is none
+        setCachedTodoDescription(queryClient, todo, description.trim() === "" ? undefined : description);
+      }
+      return { todo };
+    },
+    onSuccess: (saved, _, result) => {
+      // Already shown when optimistic: not replaced, as the cache may already show a later change that's being saved
+      if (!optimistic) setCachedTodoDescription(queryClient, result.todo, saved ?? undefined);
+    },
+    onError: (_, __, result) => {
+      if (!optimistic) return;
+      const todo = result?.todo ?? getTodo();
+      toasts.show(`Could not save the description of “${todo.title}”`, { tone: "error" });
+      // Returned so the mutation stays pending until the lists are refetched, with the saved description: rather than
+      // the one shown before, as other changes may have been saved since.
+      return invalidateTodosOf(queryClient, todo.day);
+    },
   }));
 };
 

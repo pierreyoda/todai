@@ -37,10 +37,10 @@
     {:else}
       <LoadingState state={note.isError ? "error" : "loading"}>
         {#snippet loading()}
-          Loading today’s note...
+          Loading today's note...
         {/snippet}
         {#snippet error()}
-          Could not load today’s note.
+          Could not load today's note.
         {/snippet}
       </LoadingState>
     {/if}

@@ -4,12 +4,29 @@
 
   type ModalProps = {
     show: boolean;
+    /**
+     * `md` (by default) fits a form or a message. `lg` takes most of the window, up to 64rem × 46rem, for its content
+     * to fill: e.g. an editor. Its body is then a flex column of bounded height.
+     */
+    size?: "md" | "lg";
     header?: Snippet;
     children: Snippet;
     /** Footer buttons, right-aligned (stacked on small screens). */
     actions?: Snippet;
+    /**
+     * Asked before closing it from its close button, its backdrop or Escape: it closes only once this resolves to `true`,
+     * e.g. once what's edited in it is saved. Closing it otherwise, by setting `show`, isn't asked.
+     */
+    onCloseRequest?: () => boolean | Promise<boolean>;
   };
-  let { show = $bindable(), header, children, actions }: ModalProps = $props();
+  let {
+    show = $bindable(),
+    size = "md",
+    header,
+    children,
+    actions,
+    onCloseRequest,
+  }: ModalProps = $props();
 
   const titleId = $props.id();
 
@@ -18,14 +35,61 @@
     if (show) dialog?.showModal();
     else dialog?.close();
   });
+
+  /** While `onCloseRequest` is answering: asked to close again meanwhile, it isn't asked twice. */
+  let requesting = false;
+
+  /** Closes it as asked from it (close button, backdrop, Escape), if `onCloseRequest` agrees. */
+  const requestClose = async () => {
+    if (!onCloseRequest) {
+      dialog?.close();
+      return;
+    }
+    if (requesting) return;
+    requesting = true;
+    try {
+      if (await onCloseRequest()) dialog?.close();
+    } catch (error) {
+      console.error("Could not tell whether to close the modal:", error);
+    } finally {
+      requesting = false;
+    }
+  };
+
+  /** Escape is left to a popover shown in it (e.g. a menu), which it closes first. */
+  const hasPopoverOpen = () => !!dialog?.querySelector(":popover-open");
+
+  // Asked rather than closed by the browser: from the document, as Escape may also be pressed with nothing focused
+  // (e.g. once it left an editor), and handled before the browser, whose own close request can't always be cancelled
+  // (Chromium closes the dialog anyway when asked again without the user interacting with the page in between).
+  $effect(() => {
+    if (!show || !onCloseRequest) return;
+    const onkeydown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
+      // Pressed in another modal, shown over it
+      const target = event.target instanceof Element ? event.target.closest("dialog") : null;
+      if ((target && target !== dialog) || hasPopoverOpen()) return;
+      event.preventDefault();
+      void requestClose();
+    };
+    document.addEventListener("keydown", onkeydown);
+    return () => document.removeEventListener("keydown", onkeydown);
+  });
 </script>
 
 <dialog
   bind:this={dialog}
+  data-size={size}
   aria-labelledby={header ? titleId : undefined}
   onclose={() => (show = false)}
+  oncancel={(event) => {
+    // Any other close request, e.g. a popover's Escape: asked too
+    if (!onCloseRequest) return;
+    event.preventDefault();
+    if (!hasPopoverOpen()) void requestClose();
+  }}
   onclick={(e) => {
-    if (e.target === dialog) dialog.close();
+    if (e.target === dialog) void requestClose();
   }}
 >
   <div class="panel">
@@ -37,7 +101,7 @@
         style="plain"
         class="close"
         aria-label="Close"
-        onclick={() => dialog?.close()}
+        onclick={() => void requestClose()}
       >
         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path
@@ -63,10 +127,17 @@
   @reference "tailwindcss";
 
   dialog {
+    /* In the top layer: centered in the viewport (preflight resets margin to 0) */
+    @apply fixed inset-0 m-auto;
+    /* Size: as wide as allowed, up to its size's */
+    @apply w-full max-w-lg;
     /* Surface */
-    @apply max-w-lg rounded-2xl border border-white/10 bg-slate-800 p-0 shadow-2xl;
+    @apply rounded-2xl border border-white/10 bg-slate-800 p-0 shadow-2xl;
     /* Typography */
     @apply text-slate-300;
+    &[data-size="lg"] {
+      @apply h-[min(46rem,calc(100dvh-4rem))] w-[min(64rem,calc(100vw-4rem))] max-w-none;
+    }
     /* Literal values: ::backdrop may not inherit the theme variables */
     &::backdrop {
       background: rgb(2 6 23 / 0.6);
@@ -82,6 +153,15 @@
 
   .panel {
     @apply flex flex-col gap-4 p-6;
+  }
+
+  /* Large: its body takes the height left, for its content to fill. Children only: a modal shown from its content is
+     another one. */
+  dialog[data-size="lg"] > .panel {
+    @apply h-full min-h-0;
+    > .body {
+      @apply flex min-h-0 flex-1 flex-col;
+    }
   }
 
   header {

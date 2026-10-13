@@ -23,10 +23,17 @@
       }
   ) & {
     onSubmit: (submittedData: TodoFormData) => void;
+    /**
+     * Under the title, taking the height left: e.g. the todo's description. Lays the form out in two columns, its other
+     * fields on the side: the form must then be in a flex column of bounded height.
+     */
+    main?: Snippet;
     /** Fields saved on their own rather than submitted, e.g. the todo's links: shown before the submit button. */
     fields?: Snippet;
+    /** Next to the submit button, in two columns: e.g. what it saves. */
+    hint?: string;
   };
-  const { data, onSubmit, fields }: TodoFormProps = $props();
+  const { data, onSubmit, main, fields, hint }: TodoFormProps = $props();
 
   let editedDay = $state(data?.day ?? dateToTodaiDate(new Date()));
   let editedTitle = $state(data?.title ?? "");
@@ -34,47 +41,103 @@
   const valid = $derived(
     isTodaiDate(editedDay) && editedTitle.trim().length > 0,
   );
+
+  const submit = () => {
+    if (!valid) return;
+    onSubmit({
+      day: editedDay,
+      completed: editedCompleted,
+      title: editedTitle,
+    });
+  };
 </script>
 
-<div class="container">
-  <FieldText bind:value={editedTitle} label="Title" />
-  <div class="flex items-center">
-    <FieldCheckbox
-      label="Completed"
-      bind:checked={editedCompleted}
-      class="w-1/2"
-    />
-    <DatePicker bind:day={editedDay} label="Day" class="ml-auto" />
-  </div>
-  <div class="flex items-center">
-    <div class="w-1/2 px-2"></div>
-    <div class="w-1/2 px-2"></div>
-  </div>
-  {@render fields?.()}
-  <Button
-    type="submit"
-    disabled={!valid}
-    onclick={() => {
-      if (!valid) return;
-      onSubmit({
-        day: editedDay,
-        completed: editedCompleted,
-        title: editedTitle,
-      });
-    }}
-  >
+{#snippet submitButton()}
+  <Button type="submit" disabled={!valid} onclick={submit}>
     {#if data}
       Update
     {:else}
       Create
     {/if}
   </Button>
-</div>
+{/snippet}
+
+{#if main}
+  <div class="columns">
+    <div class="main">
+      <FieldText bind:value={editedTitle} label="Title" />
+      {@render main()}
+    </div>
+    <div class="side">
+      <FieldCheckbox label="Completed" bind:checked={editedCompleted} />
+      <div class="day">
+        <span class="label">Day</span>
+        <DatePicker bind:day={editedDay} label="Day" class="self-start" />
+      </div>
+      {@render fields?.()}
+    </div>
+    <div class="footer">
+      {#if hint}
+        <p class="hint">{hint}</p>
+      {/if}
+      {@render submitButton()}
+    </div>
+  </div>
+{:else}
+  <div class="container">
+    <FieldText bind:value={editedTitle} label="Title" />
+    <div class="flex items-center">
+      <FieldCheckbox
+        label="Completed"
+        bind:checked={editedCompleted}
+        class="w-1/2"
+      />
+      <DatePicker bind:day={editedDay} label="Day" class="ml-auto" />
+    </div>
+    <div class="flex items-center">
+      <div class="w-1/2 px-2"></div>
+      <div class="w-1/2 px-2"></div>
+    </div>
+    {@render fields?.()}
+    {@render submitButton()}
+  </div>
+{/if}
 
 <style lang="postcss">
   @reference "tailwindcss";
 
   .container {
     @apply flex flex-col gap-4 w-full;
+  }
+
+  /* What the todo is on the left, taking the height left; its properties on the right, scrolling if they must */
+  .columns {
+    @apply grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_15.5rem] grid-rows-[minmax(0,1fr)_auto] gap-x-6 gap-y-4;
+  }
+
+  .main {
+    @apply flex min-h-0 flex-col gap-4;
+  }
+
+  /* Room on the right for focus rings, which scrolling would otherwise clip */
+  .side {
+    @apply -mr-2 flex min-h-0 flex-col gap-5 overflow-y-auto border-l border-white/5 pr-2 pl-6;
+  }
+
+  .day {
+    @apply flex flex-col gap-1.5;
+  }
+
+  /* As the fields' labels */
+  .label {
+    @apply text-sm/5 font-medium text-slate-300;
+  }
+
+  .footer {
+    @apply col-span-full mt-2 flex items-center justify-end gap-3;
+  }
+
+  .hint {
+    @apply mr-auto text-xs/5 text-slate-400;
   }
 </style>

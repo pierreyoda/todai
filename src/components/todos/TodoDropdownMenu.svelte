@@ -33,7 +33,6 @@
   import IconXMark from "../common/icons/IconXMark.svelte";
   import AddLinkModal from "../links/AddLinkModal.svelte";
   import LinkKindIcon from "../links/LinkKindIcon.svelte";
-  import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
   type TodoDropdownMenuProps = {
     anchor?: HTMLElement;
@@ -42,6 +41,8 @@
     item: Todo;
     tags: readonly Tag[];
     inCalendar?: boolean;
+    /** Opens its edit modal, which its line has: also opened otherwise, e.g. from its description. */
+    onEdit: () => void;
   };
   let {
     anchor,
@@ -49,11 +50,11 @@
     item,
     tags,
     inCalendar = false,
+    onEdit,
   }: TodoDropdownMenuProps = $props();
 
   let showTagCreationModal = $state(false);
   let showAddLinkModal = $state(false);
-  let showEditModal = $state(false);
   let showDatePicker = $state(false);
 
   /** Updated when opened, so that a menu opened after midnight offers the right days. */
@@ -85,7 +86,7 @@
 <Dropdown bind:open {anchor}>
   <DropdownMenu placement="bottom-end">
     <!-- Opens a modal: the menu must close first, see `keepOpen` -->
-    <DropdownItem keepOpen={false} onclick={() => (showEditModal = true)}>
+    <DropdownItem keepOpen={false} onclick={onEdit}>
       {#snippet icon()}
         <IconPencilSquare />
       {/snippet}
@@ -231,9 +232,6 @@
 <TagUpsertModal bind:show={showTagCreationModal} />
 <AddLinkModal bind:show={showAddLinkModal} todo={item} />
 <!-- Only while shown: the calendar has a menu per todo -->
-{#if showEditModal}
-  <TodoUpsertModal bind:show={showEditModal} existing={item} />
-{/if}
 {#if showDatePicker}
   <DatePickerModal
     bind:show={showDatePicker}

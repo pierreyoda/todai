@@ -3,7 +3,7 @@ import { QueryClient, queryOptions } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
 import { invokeApiClient } from "./app";
-import type { Day, Month } from "./types";
+import type { Day, Month, Todo } from "./types";
 import { addDays, monthBounds, monthOf } from "../utils/dates";
 import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../constants";
 
@@ -86,6 +86,34 @@ export const invalidateTodosOf = (queryClient: QueryClient, day: Day) =>
     queryClient.invalidateQueries({ queryKey: todoKeys.months() }),
     queryClient.invalidateQueries({ queryKey: todoKeys.unfinished() }),
   ]);
+
+/** The cached lists that can hold a todo of `day`: its month, with its days' lists, and the unfinished todos. */
+const listsKeysOf = (day: Day) => [todoKeys.month(monthOf(day)), todoKeys.unfinished()];
+
+/**
+ * Cancels the refetches in flight of the lists holding `todo`, so that they don't overwrite a change made to them in
+ * the cache.
+ */
+export const cancelTodoListsOf = (queryClient: QueryClient, todo: Pick<Todo, "day">) =>
+  Promise.all(listsKeysOf(todo.day).map((queryKey) => queryClient.cancelQueries({ queryKey })));
+
+/**
+ * Sets the description of `todo` (`undefined` for none) in the cached lists holding it, rather than refetching them:
+ * e.g. at each autosave. Lists without it are left as they are.
+ */
+export const setCachedTodoDescription = (
+  queryClient: QueryClient,
+  todo: Pick<Todo, "id" | "day">,
+  description: string | undefined,
+) => {
+  for (const queryKey of listsKeysOf(todo.day)) {
+    queryClient.setQueriesData<Todo[]>({ queryKey }, (todos) =>
+      todos?.some(({ id }) => id === todo.id)
+        ? todos.map((cached) => (cached.id === todo.id ? { ...cached, description } : cached))
+        : todos,
+    );
+  }
+};
 
 export const tagKeys = {
   all: ["tags"] as const,

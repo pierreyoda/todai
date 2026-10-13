@@ -11,6 +11,7 @@
   import IconSun from "../common/icons/IconSun.svelte";
   import LinksMarker from "../links/LinksMarker.svelte";
   import Button from "../common/Button.svelte";
+  import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
   import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
   /** Slimmed down `TodoLineItem`: completeness toggle, title and tags, edition on right click. */
@@ -48,6 +49,12 @@
   let openedDropdownMenu = $state(false);
 
   let showUpsertDialog = $state(false);
+  /** Whether the edit modal was opened to edit the description: its editor is then focused. */
+  let editingDescription = $state(false);
+  const openEditModal = (description: boolean) => {
+    editingDescription = description;
+    showUpsertDialog = true;
+  };
 </script>
 
 <li
@@ -64,7 +71,10 @@
   />
   <span class="title-group">
     <span class="title" title={item.title}>{item.title}</span>
-    <!-- Right after the title, so that it stays in view when the actions replace the tags -->
+    <!-- Right after the title, so that they stay in view when the actions replace the tags -->
+    {#if item.description}
+      <TodoDescriptionMarker todo={item} onEdit={() => openEditModal(true)} />
+    {/if}
     {#if item.links.length > 0}
       <LinksMarker links={item.links} title={item.title} />
     {/if}
@@ -86,7 +96,7 @@
           style="plain"
           size="xs"
           aria-label="Edit"
-          onclick={() => (showUpsertDialog = true)}
+          onclick={() => openEditModal(false)}
         >
           <IconPencilSquare class="text-white hover:text-gray-300" />
         </Button>
@@ -113,8 +123,16 @@
   {item}
   {tags}
   inCalendar
+  onEdit={() => openEditModal(false)}
 />
-<TodoUpsertModal bind:show={showUpsertDialog} existing={item} />
+<!-- Only while shown: the calendar has many todos. Out of the line, whose right click opens the menu. -->
+{#if showUpsertDialog}
+  <TodoUpsertModal
+    bind:show={showUpsertDialog}
+    existing={item}
+    focusDescription={editingDescription}
+  />
+{/if}
 
 <style lang="postcss">
   @reference "tailwindcss";

@@ -2,10 +2,10 @@
   import type { Day, Note } from "../../client/types";
   import { formatDateTime, formatFullDay } from "../../utils/dates";
   import { notePath } from "../../utils/notes";
-  import { computePosition } from "../common/dropdown/positioning";
   import Button from "../common/Button.svelte";
+  import { HoverPopover } from "../common/hoverPopover.svelte";
   import IconDocumentText from "../common/icons/IconDocumentText.svelte";
-  import NoteContent from "./NoteContent.svelte";
+  import MarkdownContent from "../markdown/MarkdownContent.svelte";
 
   /** A day's note, in little: an icon after the day, then the note on hover or click, to read it or open it. */
   type NoteMarkerProps = {
@@ -15,110 +15,34 @@
   };
   const { note, today }: NoteMarkerProps = $props();
 
-  /** How long hovering takes to show the note, and leaving it to hide it. */
-  const HOVER_OPEN_MS = 150;
-  const HOVER_CLOSE_MS = 200;
-
   const panelId = $props.id();
   const dayName = $derived(formatFullDay(note.day));
   const href = $derived(notePath(note.day, today));
 
-  let open = $state(false);
-  let button = $state<HTMLButtonElement>();
-  let panel = $state<HTMLDivElement>();
+  const popover = new HoverPopover();
   let body = $state<HTMLDivElement>();
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const later = (action: () => void, delay: number) => {
-    clearTimeout(timer);
-    timer = setTimeout(action, delay);
-  };
-  $effect(() => () => clearTimeout(timer));
-
-  const position = () => {
-    if (!button || !panel) return;
-    const { x, y } = computePosition({
-      anchor: button.getBoundingClientRect(),
-      floating: panel.getBoundingClientRect(),
-      viewport: {
-        width: document.documentElement.clientWidth,
-        height: document.documentElement.clientHeight,
-      },
-      placement: "bottom-start",
-      offset: 4,
-    });
-    panel.style.left = `${x}px`;
-    panel.style.top = `${y}px`;
-  };
-
-  // A manual popover, as the links' marker: hovering it leaves any other one open (e.g. a menu)
-  $effect(() => {
-    if (!panel) return;
-    const shown = panel.matches(":popover-open");
-    if (open && !shown) {
-      panel.showPopover();
-      // Positioned in the same task as the opening, so it never paints at the default position
-      position();
-    } else if (!open && shown) {
-      panel.hidePopover();
-    }
-  });
-
-  // Closed by Escape or by clicking elsewhere, as it's not light-dismissed
-  $effect(() => {
-    if (!open) return;
-    const onpointerdown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!button?.contains(target) && !panel?.contains(target)) open = false;
-    };
-    const onkeydown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      const hadFocus = panel?.contains(document.activeElement);
-      open = false;
-      if (hadFocus) button?.focus();
-    };
-    document.addEventListener("pointerdown", onpointerdown, true);
-    document.addEventListener("keydown", onkeydown);
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, { capture: true, passive: true });
-    return () => {
-      document.removeEventListener("pointerdown", onpointerdown, true);
-      document.removeEventListener("keydown", onkeydown);
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, { capture: true });
-    };
-  });
 </script>
 
-<!-- Hovering the marker or the note keeps it shown: the note is part of the group, though shown on top -->
 <span
   class="group"
   role="presentation"
-  onpointerenter={(event) => {
-    if (event.pointerType === "mouse") later(() => (open = true), HOVER_OPEN_MS);
-  }}
-  onpointerleave={(event) => {
-    if (event.pointerType === "mouse") later(() => (open = false), HOVER_CLOSE_MS);
-  }}
+  onpointerenter={popover.onpointerenter}
+  onpointerleave={popover.onpointerleave}
 >
   <Button
-    bind:ref={button}
+    bind:ref={popover.button}
     style="plain"
     size="xs"
-    class={["marker", open && "open"]}
+    class={["marker", popover.open && "open"]}
     aria-label={`Note of ${dayName}`}
-    aria-expanded={open}
+    aria-expanded={popover.open}
     aria-controls={panelId}
-    onclick={(event) => {
-      clearTimeout(timer);
-      // Clicked once hovered: kept shown. With the keyboard: shown or hidden.
-      open = event.detail > 0 ? true : !open;
-    }}
+    onclick={popover.onclick}
   >
     <IconDocumentText />
   </Button>
   <div
-    bind:this={panel}
+    bind:this={popover.panel}
     id={panelId}
     popover="manual"
     role="dialog"
@@ -128,13 +52,13 @@
     <span class="heading">Note · {dayName}</span>
     <!-- Read only: tasks are checked from the note's page -->
     <div class="body" bind:this={body}>
-      <NoteContent content={note.content} scroller={body} />
+      <MarkdownContent content={note.content} scroller={body} />
     </div>
     <div class="footer">
       <time class="edited" datetime={note.updatedAt.toISOString()}>
         Edited {formatDateTime(note.updatedAt)}
       </time>
-      <a class="open" {href} onclick={() => (open = false)}>Open note →</a>
+      <a class="open" {href} onclick={() => (popover.open = false)}>Open note →</a>
     </div>
   </div>
 </span>

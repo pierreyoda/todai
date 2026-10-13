@@ -117,6 +117,17 @@ type ClientInvocationCommand = {
     };
     returns: never;
   };
+  /**
+   * Sets the todo's description, in Markdown, as typed (not trimmed), or removes it if blank. Returns it as stored:
+   * `null` once removed.
+   */
+  set_todo_description: {
+    args: {
+      id: UUID;
+      description: string;
+    };
+    returns: string | null;
+  };
   list_tags: {
     args?: never;
     returns: Tag[];

@@ -1,22 +1,21 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
 
   import { beforeNavigate, goto } from "$app/navigation";
 
   import { createSaveNoteMutation } from "../../client/mutations";
   import type { Day, Note } from "../../client/types";
   import { Autosave } from "../../utils/autosave.svelte";
+  import { Confirmation } from "../../utils/confirmation.svelte";
   import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
-  import { toggleTask } from "../../utils/markdownEditing";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "../common/ErrorBanner.svelte";
-  import NoteCheatsheet from "./NoteCheatsheet.svelte";
-  import NoteEditor from "./NoteEditor.svelte";
-  import NoteLeaveModal from "./NoteLeaveModal.svelte";
-  import NotePreview from "./NotePreview.svelte";
-  import NoteSaveStatus from "./NoteSaveStatus.svelte";
+  import SaveStatus from "../common/SaveStatus.svelte";
+  import UnsavedLeaveModal from "../common/UnsavedLeaveModal.svelte";
+  import MarkdownCheatsheet from "../markdown/MarkdownCheatsheet.svelte";
+  import MarkdownSplitEditor from "../markdown/MarkdownSplitEditor.svelte";
 
   type NotePanelProps = {
     day: Day;
@@ -29,7 +28,9 @@
   // svelte-ignore state_referenced_locally: fixed once mounted
   const isToday = day === dateToTodaiDate(new Date());
   // svelte-ignore state_referenced_locally: fixed once mounted
-  const noteName = isToday ? "Today’s note" : `The note of ${formatFullDay(day)}`;
+  const noteName = isToday
+    ? "Today's note"
+    : `The note of ${formatFullDay(day)}`;
 
   const saveNote = createSaveNoteMutation();
   // svelte-ignore state_referenced_locally: the draft starts from the loaded note, then is the one written
@@ -40,56 +41,20 @@
   // Whether the day has a note then shows what's written, e.g. in the side panel, rather than waiting for its autosave
   onMount(() => noteDrafts.open(day, () => autosave.draft));
 
-  let editor = $state<ReturnType<typeof NoteEditor>>();
-  let preview = $state<ReturnType<typeof NotePreview>>();
-
-  // Through the editor, so that ⌘Z undoes it there
-  const onToggleTask = (task: Parameters<typeof toggleTask>[1]) => {
-    const edit = toggleTask(autosave.draft, task);
-    if (!edit || !editor) return false;
-    editor.applyExternalEdit(edit);
-    return true;
-  };
-
-  /** The preview follows the editor: proportionally, as their contents' heights differ. */
-  const syncPreviewScroll = () => {
-    if (editor) preview?.scrollToRatio(editor.scrollRatio());
-  };
-  // Also once the preview shows a change, as it may have grown
-  $effect(() => {
-    void autosave.draft;
-    void tick().then(syncPreviewScroll);
-  });
-
   // Dismissed until the next failure
   let errorDismissed = $state(false);
   $effect(() => {
     if (autosave.status !== "error") errorDismissed = false;
   });
 
-  let showLeaveModal = $state(false);
-  /** Answers the leave modal shown, if any: `true` to leave anyway. */
-  let answerLeaving: ((leave: boolean) => void) | null = null;
-  /** Asks whether to leave although the draft couldn't be saved. */
-  const confirmLeaving = () =>
-    new Promise<boolean>((resolve) => {
-      answerLeaving = resolve;
-      showLeaveModal = true;
-    });
-  const answer = (leave: boolean) => {
-    answerLeaving?.(leave);
-    answerLeaving = null;
-    showLeaveModal = false;
-  };
-  // Closed otherwise than by leaving (Stay, Escape, its backdrop): staying
-  $effect(() => {
-    if (!showLeaveModal) answer(false);
-  });
+  /** Whether to leave although the draft couldn't be saved. */
+  const leaving = new Confirmation();
   /** Once confirmed, leaving isn't held anymore. */
   let leavingAnyway = false;
 
   /** Saves the draft before leaving, or asks to leave without it if that fails: whether to leave. */
-  const saveBeforeLeaving = async () => (await autosave.flush()) || (await confirmLeaving());
+  const saveBeforeLeaving = async () =>
+    (await autosave.flush()) || (await leaving.ask());
 
   /** Once left without it for another workspace: the draft must not be saved in that one's database. */
   let draftDiscarded = false;
@@ -105,7 +70,13 @@
   // Leaving the page waits for the draft to be saved
   beforeNavigate((navigation) => {
     // Reloading or quitting can't wait: saved in the background, on destroy
-    if (leavingAnyway || !autosave.dirty || navigation.type === "leave" || !navigation.to) return;
+    if (
+      leavingAnyway ||
+      !autosave.dirty ||
+      navigation.type === "leave" ||
+      !navigation.to
+    )
+      return;
     navigation.cancel();
     const to = navigation.to.url;
     void saveBeforeLeaving().then((leave) => {
@@ -142,43 +113,38 @@
         Calendar
       </a>
     {/if}
-    <h1 class="title">{isToday ? "Today’s note" : "Note"}</h1>
+    <h1 class="title">{isToday ? "Today's note" : "Note"}</h1>
     <time class="day" datetime={day}>{formatFullDay(day)}</time>
     <div class="actions">
-      <NoteSaveStatus status={autosave.status} savedAt={note?.updatedAt} />
-      <NoteCheatsheet />
+      <SaveStatus status={autosave.status} savedAt={note?.updatedAt} />
+      <MarkdownCheatsheet />
     </div>
   </header>
   {#if autosave.status === "error" && !errorDismissed}
     <div class="px-2">
       <ErrorBanner
-        title={`Could not save ${isToday ? "today’s note" : "this note"}`}
+        title={`Could not save ${isToday ? "today's note" : "this note"}`}
         error={autosave.error}
-        hint="Your text is kept here: it’s saved again with your next edit."
+        hint="Your text is kept here: it's saved again with your next edit."
         action={{ label: "Try again", onClick: () => void autosave.flush() }}
         onDismiss={() => (errorDismissed = true)}
       />
     </div>
   {/if}
-  <div class="panes">
-    <NoteEditor
-      bind:this={editor}
-      bind:value={autosave.draft}
-      onScroll={syncPreviewScroll}
-    />
-    <NotePreview
-      bind:this={preview}
-      content={autosave.draft}
-      {onToggleTask}
-      dayName={isToday ? "today" : formatFullDay(day)}
-    />
-  </div>
+  <MarkdownSplitEditor
+    bind:value={autosave.draft}
+    class="px-2 pb-2"
+    placeholder={"Write about your day…\n\n# Headings, **bold**, - lists, - [ ] tasks"}
+    autofocus
+    emptyTitle={`A blank page for ${isToday ? "today" : formatFullDay(day)}`}
+    emptyHint="it shows up here, rendered, and saves as you type."
+  />
 </section>
-<NoteLeaveModal
-  bind:show={showLeaveModal}
-  {noteName}
+<UnsavedLeaveModal
+  bind:show={leaving.shown}
+  name={noteName}
   error={autosave.error}
-  onLeave={() => answer(true)}
+  onLeave={() => leaving.answer(true)}
 />
 
 <style lang="postcss">
@@ -213,10 +179,5 @@
 
   .actions {
     @apply ml-auto flex items-center gap-2;
-  }
-
-  /* Side by side, as tall as the page allows rather than their content: each scrolls on its own */
-  .panes {
-    @apply grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-4 px-2 pb-2;
   }
 </style>

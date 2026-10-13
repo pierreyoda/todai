@@ -48,58 +48,56 @@
   const formId = $props.id();
 </script>
 
-<div class="modal-container">
-  <Modal bind:show>
-    {#snippet header()}
-      {workspace.name}
-    {/snippet}
-    <form
-      id={formId}
-      class="content"
-      onsubmit={(event) => {
-        event.preventDefault();
-        if (!confirmed) return;
-        onDelete(deleteBackups && backupsCount > 0);
-      }}
-    >
+<Modal bind:show>
+  {#snippet header()}
+    {workspace.name}
+  {/snippet}
+  <form
+    id={formId}
+    class="content"
+    onsubmit={(event) => {
+      event.preventDefault();
+      if (!confirmed) return;
+      onDelete(deleteBackups && backupsCount > 0);
+    }}
+  >
+    <p>
+      <strong>{workspace.name}</strong> will be removed from your workspaces.
+    </p>
+    <p>
+      Its database is kept at <code class="path">{workspace.path}</code>: you
+      can import it again later.
+    </p>
+    {#if workspace.isActive}
       <p>
-        <strong>{workspace.name}</strong> will be removed from your workspaces.
+        As it's the active workspace, you'll then switch to another one, or
+        create one.
       </p>
-      <p>
-        Its database is kept at <code class="path">{workspace.path}</code>: you
-        can import it again later.
-      </p>
-      {#if workspace.isActive}
-        <p>
-          As it's the active workspace, you'll then switch to another one, or
-          create one.
-        </p>
-      {/if}
-      {#if backupsCount > 0}
-        <div class="backups">
-          <FieldCheckbox
-            label={`Also delete its ${backupsCount} ${backupsCount === 1 ? "backup" : "backups"} (${formatFileSize(backupsSize)})`}
-            description="Otherwise they're kept in the app's data folder, no longer listed."
-            bind:checked={deleteBackups}
-          />
-        </div>
-      {/if}
-      <FieldText
-        bind:value={typed}
-        label={`Type "${CONFIRMATION}" to confirm`}
-        placeholder={CONFIRMATION}
-        autocomplete="off"
-        spellcheck={false}
-      />
-    </form>
-    {#snippet actions()}
-      <Button style="outline" onclick={() => (show = false)}>Cancel</Button>
-      <Button type="submit" form={formId} color="red" disabled={!confirmed}>
-        Delete
-      </Button>
-    {/snippet}
-  </Modal>
-</div>
+    {/if}
+    {#if backupsCount > 0}
+      <div class="backups">
+        <FieldCheckbox
+          label={`Also delete its ${backupsCount} ${backupsCount === 1 ? "backup" : "backups"} (${formatFileSize(backupsSize)})`}
+          description="Otherwise they're kept in the app's data folder, no longer listed."
+          bind:checked={deleteBackups}
+        />
+      </div>
+    {/if}
+    <FieldText
+      bind:value={typed}
+      label={`Type "${CONFIRMATION}" to confirm`}
+      placeholder={CONFIRMATION}
+      autocomplete="off"
+      spellcheck={false}
+    />
+  </form>
+  {#snippet actions()}
+    <Button style="outline" onclick={() => (show = false)}>Cancel</Button>
+    <Button type="submit" form={formId} color="red" disabled={!confirmed}>
+      Delete
+    </Button>
+  {/snippet}
+</Modal>
 
 <style lang="postcss">
   @reference "tailwindcss";
