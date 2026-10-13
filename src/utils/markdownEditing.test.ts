@@ -5,6 +5,7 @@ import {
   findTasks,
   indent,
   outdent,
+  taskProgress,
   toggleTask,
   toggleWrap,
   type TextEdit,
@@ -217,6 +218,18 @@ describe("findTasks", () => {
   it("skips fenced code blocks", () => {
     const text = "```\n- [ ] Code\n```\n~~~\n- [ ] Code\n~~~\n- [ ] Task";
     expect(findTasks(text).map(({ text }) => text)).toEqual(["Task"]);
+  });
+});
+
+describe("taskProgress", () => {
+  it("counts the checked tasks, nested ones included, out of all", () => {
+    const text = "## Plan\n- [x] One\n- [ ] Two\n  - [X] Nested\n- Not a task\n\n```\n- [x] Code\n```";
+    expect(taskProgress(text)).toEqual({ done: 2, total: 3 });
+  });
+
+  it("counts none without tasks", () => {
+    expect(taskProgress("")).toEqual({ done: 0, total: 0 });
+    expect(taskProgress("Just text\n- a list")).toEqual({ done: 0, total: 0 });
   });
 });
 

@@ -205,6 +205,12 @@ export const findTasks = (text: string): Task[] => {
   return tasks;
 };
 
+/** How many of the task list items of `text` are checked (`done`), out of how many (`total`): as `findTasks` finds them. */
+export const taskProgress = (text: string): { done: number; total: number } => {
+  const tasks = findTasks(text);
+  return { done: tasks.filter(({ checked }) => checked).length, total: tasks.length };
+};
+
 /**
  * Checks or unchecks the task shown `index`-th in the preview, `checked` before, with `task.text` as its text: among
  * the tasks of `text` with the same state and the same first line of text, the one closest to that position. The rest

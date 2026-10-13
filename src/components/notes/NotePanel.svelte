@@ -9,7 +9,6 @@
   import { Autosave } from "../../utils/autosave.svelte";
   import { Confirmation } from "../../utils/confirmation.svelte";
   import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
-  import { toggleTask } from "../../utils/markdownEditing";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "../common/ErrorBanner.svelte";
@@ -29,7 +28,7 @@
   // svelte-ignore state_referenced_locally: fixed once mounted
   const isToday = day === dateToTodaiDate(new Date());
   // svelte-ignore state_referenced_locally: fixed once mounted
-  const noteName = isToday ? "Today’s note" : `The note of ${formatFullDay(day)}`;
+  const noteName = isToday ? "Today's note" : `The note of ${formatFullDay(day)}`;
 
   const saveNote = createSaveNoteMutation();
   // svelte-ignore state_referenced_locally: the draft starts from the loaded note, then is the one written
@@ -39,27 +38,6 @@
 
   // Whether the day has a note then shows what's written, e.g. in the side panel, rather than waiting for its autosave
   onMount(() => noteDrafts.open(day, () => autosave.draft));
-
-  let editor = $state<ReturnType<typeof NoteEditor>>();
-  let preview = $state<ReturnType<typeof NotePreview>>();
-
-  // Through the editor, so that ⌘Z undoes it there
-  const onToggleTask = (task: Parameters<typeof toggleTask>[1]) => {
-    const edit = toggleTask(autosave.draft, task);
-    if (!edit || !editor) return false;
-    editor.applyExternalEdit(edit);
-    return true;
-  };
-
-  /** The preview follows the editor: proportionally, as their contents' heights differ. */
-  const syncPreviewScroll = () => {
-    if (editor) preview?.scrollToRatio(editor.scrollRatio());
-  };
-  // Also once the preview shows a change, as it may have grown
-  $effect(() => {
-    void autosave.draft;
-    void tick().then(syncPreviewScroll);
-  });
 
   // Dismissed until the next failure
   let errorDismissed = $state(false);
