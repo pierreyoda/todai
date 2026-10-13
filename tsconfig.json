@@ -3,6 +3,12 @@
   "compilerOptions": {
     "sourceMap": true,
     "strict": true,
+    "paths": {
+      "#shared/*": ["./src/lib/shared/*"],
+      "#core/*": ["./src/lib/core/*/index.ts"],
+      "#domains/*": ["./src/lib/domains/*/index.ts"],
+      "#shell/*": ["./src/lib/shell/*"]
+    },
     "types": [
       "node",
       "vite/client",

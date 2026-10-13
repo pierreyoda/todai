@@ -267,4 +267,12 @@ describe("the frontend's architecture", () => {
     expect(files.length).toBeGreaterThan(0);
     expect(files.flatMap(violationsOf)).toEqual([]);
   });
+
+  // The editor's Svelte language server only rereads `tsconfig.json`, which takes precedence over `package.json`
+  it("mirrors its aliases in tsconfig.json", () => {
+    const read = (file: string) => JSON.parse(readFileSync(join(SRC, "..", file), "utf8"));
+    const imports: Record<string, string> = read("package.json").imports;
+    const paths: Record<string, string[]> = read("tsconfig.json").compilerOptions.paths;
+    expect(paths).toEqual(Object.fromEntries(Object.entries(imports).map(([alias, target]) => [alias, [target]])));
+  });
 });
