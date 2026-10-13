@@ -33,7 +33,17 @@ uuid = { version = "1.28.0", features = ["v7"] }
 log = "0.4.34"
 url = "2.5.8"
 tokio = { version = "1.53.2", features = ["process", "sync", "time"] }
-reqwest = { version = "0.13.5", default-features = false, features = ["json", "native-tls"] }
+reqwest = { version = "0.13.5", default-features = false, features = [
+  "json",
+  "native-tls",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "NSColor",
+  "NSWindow",
+  "objc2-core-foundation",
+] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

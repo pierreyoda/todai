@@ -23,6 +23,25 @@ pub fn run() {
             logging::init(&app.path().app_log_dir()?)?;
             log::info!("Starting todai v{}", app.package_info().version);
 
+            // Its titlebar being transparent, the window's background shows through it: the side panel's, so that the
+            // panel reads as running up to the window's top edge
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                use objc2_app_kit::{NSColor, NSWindow};
+
+                let ns_window = window.ns_window()?;
+                // SAFETY: a valid `NSWindow` pointer for as long as the window lives, and setup runs on the main thread
+                let ns_window = unsafe { &*ns_window.cast::<NSWindow>() };
+                // The side panel's surface, `color-mix(in oklab, slate-900 55%, slate-950)`, as sRGB
+                let side_panel_bg_color = NSColor::colorWithSRGBRed_green_blue_alpha(
+                    7.0 / 255.0,
+                    15.0 / 255.0,
+                    34.0 / 255.0,
+                    1.0,
+                );
+                ns_window.setBackgroundColor(Some(&side_panel_bg_color));
+            }
+
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let app_db_path = data_dir.join(workspaces::APP_DATABASE_FILE_NAME);

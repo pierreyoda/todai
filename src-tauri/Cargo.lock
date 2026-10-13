@@ -4061,6 +4061,7 @@ dependencies = [
  "fractional_index",
  "jiff",
  "log",
+ "objc2-app-kit",
  "reqwest",
  "rusqlite",
  "serde",
