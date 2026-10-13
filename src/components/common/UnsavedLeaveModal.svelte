@@ -5,7 +5,7 @@
   type UnsavedLeaveModalProps = {
     /** Bindable. Closing it otherwise than by leaving means staying. */
     show: boolean;
-    /** What isn't saved, starting a sentence: e.g. "Today’s note", or "The note of Saturday, October 10, 2026". */
+    /** What isn't saved, starting a sentence: e.g. "Today's note", or "The note of Saturday, October 10, 2026". */
     name: string;
     /** How it's left: by going elsewhere (e.g. another page), or by closing what it's edited in (e.g. a modal). */
     leaving?: "leave" | "close";
@@ -13,7 +13,13 @@
     error: unknown;
     onLeave: () => void;
   };
-  let { show = $bindable(), name, leaving = "leave", error, onLeave }: UnsavedLeaveModalProps = $props();
+  let {
+    show = $bindable(),
+    name,
+    leaving = "leave",
+    error,
+    onLeave,
+  }: UnsavedLeaveModalProps = $props();
 
   const WORDING = {
     leave: { now: "leaving now", button: "Leave anyway" },
@@ -22,18 +28,22 @@
   const wording = $derived(WORDING[leaving]);
 
   const message = $derived(
-    typeof error === "string" ? error : error instanceof Error ? error.message : undefined,
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : undefined,
   );
 </script>
 
 <Modal bind:show>
   {#snippet header()}
-    {name} isn’t saved
+    {name} isn't saved
   {/snippet}
   <div class="content">
     <p>
-      Its latest changes couldn’t be saved: {wording.now} loses them. Stay to try again, or to copy them elsewhere
-      first.
+      Its latest changes couldn't be saved: {wording.now} loses them. Stay to try
+      again, or to copy them elsewhere first.
     </p>
     {#if message}
       <p class="error">{message}</p>

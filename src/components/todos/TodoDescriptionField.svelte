@@ -48,7 +48,8 @@
    * Saves the description before leaving it (e.g. closing its modal), or asks to leave without it if that fails:
    * whether to leave.
    */
-  export const saveBeforeLeaving = async () => (await autosave.flush()) || (await leaving.ask());
+  export const saveBeforeLeaving = async () =>
+    (await autosave.flush()) || (await leaving.ask());
 
   // Switching to another workspace too
   onMount(() =>
@@ -77,7 +78,7 @@
     <ErrorBanner
       title="Could not save the description"
       error={autosave.error}
-      hint="Your text is kept here: it’s saved again with your next edit."
+      hint="Your text is kept here: it's saved again with your next edit."
       action={{ label: "Try again", onClick: () => void autosave.flush() }}
       onDismiss={() => (errorDismissed = true)}
     />

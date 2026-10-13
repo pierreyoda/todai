@@ -28,7 +28,9 @@
   // svelte-ignore state_referenced_locally: fixed once mounted
   const isToday = day === dateToTodaiDate(new Date());
   // svelte-ignore state_referenced_locally: fixed once mounted
-  const noteName = isToday ? "Today's note" : `The note of ${formatFullDay(day)}`;
+  const noteName = isToday
+    ? "Today's note"
+    : `The note of ${formatFullDay(day)}`;
 
   const saveNote = createSaveNoteMutation();
   // svelte-ignore state_referenced_locally: the draft starts from the loaded note, then is the one written
@@ -51,7 +53,8 @@
   let leavingAnyway = false;
 
   /** Saves the draft before leaving, or asks to leave without it if that fails: whether to leave. */
-  const saveBeforeLeaving = async () => (await autosave.flush()) || (await leaving.ask());
+  const saveBeforeLeaving = async () =>
+    (await autosave.flush()) || (await leaving.ask());
 
   /** Once left without it for another workspace: the draft must not be saved in that one's database. */
   let draftDiscarded = false;
@@ -67,7 +70,13 @@
   // Leaving the page waits for the draft to be saved
   beforeNavigate((navigation) => {
     // Reloading or quitting can't wait: saved in the background, on destroy
-    if (leavingAnyway || !autosave.dirty || navigation.type === "leave" || !navigation.to) return;
+    if (
+      leavingAnyway ||
+      !autosave.dirty ||
+      navigation.type === "leave" ||
+      !navigation.to
+    )
+      return;
     navigation.cancel();
     const to = navigation.to.url;
     void saveBeforeLeaving().then((leave) => {
@@ -104,7 +113,7 @@
         Calendar
       </a>
     {/if}
-    <h1 class="title">{isToday ? "Today’s note" : "Note"}</h1>
+    <h1 class="title">{isToday ? "Today's note" : "Note"}</h1>
     <time class="day" datetime={day}>{formatFullDay(day)}</time>
     <div class="actions">
       <SaveStatus status={autosave.status} savedAt={note?.updatedAt} />
@@ -114,9 +123,9 @@
   {#if autosave.status === "error" && !errorDismissed}
     <div class="px-2">
       <ErrorBanner
-        title={`Could not save ${isToday ? "today’s note" : "this note"}`}
+        title={`Could not save ${isToday ? "today's note" : "this note"}`}
         error={autosave.error}
-        hint="Your text is kept here: it’s saved again with your next edit."
+        hint="Your text is kept here: it's saved again with your next edit."
         action={{ label: "Try again", onClick: () => void autosave.flush() }}
         onDismiss={() => (errorDismissed = true)}
       />
