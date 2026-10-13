@@ -1,17 +1,13 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type WorkspaceAvatarProps = {
-    /** Its initial is shown, todai's without any. */
-    name?: string;
-    size?: "sm" | "md";
-    class?: ClassValue;
-  };
-  const {
-    name,
-    size = "md",
-    class: extraClass,
-  }: WorkspaceAvatarProps = $props();
+type WorkspaceAvatarProps = {
+  /** Its initial is shown, todai's without any. */
+  name?: string;
+  size?: "sm" | "md";
+  class?: ClassValue;
+};
+const { name, size = "md", class: extraClass }: WorkspaceAvatarProps = $props();
 </script>
 
 <!-- Decorative: the workspace's name is always written next to it -->

@@ -1,67 +1,66 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
+import { createQuery } from "@tanstack/svelte-query";
+import { untrack } from "svelte";
+import { openLink } from "#domains/todos";
+import type { Workspace } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import {
+  createConnectGitHubMutation,
+  createRefindGhMutation,
+} from "../api/mutations";
+import { ghStatusQueryOptions } from "../api/queries";
+import { preselectedGhAccount } from "../model/connection";
 
-  import type { Workspace } from "#domains/workspaces";
-  import {
-    createConnectGitHubMutation,
-    createRefindGhMutation,
-  } from "../api/mutations";
-  import { ghStatusQueryOptions } from "../api/queries";
-  import { preselectedGhAccount } from "../model/connection";
-  import { openLink } from "#domains/todos";
-  import Button from "#shared/ui/Button.svelte";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import Modal from "#shared/ui/Modal.svelte";
+type GitHubConnectModalProps = {
+  /** Bindable. */
+  show: boolean;
+  workspace: Workspace;
+};
+let { show = $bindable(), workspace }: GitHubConnectModalProps = $props();
 
-  type GitHubConnectModalProps = {
-    /** Bindable. */
-    show: boolean;
-    workspace: Workspace;
-  };
-  let { show = $bindable(), workspace }: GitHubConnectModalProps = $props();
+const formId = $props.id();
+const ghStatus = createQuery(() => ghStatusQueryOptions);
+const refind = createRefindGhMutation();
+const connect = createConnectGitHubMutation();
 
-  const formId = $props.id();
-  const ghStatus = createQuery(() => ghStatusQueryOptions);
-  const refind = createRefindGhMutation();
-  const connect = createConnectGitHubMutation();
+const accounts = $derived(ghStatus.data?.accounts ?? []);
+const signedIn = $derived(accounts.filter((account) => account.signedIn));
 
-  const accounts = $derived(ghStatus.data?.accounts ?? []);
-  const signedIn = $derived(accounts.filter((account) => account.signedIn));
-
-  /** The login of the account to connect. */
-  let picked = $state<string | null>(null);
-  // Fresh each time it's opened: `gh auth login` may have been run since
-  $effect(() => {
-    if (!show) return;
-    untrack(() => {
-      connect.reset();
-      refind.reset();
-      ghStatus.refetch();
-    });
+/** The login of the account to connect. */
+let picked = $state<string | null>(null);
+// Fresh each time it's opened: `gh auth login` may have been run since
+$effect(() => {
+  if (!show) return;
+  untrack(() => {
+    connect.reset();
+    refind.reset();
+    ghStatus.refetch();
   });
-  // Preselected each time it's opened, once the accounts are known, and again if the picked one isn't available anymore
-  $effect(() => {
-    if (!show) {
-      picked = null;
-      return;
+});
+// Preselected each time it's opened, once the accounts are known, and again if the picked one isn't available anymore
+$effect(() => {
+  if (!show) {
+    picked = null;
+    return;
+  }
+  const preselected = preselectedGhAccount(accounts, workspace.githubLogin);
+  untrack(() => {
+    if (!signedIn.some((account) => account.login === picked)) {
+      picked = preselected?.login ?? null;
     }
-    const preselected = preselectedGhAccount(accounts, workspace.githubLogin);
-    untrack(() => {
-      if (!signedIn.some((account) => account.login === picked)) {
-        picked = preselected?.login ?? null;
-      }
-    });
   });
+});
 
-  const onsubmit = (event: SubmitEvent) => {
-    event.preventDefault();
-    if (!picked || connect.isPending) return;
-    connect.mutate(
-      { workspace, login: picked },
-      { onSuccess: () => (show = false) },
-    );
-  };
+const onsubmit = (event: SubmitEvent) => {
+  event.preventDefault();
+  if (!picked || connect.isPending) return;
+  connect.mutate(
+    { workspace, login: picked },
+    { onSuccess: () => (show = false) },
+  );
+};
 </script>
 
 <Modal bind:show>

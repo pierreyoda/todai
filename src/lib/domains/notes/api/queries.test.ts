@@ -18,7 +18,10 @@ describe("noteKeys", () => {
     await queryClient.invalidateQueries({ queryKey: noteKeys.months() });
 
     const invalidated = Object.fromEntries(
-      Object.entries(keys).map(([name, key]) => [name, queryClient.getQueryState(key)?.isInvalidated]),
+      Object.entries(keys).map(([name, key]) => [
+        name,
+        queryClient.getQueryState(key)?.isInvalidated,
+      ]),
     );
     expect(invalidated).toEqual({ months: true, month: true, day: false });
   });

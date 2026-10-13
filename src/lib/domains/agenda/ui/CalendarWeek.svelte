@@ -1,63 +1,60 @@
 <script lang="ts">
-  import type { Day } from "#core/time";
-  import type { Note } from "#domains/notes";
-  import type { Todo } from "#domains/todos";
-  import type { Tag } from "#domains/tags";
-  import { formatDay, formatFullDay, formatWeek, type Week } from "#core/time";
-  import { notePath } from "#domains/notes";
-  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
-  import Collapse from "#shared/ui/Collapse.svelte";
-  import { TodoSummaryItem } from "#domains/todos";
-  import { NoteMarker } from "#domains/notes";
-  import { formatTodoCounts } from "../model/counts";
+import type { Day } from "#core/time";
+import { formatDay, formatFullDay, formatWeek, type Week } from "#core/time";
+import type { Note } from "#domains/notes";
+import { NoteMarker, notePath } from "#domains/notes";
+import type { Tag } from "#domains/tags";
+import type { Todo } from "#domains/todos";
+import { TodoSummaryItem } from "#domains/todos";
+import Collapse from "#shared/ui/Collapse.svelte";
+import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
+import { formatTodoCounts } from "../model/counts";
 
-  type CalendarWeekProps = {
-    week: Week;
-    /** The todos of `week`, by day then in display order. */
-    todos: readonly Todo[];
-    /** The notes of `week`: their days are listed too, even without todos. */
-    notes?: readonly Note[];
-    tags: readonly Tag[];
-    selectedTagId: Tag["id"] | null;
-    today: Day;
-    /** Initial state. */
-    open?: boolean;
+type CalendarWeekProps = {
+  week: Week;
+  /** The todos of `week`, by day then in display order. */
+  todos: readonly Todo[];
+  /** The notes of `week`: their days are listed too, even without todos. */
+  notes?: readonly Note[];
+  tags: readonly Tag[];
+  selectedTagId: Tag["id"] | null;
+  today: Day;
+  /** Initial state. */
+  open?: boolean;
+};
+const {
+  week,
+  todos,
+  notes = [],
+  tags,
+  selectedTagId,
+  today,
+  open: initiallyOpen = false,
+}: CalendarWeekProps = $props();
+// svelte-ignore state_referenced_locally: `open` is only the initial state
+let open = $state(initiallyOpen);
+
+/** Most recent day first, with its todos in display order and its note, if any. */
+const days = $derived.by(() => {
+  const byDay = new Map<Day, { todos: Todo[]; note?: Note }>();
+  const dayOf = (day: Day) => {
+    let entry = byDay.get(day);
+    if (!entry) byDay.set(day, (entry = { todos: [] }));
+    return entry;
   };
-  const {
-    week,
-    todos,
-    notes = [],
-    tags,
-    selectedTagId,
-    today,
-    open: initiallyOpen = false,
-  }: CalendarWeekProps = $props();
-  // svelte-ignore state_referenced_locally: `open` is only the initial state
-  let open = $state(initiallyOpen);
+  for (const todo of todos) dayOf(todo.day).todos.push(todo);
+  for (const note of notes) dayOf(note.day).note = note;
+  return [...byDay].sort(([a], [b]) => b.localeCompare(a));
+});
+const completedCount = $derived(todos.filter((todo) => todo.completed).length);
 
-  /** Most recent day first, with its todos in display order and its note, if any. */
-  const days = $derived.by(() => {
-    const byDay = new Map<Day, { todos: Todo[]; note?: Note }>();
-    const dayOf = (day: Day) => {
-      let entry = byDay.get(day);
-      if (!entry) byDay.set(day, (entry = { todos: [] }));
-      return entry;
-    };
-    for (const todo of todos) dayOf(todo.day).todos.push(todo);
-    for (const note of notes) dayOf(note.day).note = note;
-    return [...byDay].sort(([a], [b]) => b.localeCompare(a));
-  });
-  const completedCount = $derived(
-    todos.filter((todo) => todo.completed).length,
-  );
-
-  /** Shows which weeks have todos with the selected tag, even collapsed. */
-  const selectedTag = $derived(tags.find((tag) => tag.id === selectedTagId));
-  const selectedTagCount = $derived(
-    selectedTag
-      ? todos.filter((todo) => todo.tagIds.includes(selectedTag.id)).length
-      : 0,
-  );
+/** Shows which weeks have todos with the selected tag, even collapsed. */
+const selectedTag = $derived(tags.find((tag) => tag.id === selectedTagId));
+const selectedTagCount = $derived(
+  selectedTag
+    ? todos.filter((todo) => todo.tagIds.includes(selectedTag.id)).length
+    : 0,
+);
 </script>
 
 <Collapse bind:open headingLevel={3}>

@@ -1,35 +1,35 @@
 <script lang="ts">
-  import Modal from "#shared/ui/Modal.svelte";
-  import type { Tag } from "../model/types";
-  import {
-    createAddTagMutation,
-    createDeleteTagMutation,
-    createUpdateTagMutation,
-  } from "../api/mutations";
-  import TagForm from "./TagForm.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import {
+  createAddTagMutation,
+  createDeleteTagMutation,
+  createUpdateTagMutation,
+} from "../api/mutations";
+import type { Tag } from "../model/types";
+import TagForm from "./TagForm.svelte";
 
-  type TagUpsertModalProps = {
-    show: boolean;
-  } & (
-    | {
-        existingTag: Tag;
-        mode?: "all" | "color";
-      }
-    | {
-        existingTag?: never;
-        mode?: "all";
-      }
-  );
-  let {
-    show = $bindable(),
-    existingTag,
-    mode = "all",
-  }: TagUpsertModalProps = $props();
+type TagUpsertModalProps = {
+  show: boolean;
+} & (
+  | {
+      existingTag: Tag;
+      mode?: "all" | "color";
+    }
+  | {
+      existingTag?: never;
+      mode?: "all";
+    }
+);
+let {
+  show = $bindable(),
+  existingTag,
+  mode = "all",
+}: TagUpsertModalProps = $props();
 
-  const close = () => (show = false);
-  const createTag = createAddTagMutation({ onSuccess: close });
-  const updateTag = createUpdateTagMutation({ onSuccess: close });
-  const deleteTag = createDeleteTagMutation({ onSuccess: close });
+const close = () => (show = false);
+const createTag = createAddTagMutation({ onSuccess: close });
+const updateTag = createUpdateTagMutation({ onSuccess: close });
+const deleteTag = createDeleteTagMutation({ onSuccess: close });
 </script>
 
 <Modal bind:show>

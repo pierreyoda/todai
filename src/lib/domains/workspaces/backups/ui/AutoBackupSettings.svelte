@@ -1,38 +1,38 @@
 <script lang="ts">
-  import type { Workspace } from "../../model/types";
-  import { createSetAutoBackupMutation } from "../api/mutations";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
-  import FieldText from "#shared/ui/FieldText.svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import FieldText from "#shared/ui/FieldText.svelte";
+import type { Workspace } from "../../model/types";
+import { createSetAutoBackupMutation } from "../api/mutations";
 
-  /** Most automatic backups kept, as enforced by the backend. */
-  const KEEP_MAX = 100;
+/** Most automatic backups kept, as enforced by the backend. */
+const KEEP_MAX = 100;
 
-  type AutoBackupSettingsProps = {
-    workspace: Workspace;
-  };
-  const { workspace }: AutoBackupSettingsProps = $props();
+type AutoBackupSettingsProps = {
+  workspace: Workspace;
+};
+const { workspace }: AutoBackupSettingsProps = $props();
 
-  const update = createSetAutoBackupMutation();
+const update = createSetAutoBackupMutation();
 
-  // Follow the workspace's settings (once saved, or for another workspace), edited here until then
-  let autoBackup = $derived(workspace.autoBackup);
-  let keepDraft = $derived(String(workspace.autoBackupKeep));
-  const keep = $derived(Number(keepDraft.trim()));
-  const keepValid = $derived(
-    Number.isInteger(keep) && keep >= 1 && keep <= KEEP_MAX,
-  );
+// Follow the workspace's settings (once saved, or for another workspace), edited here until then
+let autoBackup = $derived(workspace.autoBackup);
+let keepDraft = $derived(String(workspace.autoBackupKeep));
+const keep = $derived(Number(keepDraft.trim()));
+const keepValid = $derived(
+  Number.isInteger(keep) && keep >= 1 && keep <= KEEP_MAX,
+);
 
-  const save = () => {
-    if (!keepValid) return;
-    if (
-      autoBackup === workspace.autoBackup &&
-      keep === workspace.autoBackupKeep
-    ) {
-      return;
-    }
-    update.mutate({ id: workspace.id, autoBackup, autoBackupKeep: keep });
-  };
+const save = () => {
+  if (!keepValid) return;
+  if (
+    autoBackup === workspace.autoBackup &&
+    keep === workspace.autoBackupKeep
+  ) {
+    return;
+  }
+  update.mutate({ id: workspace.id, autoBackup, autoBackupKeep: keep });
+};
 </script>
 
 <section class="settings" aria-label="Automatic backups">

@@ -1,79 +1,78 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
-  import { slide } from "svelte/transition";
+import { createQuery } from "@tanstack/svelte-query";
+import { slide } from "svelte/transition";
+import type { Day } from "#core/time";
+import { addDays, formatDay } from "#core/time";
+import type { Tag } from "#domains/tags";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+import IconSun from "#shared/ui/icons/IconSun.svelte";
+import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+import { createMoveTodosMutation } from "../api/mutations";
+import { unfinishedTodosQueryOptions } from "../api/queries";
+import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../model/constants";
+import type { Todo } from "../model/types";
 
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import { unfinishedTodosQueryOptions } from "../api/queries";
-  import { createMoveTodosMutation } from "../api/mutations";
-  import type { Day } from "#core/time";
-  import type { Todo } from "../model/types";
-  import type { Tag } from "#domains/tags";
-  import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../model/constants";
-  import { addDays, formatDay } from "#core/time";
-  import Button from "#shared/ui/Button.svelte";
-  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
-  import IconSun from "#shared/ui/icons/IconSun.svelte";
-  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+/** Offers to move to `day` the todos left unfinished in the days before it: all at once, or picked one by one. */
+type UnfinishedTodosBannerProps = {
+  day: Day;
+  tags: readonly Tag[];
+};
+const { day, tags }: UnfinishedTodosBannerProps = $props();
 
-  /** Offers to move to `day` the todos left unfinished in the days before it: all at once, or picked one by one. */
-  type UnfinishedTodosBannerProps = {
-    day: Day;
-    tags: readonly Tag[];
-  };
-  const { day, tags }: UnfinishedTodosBannerProps = $props();
+const unfinished = createQuery(() => unfinishedTodosQueryOptions(day));
+const todos = $derived(unfinished.data ?? []);
 
-  const unfinished = createQuery(() => unfinishedTodosQueryOptions(day));
-  const todos = $derived(unfinished.data ?? []);
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const workspaceId = $derived(activeWorkspace.data?.id);
 
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const workspaceId = $derived(activeWorkspace.data?.id);
+/** Hidden until the next day, per workspace, on this machine only: holds the day it was hidden on. */
+const storageKey = (workspaceId: string) =>
+  `todai:unfinished-todos-dismissed:${workspaceId}`;
+const readDismissedOn = (workspaceId: string) => {
+  try {
+    return localStorage.getItem(storageKey(workspaceId));
+  } catch {
+    return null;
+  }
+};
+/** The workspaces it was hidden for since the page was opened. */
+let dismissedNow = $state<string[]>([]);
+const dismissed = $derived(
+  !workspaceId ||
+    dismissedNow.includes(workspaceId) ||
+    readDismissedOn(workspaceId) === day,
+);
+const dismiss = () => {
+  if (!workspaceId) return;
+  dismissedNow = [...dismissedNow, workspaceId];
+  try {
+    localStorage.setItem(storageKey(workspaceId), day);
+  } catch {
+    // Only until the page is opened again, then
+  }
+};
 
-  /** Hidden until the next day, per workspace, on this machine only: holds the day it was hidden on. */
-  const storageKey = (workspaceId: string) =>
-    `todai:unfinished-todos-dismissed:${workspaceId}`;
-  const readDismissedOn = (workspaceId: string) => {
-    try {
-      return localStorage.getItem(storageKey(workspaceId));
-    } catch {
-      return null;
-    }
-  };
-  /** The workspaces it was hidden for since the page was opened. */
-  let dismissedNow = $state<string[]>([]);
-  const dismissed = $derived(
-    !workspaceId ||
-      dismissedNow.includes(workspaceId) ||
-      readDismissedOn(workspaceId) === day,
-  );
-  const dismiss = () => {
-    if (!workspaceId) return;
-    dismissedNow = [...dismissedNow, workspaceId];
-    try {
-      localStorage.setItem(storageKey(workspaceId), day);
-    } catch {
-      // Only until the page is opened again, then
-    }
-  };
+const shown = $derived(!dismissed && todos.length > 0);
 
-  const shown = $derived(!dismissed && todos.length > 0);
+let expanded = $state(false);
+const listId = $props.id();
 
-  let expanded = $state(false);
-  const listId = $props.id();
+const moveTodos = createMoveTodosMutation(() => day);
 
-  const moveTodos = createMoveTodosMutation(() => day);
+/** Most recent day first; todos keep their display order. */
+const todosByDay = $derived.by(() => {
+  const byDay = new Map<Day, Todo[]>();
+  for (const todo of todos) {
+    byDay.set(todo.day, [...(byDay.get(todo.day) ?? []), todo]);
+  }
+  return [...byDay].reverse();
+});
+const yesterday = $derived(addDays(day, -1));
 
-  /** Most recent day first; todos keep their display order. */
-  const todosByDay = $derived.by(() => {
-    const byDay = new Map<Day, Todo[]>();
-    for (const todo of todos) {
-      byDay.set(todo.day, [...(byDay.get(todo.day) ?? []), todo]);
-    }
-    return [...byDay].reverse();
-  });
-  const yesterday = $derived(addDays(day, -1));
-
-  const tagsOf = (todo: Todo) =>
-    tags.filter((tag) => todo.tagIds.includes(tag.id));
+const tagsOf = (todo: Todo) =>
+  tags.filter((tag) => todo.tagIds.includes(tag.id));
 </script>
 
 {#if shown}

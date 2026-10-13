@@ -37,7 +37,11 @@ export class Autosave {
    * @param saved The content already saved, e.g. loaded: the initial draft.
    * @param save Rejects if it fails.
    */
-  constructor(saved: string, save: (content: string) => Promise<unknown>, delay = AUTOSAVE_DELAY) {
+  constructor(
+    saved: string,
+    save: (content: string) => Promise<unknown>,
+    delay = AUTOSAVE_DELAY,
+  ) {
     this.#draft = saved;
     this.#saved = saved;
     this.#save = save;

@@ -15,9 +15,9 @@ import {
   monthBounds,
   monthOf,
   monthsBetween,
+  type Week,
   weekOf,
   weeksOfMonth,
-  type Week,
 } from "./days";
 
 const TODAI_DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
@@ -49,12 +49,17 @@ const intlTodaiDate = (date: Date, timeZone: string): string => {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value;
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)!.value;
   return `${part("year").padStart(4, "0")}-${part("month")}-${part("day")}`;
 };
 
 /** A local date with an arbitrary year: `new Date(year, …)` maps years 0-99 to 1900-1999. */
-const localDateWithYear = (year: number, monthIndex: number, day: number): Date => {
+const localDateWithYear = (
+  year: number,
+  monthIndex: number,
+  day: number,
+): Date => {
   const date = new Date(2000, monthIndex, day);
   date.setFullYear(year, monthIndex, day);
   return date;
@@ -79,16 +84,28 @@ describe("dateToTodaiDate", () => {
     });
 
     it("ignores the time of day, from the first to the last millisecond", () => {
-      expect(dateToTodaiDate(new Date(2026, 9, 1, 0, 0, 0, 0))).toBe("2026-10-01");
-      expect(dateToTodaiDate(new Date(2026, 9, 1, 12, 0, 0, 0))).toBe("2026-10-01");
-      expect(dateToTodaiDate(new Date(2026, 9, 1, 23, 59, 59, 999))).toBe("2026-10-01");
-      expect(dateToTodaiDate(new Date(2026, 9, 2, 0, 0, 0, 0))).toBe("2026-10-02");
+      expect(dateToTodaiDate(new Date(2026, 9, 1, 0, 0, 0, 0))).toBe(
+        "2026-10-01",
+      );
+      expect(dateToTodaiDate(new Date(2026, 9, 1, 12, 0, 0, 0))).toBe(
+        "2026-10-01",
+      );
+      expect(dateToTodaiDate(new Date(2026, 9, 1, 23, 59, 59, 999))).toBe(
+        "2026-10-01",
+      );
+      expect(dateToTodaiDate(new Date(2026, 9, 2, 0, 0, 0, 0))).toBe(
+        "2026-10-02",
+      );
     });
 
     it("rolls over months and years", () => {
-      expect(dateToTodaiDate(new Date(2026, 0, 31, 23, 59, 59, 999))).toBe("2026-01-31");
+      expect(dateToTodaiDate(new Date(2026, 0, 31, 23, 59, 59, 999))).toBe(
+        "2026-01-31",
+      );
       expect(dateToTodaiDate(new Date(2026, 1, 1))).toBe("2026-02-01");
-      expect(dateToTodaiDate(new Date(2026, 11, 31, 23, 59, 59, 999))).toBe("2026-12-31");
+      expect(dateToTodaiDate(new Date(2026, 11, 31, 23, 59, 59, 999))).toBe(
+        "2026-12-31",
+      );
       expect(dateToTodaiDate(new Date(2027, 0, 1))).toBe("2027-01-01");
     });
 
@@ -109,7 +126,9 @@ describe("dateToTodaiDate", () => {
     });
 
     it("supports the last representable year", () => {
-      expect(dateToTodaiDate(new Date(9999, 11, 31, 23, 59, 59, 999))).toBe("9999-12-31");
+      expect(dateToTodaiDate(new Date(9999, 11, 31, 23, 59, 59, 999))).toBe(
+        "9999-12-31",
+      );
     });
 
     it("does not mutate its input", () => {
@@ -122,7 +141,11 @@ describe("dateToTodaiDate", () => {
     it("produces strictly increasing strings for consecutive days", () => {
       // Todos are queried and sorted by this string, so lexicographic order must match date order.
       let previous = dateToTodaiDate(new Date(2023, 11, 31));
-      for (let date = new Date(2024, 0, 1); date.getFullYear() < 2027; date.setDate(date.getDate() + 1)) {
+      for (
+        let date = new Date(2024, 0, 1);
+        date.getFullYear() < 2027;
+        date.setDate(date.getDate() + 1)
+      ) {
         const todaiDate = dateToTodaiDate(date);
         expect(todaiDate).toMatch(TODAI_DATE_FORMAT);
         expect(todaiDate > previous).toBe(true);
@@ -140,11 +163,15 @@ describe("dateToTodaiDate", () => {
     });
 
     it("throws on years before 0000", () => {
-      expect(() => dateToTodaiDate(localDateWithYear(-1, 11, 31))).toThrow(RangeError);
+      expect(() => dateToTodaiDate(localDateWithYear(-1, 11, 31))).toThrow(
+        RangeError,
+      );
     });
 
     it("throws on years after 9999", () => {
-      expect(() => dateToTodaiDate(localDateWithYear(10000, 0, 1))).toThrow(RangeError);
+      expect(() => dateToTodaiDate(localDateWithYear(10000, 0, 1))).toThrow(
+        RangeError,
+      );
     });
   });
 
@@ -166,18 +193,34 @@ describe("dateToTodaiDate", () => {
 
       it("handles the spring-forward DST transition", () => {
         // 2026-03-29: 02:00 local jumps to 03:00.
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 2, 28, 22, 59, 59, 999)))).toBe("2026-03-28");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 2, 28, 23, 0)))).toBe("2026-03-29");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 2, 29, 21, 59, 59, 999)))).toBe("2026-03-29");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 2, 29, 22, 0)))).toBe("2026-03-30");
+        expect(
+          dateToTodaiDate(new Date(Date.UTC(2026, 2, 28, 22, 59, 59, 999))),
+        ).toBe("2026-03-28");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 2, 28, 23, 0)))).toBe(
+          "2026-03-29",
+        );
+        expect(
+          dateToTodaiDate(new Date(Date.UTC(2026, 2, 29, 21, 59, 59, 999))),
+        ).toBe("2026-03-29");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 2, 29, 22, 0)))).toBe(
+          "2026-03-30",
+        );
       });
 
       it("handles the fall-back DST transition", () => {
         // 2026-10-25: 03:00 local goes back to 02:00.
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 24, 21, 59, 59, 999)))).toBe("2026-10-24");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 24, 22, 0)))).toBe("2026-10-25");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 25, 22, 59, 59, 999)))).toBe("2026-10-25");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 25, 23, 0)))).toBe("2026-10-26");
+        expect(
+          dateToTodaiDate(new Date(Date.UTC(2026, 9, 24, 21, 59, 59, 999))),
+        ).toBe("2026-10-24");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 24, 22, 0)))).toBe(
+          "2026-10-25",
+        );
+        expect(
+          dateToTodaiDate(new Date(Date.UTC(2026, 9, 25, 22, 59, 59, 999))),
+        ).toBe("2026-10-25");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 25, 23, 0)))).toBe(
+          "2026-10-26",
+        );
       });
     });
 
@@ -196,7 +239,9 @@ describe("dateToTodaiDate", () => {
       useTimeZone("Pacific/Kiritimati");
 
       it("is already the next day at UTC noon", () => {
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 1, 10, 0)))).toBe("2026-10-02");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 1, 10, 0)))).toBe(
+          "2026-10-02",
+        );
       });
     });
 
@@ -204,7 +249,9 @@ describe("dateToTodaiDate", () => {
       useTimeZone("Pacific/Pago_Pago");
 
       it("is still the previous day in the UTC morning", () => {
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 1, 10, 0)))).toBe("2026-09-30");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 9, 1, 10, 0)))).toBe(
+          "2026-09-30",
+        );
       });
     });
 
@@ -212,8 +259,12 @@ describe("dateToTodaiDate", () => {
       useTimeZone("Asia/Kathmandu");
 
       it("switches day at local midnight", () => {
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 8, 30, 18, 14, 59, 999)))).toBe("2026-09-30");
-        expect(dateToTodaiDate(new Date(Date.UTC(2026, 8, 30, 18, 15)))).toBe("2026-10-01");
+        expect(
+          dateToTodaiDate(new Date(Date.UTC(2026, 8, 30, 18, 14, 59, 999))),
+        ).toBe("2026-09-30");
+        expect(dateToTodaiDate(new Date(Date.UTC(2026, 8, 30, 18, 15)))).toBe(
+          "2026-10-01",
+        );
       });
     });
 
@@ -223,7 +274,9 @@ describe("dateToTodaiDate", () => {
       it("keeps the day whose midnight does not exist", () => {
         // On 2018-11-04, 00:00 local jumped to 01:00: local midnight is resolved to 01:00, the same day.
         expect(dateToTodaiDate(new Date(2018, 10, 4))).toBe("2018-11-04");
-        expect(dateToTodaiDate(new Date(2018, 10, 3, 23, 59, 59, 999))).toBe("2018-11-03");
+        expect(dateToTodaiDate(new Date(2018, 10, 3, 23, 59, 59, 999))).toBe(
+          "2018-11-03",
+        );
       });
     });
   });
@@ -248,16 +301,24 @@ describe("dateToTodaiDate", () => {
       // A 7-hour step (coprime with 24) hits every hour of the day, and DST transitions.
       for (let time = start; time < end; time += 7 * HOUR_MS) {
         const date = new Date(time);
-        expect(dateToTodaiDate(date), date.toISOString()).toBe(intlTodaiDate(date, timeZone));
+        expect(dateToTodaiDate(date), date.toISOString()).toBe(
+          intlTodaiDate(date, timeZone),
+        );
       }
     });
 
     it("around every local midnight", () => {
-      for (let time = Date.UTC(2026, 0, 1); time < Date.UTC(2027, 0, 1); time += DAY_MS) {
+      for (
+        let time = Date.UTC(2026, 0, 1);
+        time < Date.UTC(2027, 0, 1);
+        time += DAY_MS
+      ) {
         const midnight = new Date(time);
         midnight.setHours(0, 0, 0, 0);
         for (const date of [new Date(midnight.getTime() - 1), midnight]) {
-          expect(dateToTodaiDate(date), date.toISOString()).toBe(intlTodaiDate(date, timeZone));
+          expect(dateToTodaiDate(date), date.toISOString()).toBe(
+            intlTodaiDate(date, timeZone),
+          );
         }
       }
     });
@@ -265,7 +326,12 @@ describe("dateToTodaiDate", () => {
 });
 
 /** Time zones at both ends of UTC offsets, and ones with daylight saving time changes. */
-const TIME_ZONES = ["Pacific/Kiritimati", "Pacific/Pago_Pago", "Europe/Paris", "America/Sao_Paulo"];
+const TIME_ZONES = [
+  "Pacific/Kiritimati",
+  "Pacific/Pago_Pago",
+  "Europe/Paris",
+  "America/Sao_Paulo",
+];
 
 const INVALID_DAYS = [
   "",
@@ -284,7 +350,17 @@ const INVALID_DAYS = [
   "2026-04-31",
 ];
 
-const INVALID_MONTHS = ["", "2026", "2026-1", "26-10", "2026/10", "2026-10-01", "2026-00", "2026-13", " 2026-10"];
+const INVALID_MONTHS = [
+  "",
+  "2026",
+  "2026-1",
+  "26-10",
+  "2026/10",
+  "2026-10-01",
+  "2026-00",
+  "2026-13",
+  " 2026-10",
+];
 
 /** Reference implementation: every day of `month`, as UTC dates. */
 const daysOfMonth = (month: string): Date[] => {
@@ -304,10 +380,15 @@ const toDay = (date: Date) => date.toISOString().slice(0, 10);
 const referenceWeeks = (month: string): Week[] => {
   const weeks = new Map<string, Date[]>();
   for (const day of daysOfMonth(month)) {
-    const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 24 * 60 * 60 * 1000);
+    const monday = new Date(
+      day.getTime() - ((day.getUTCDay() + 6) % 7) * 24 * 60 * 60 * 1000,
+    );
     weeks.set(toDay(monday), [...(weeks.get(toDay(monday)) ?? []), day]);
   }
-  return [...weeks.values()].map((days) => ({ start: toDay(days[0]), end: toDay(days.at(-1)!) }));
+  return [...weeks.values()].map((days) => ({
+    start: toDay(days[0]),
+    end: toDay(days.at(-1)!),
+  }));
 };
 
 const MONTHS_2000_2030 = monthsBetween("2030-12", "2000-01");
@@ -342,7 +423,11 @@ describe("isTodaiDate", () => {
   });
 
   it("accepts the days formatted by dateToTodaiDate", () => {
-    for (const date of [new Date(2026, 9, 3), new Date(2028, 1, 29, 23, 59), new Date(2026, 11, 31, 23, 59)]) {
+    for (const date of [
+      new Date(2026, 9, 3),
+      new Date(2028, 1, 29, 23, 59),
+      new Date(2026, 11, 31, 23, 59),
+    ]) {
       expect(isTodaiDate(dateToTodaiDate(date))).toBe(true);
     }
   });
@@ -435,7 +520,12 @@ describe("addMonths", () => {
 
 describe("monthsBetween", () => {
   it("lists the months from the newest to the oldest, both included", () => {
-    expect(monthsBetween("2026-02", "2025-11")).toEqual(["2026-02", "2026-01", "2025-12", "2025-11"]);
+    expect(monthsBetween("2026-02", "2025-11")).toEqual([
+      "2026-02",
+      "2026-01",
+      "2025-12",
+      "2025-11",
+    ]);
   });
 
   it("lists a single month", () => {
@@ -453,14 +543,21 @@ describe("monthsBetween", () => {
   });
 
   it("stops at the minimum month", () => {
-    expect(monthsBetween("0000-03", "0000-01")).toEqual(["0000-03", "0000-02", "0000-01"]);
+    expect(monthsBetween("0000-03", "0000-01")).toEqual([
+      "0000-03",
+      "0000-02",
+      "0000-01",
+    ]);
   });
 
-  it.each(INVALID_MONTHS)("rejects the invalid month %j, even for an empty result", (month) => {
-    expect(() => monthsBetween(month, "2026-10")).toThrow(RangeError);
-    expect(() => monthsBetween("2026-10", month)).toThrow(RangeError);
-    expect(() => monthsBetween("0000-01", month)).toThrow(RangeError);
-  });
+  it.each(INVALID_MONTHS)(
+    "rejects the invalid month %j, even for an empty result",
+    (month) => {
+      expect(() => monthsBetween(month, "2026-10")).toThrow(RangeError);
+      expect(() => monthsBetween("2026-10", month)).toThrow(RangeError);
+      expect(() => monthsBetween("0000-01", month)).toThrow(RangeError);
+    },
+  );
 });
 
 describe("weeksOfMonth", () => {
@@ -493,7 +590,10 @@ describe("weeksOfMonth", () => {
   });
 
   it("includes February 29th of leap years", () => {
-    expect(weeksOfMonth("2028-02").at(-1)).toEqual({ start: "2028-02-28", end: "2028-02-29" });
+    expect(weeksOfMonth("2028-02").at(-1)).toEqual({
+      start: "2028-02-28",
+      end: "2028-02-29",
+    });
   });
 
   it("matches the reference implementation from 2000 to 2030", () => {
@@ -506,14 +606,17 @@ describe("weeksOfMonth", () => {
     for (const month of MONTHS_2000_2030) {
       const weeks = weeksOfMonth(month);
       const days = weeks.flatMap(({ start, end }) =>
-        daysOfMonth(month).map(toDay).filter((day) => day >= start && day <= end),
+        daysOfMonth(month)
+          .map(toDay)
+          .filter((day) => day >= start && day <= end),
       );
       expect(days, month).toEqual(daysOfMonth(month).map(toDay));
       expect(weeks.length, month).toBeGreaterThanOrEqual(4);
       expect(weeks.length, month).toBeLessThanOrEqual(6);
       for (const [index, { start, end }] of weeks.entries()) {
         if (index > 0) expect(new Date(start).getUTCDay(), start).toBe(1);
-        if (index < weeks.length - 1) expect(new Date(end).getUTCDay(), end).toBe(0);
+        if (index < weeks.length - 1)
+          expect(new Date(end).getUTCDay(), end).toBe(0);
       }
     }
   });
@@ -535,10 +638,22 @@ describe("weeksOfMonth", () => {
 
 describe("weekOf", () => {
   it("finds the week of its month containing the day", () => {
-    expect(weekOf("2026-10-03")).toEqual({ start: "2026-10-01", end: "2026-10-04" });
-    expect(weekOf("2026-10-05")).toEqual({ start: "2026-10-05", end: "2026-10-11" });
-    expect(weekOf("2026-10-11")).toEqual({ start: "2026-10-05", end: "2026-10-11" });
-    expect(weekOf("2026-09-30")).toEqual({ start: "2026-09-28", end: "2026-09-30" });
+    expect(weekOf("2026-10-03")).toEqual({
+      start: "2026-10-01",
+      end: "2026-10-04",
+    });
+    expect(weekOf("2026-10-05")).toEqual({
+      start: "2026-10-05",
+      end: "2026-10-11",
+    });
+    expect(weekOf("2026-10-11")).toEqual({
+      start: "2026-10-05",
+      end: "2026-10-11",
+    });
+    expect(weekOf("2026-09-30")).toEqual({
+      start: "2026-09-28",
+      end: "2026-09-30",
+    });
   });
 
   it("matches weeksOfMonth for every day from 2000 to 2030", () => {
@@ -562,9 +677,18 @@ describe("weekOf", () => {
 
     it("doesn't depend on the local time zone", () => {
       // Around the 2026 daylight saving time changes in Europe
-      expect(weekOf("2026-03-29")).toEqual({ start: "2026-03-23", end: "2026-03-29" });
-      expect(weekOf("2026-10-25")).toEqual({ start: "2026-10-19", end: "2026-10-25" });
-      expect(weekOf("2026-10-26")).toEqual({ start: "2026-10-26", end: "2026-10-31" });
+      expect(weekOf("2026-03-29")).toEqual({
+        start: "2026-03-23",
+        end: "2026-03-29",
+      });
+      expect(weekOf("2026-10-25")).toEqual({
+        start: "2026-10-19",
+        end: "2026-10-25",
+      });
+      expect(weekOf("2026-10-26")).toEqual({
+        start: "2026-10-26",
+        end: "2026-10-31",
+      });
     });
   });
 });
@@ -594,8 +718,12 @@ describe("formatWeek", () => {
   });
 
   it.each(INVALID_DAYS)("rejects the invalid day %j", (day) => {
-    expect(() => formatWeek({ start: day, end: "2026-10-04" })).toThrow(RangeError);
-    expect(() => formatWeek({ start: "2026-10-01", end: day })).toThrow(RangeError);
+    expect(() => formatWeek({ start: day, end: "2026-10-04" })).toThrow(
+      RangeError,
+    );
+    expect(() => formatWeek({ start: "2026-10-01", end: day })).toThrow(
+      RangeError,
+    );
   });
 });
 
@@ -619,7 +747,9 @@ describe("formatDay", () => {
     it("doesn't depend on the local time zone", () => {
       expect(formatDay("2026-10-05")).toBe("Mon 5");
       expect(formatMonth("2026-10")).toBe("October 2026");
-      expect(normalizeSpaces(formatWeek({ start: "2026-10-26", end: "2026-10-31" }))).toBe("Oct 26 – 31");
+      expect(
+        normalizeSpaces(formatWeek({ start: "2026-10-26", end: "2026-10-31" })),
+      ).toBe("Oct 26 – 31");
     });
   });
 });
@@ -706,16 +836,25 @@ describe("calendarWeeksOfMonth", () => {
   });
 
   it("has only the month's days for a 28-day February starting on a Monday", () => {
-    expect(calendarWeeksOfMonth("2021-02").flat()).toEqual(daysOfMonth("2021-02").map(toDay));
+    expect(calendarWeeksOfMonth("2021-02").flat()).toEqual(
+      daysOfMonth("2021-02").map(toDay),
+    );
   });
 
   it("matches the weeks of the month from 2000 to 2030", () => {
     for (const month of MONTHS_2000_2030) {
       const weeks = calendarWeeksOfMonth(month);
       // Consecutive days, from Monday to Sunday
-      expect(weeks.every((week) => week.length === 7), month).toBe(true);
+      expect(
+        weeks.every((week) => week.length === 7),
+        month,
+      ).toBe(true);
       const days = weeks.flat();
-      days.slice(1).forEach((day, index) => expect(day, month).toBe(addDays(days[index], 1)));
+      days
+        .slice(1)
+        .forEach((day, index) =>
+          expect(day, month).toBe(addDays(days[index], 1)),
+        );
       // Cut at the month's bounds, they're its weeks
       expect(
         weeks.map((week) => {
@@ -727,9 +866,12 @@ describe("calendarWeeksOfMonth", () => {
     }
   });
 
-  it.each(["0000-01", "9999-12"])("rejects %s, whose weeks go outside 0000-9999", (month) => {
-    expect(() => calendarWeeksOfMonth(month)).toThrow(RangeError);
-  });
+  it.each(["0000-01", "9999-12"])(
+    "rejects %s, whose weeks go outside 0000-9999",
+    (month) => {
+      expect(() => calendarWeeksOfMonth(month)).toThrow(RangeError);
+    },
+  );
 
   it.each(["0000-02", "9999-11"])("accepts %s", (month) => {
     expect(() => calendarWeeksOfMonth(month)).not.toThrow();

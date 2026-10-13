@@ -1,61 +1,59 @@
 <script lang="ts">
-  import type { Day } from "#core/time";
-  import type { Todo } from "../model/types";
-  import type { Tag } from "#domains/tags";
-  import {
-    createMoveTodoMutation,
-    createToggleTodoMutation,
-  } from "../api/mutations";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
-  import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
-  import { contextMenu } from "#shared/ui/contextMenu.ts";
-  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
-  import IconSun from "#shared/ui/icons/IconSun.svelte";
-  import LinksMarker from "../links/ui/LinksMarker.svelte";
-  import Button from "#shared/ui/Button.svelte";
-  import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
-  import TodoUpsertModal from "./TodoUpsertModal.svelte";
+import type { Day } from "#core/time";
+import type { Tag } from "#domains/tags";
+import Button from "#shared/ui/Button.svelte";
+import { contextMenu } from "#shared/ui/contextMenu.ts";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+import IconSun from "#shared/ui/icons/IconSun.svelte";
+import {
+  createMoveTodoMutation,
+  createToggleTodoMutation,
+} from "../api/mutations";
+import LinksMarker from "../links/ui/LinksMarker.svelte";
+import type { Todo } from "../model/types";
+import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
+import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
+import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
-  /** Slimmed down `TodoLineItem`: completeness toggle, title and tags, edition on right click. */
-  type TodoSummaryItemProps = {
-    item: Todo;
-    tags: readonly Tag[];
-    /** Todos with this tag are highlighted in its color. */
-    selectedTagId?: Tag["id"] | null;
-    /** Todos left undone on another day can be moved to it. */
-    today: Day;
-  };
-  const {
-    item,
-    tags,
-    selectedTagId = null,
-    today,
-  }: TodoSummaryItemProps = $props();
+/** Slimmed down `TodoLineItem`: completeness toggle, title and tags, edition on right click. */
+type TodoSummaryItemProps = {
+  item: Todo;
+  tags: readonly Tag[];
+  /** Todos with this tag are highlighted in its color. */
+  selectedTagId?: Tag["id"] | null;
+  /** Todos left undone on another day can be moved to it. */
+  today: Day;
+};
+const {
+  item,
+  tags,
+  selectedTagId = null,
+  today,
+}: TodoSummaryItemProps = $props();
 
-  // Resolved from the tags list, so they follow tag renames without refetching todos
-  const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
-  const highlightTag = $derived(
-    itemTags.find((tag) => tag.id === selectedTagId),
-  );
+// Resolved from the tags list, so they follow tag renames without refetching todos
+const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
+const highlightTag = $derived(itemTags.find((tag) => tag.id === selectedTagId));
 
-  // Follows the server state, but is checked/unchecked right away on click.
-  let completed = $derived(item.completed);
-  const toggleCompleted = createToggleTodoMutation(() => item, {
-    onError: () => (completed = item.completed),
-  });
+// Follows the server state, but is checked/unchecked right away on click.
+let completed = $derived(item.completed);
+const toggleCompleted = createToggleTodoMutation(() => item, {
+  onError: () => (completed = item.completed),
+});
 
-  const moveTodo = createMoveTodoMutation(() => item);
+const moveTodo = createMoveTodoMutation(() => item);
 
-  let lineRef = $state<HTMLLIElement>();
-  let openedDropdownMenu = $state(false);
+let lineRef = $state<HTMLLIElement>();
+let openedDropdownMenu = $state(false);
 
-  let showUpsertDialog = $state(false);
-  /** Whether the edit modal was opened to edit the description: its editor is then focused. */
-  let editingDescription = $state(false);
-  const openEditModal = (description: boolean) => {
-    editingDescription = description;
-    showUpsertDialog = true;
-  };
+let showUpsertDialog = $state(false);
+/** Whether the edit modal was opened to edit the description: its editor is then focused. */
+let editingDescription = $state(false);
+const openEditModal = (description: boolean) => {
+  editingDescription = description;
+  showUpsertDialog = true;
+};
 </script>
 
 <li

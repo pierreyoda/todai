@@ -20,8 +20,16 @@ describe("refreshGitHubAttention", () => {
     await refreshGitHubAttention(queryClient);
 
     const invalidated = Object.fromEntries(
-      Object.entries(keys).map(([name, key]) => [name, queryClient.getQueryState(key)?.isInvalidated]),
+      Object.entries(keys).map(([name, key]) => [
+        name,
+        queryClient.getQueryState(key)?.isInvalidated,
+      ]),
     );
-    expect(invalidated).toEqual({ workspaces: true, active: true, github: false, backups: false });
+    expect(invalidated).toEqual({
+      workspaces: true,
+      active: true,
+      github: false,
+      backups: false,
+    });
   });
 });

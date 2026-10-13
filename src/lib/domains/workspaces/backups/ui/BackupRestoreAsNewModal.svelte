@@ -1,42 +1,41 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+import { untrack } from "svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import { formatDateTime, formatShortDate } from "#shared/utils/timestamps.ts";
+import type { Workspace } from "../../model/types";
+import WorkspaceForm from "../../ui/WorkspaceForm.svelte";
+import { createRestoreBackupAsNewMutation } from "../api/mutations";
+import type { WorkspaceBackup } from "../model/types";
 
-  import type { Workspace } from "../../model/types";
-  import type { WorkspaceBackup } from "../model/types";
-  import { createRestoreBackupAsNewMutation } from "../api/mutations";
-  import { formatDateTime, formatShortDate } from "#shared/utils/timestamps.ts";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import Modal from "#shared/ui/Modal.svelte";
-  import WorkspaceForm from "../../ui/WorkspaceForm.svelte";
+/** Creates a workspace from a backup, with a copy of it as its database. Only reads `backup` initially. */
+type BackupRestoreAsNewModalProps = {
+  /** Bindable. */
+  show: boolean;
+  /** The one `backup` is of, left as it is. */
+  workspace: Workspace;
+  backup: WorkspaceBackup;
+  /** With the new workspace, now the active one. */
+  onRestored?: (restored: Workspace) => void;
+};
+let {
+  show = $bindable(),
+  workspace,
+  backup,
+  onRestored,
+}: BackupRestoreAsNewModalProps = $props();
 
-  /** Creates a workspace from a backup, with a copy of it as its database. Only reads `backup` initially. */
-  type BackupRestoreAsNewModalProps = {
-    /** Bindable. */
-    show: boolean;
-    /** The one `backup` is of, left as it is. */
-    workspace: Workspace;
-    backup: WorkspaceBackup;
-    /** With the new workspace, now the active one. */
-    onRestored?: (restored: Workspace) => void;
-  };
-  let {
-    show = $bindable(),
-    workspace,
-    backup,
-    onRestored,
-  }: BackupRestoreAsNewModalProps = $props();
-
-  // Restoring as a new workspace switches to it
-  const restoreAsNew = createRestoreBackupAsNewMutation({
-    onSuccess: (restored) => {
-      show = false;
-      onRestored?.(restored);
-    },
-  });
-  // A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
-  $effect(() => {
-    if (!show) untrack(() => restoreAsNew.reset());
-  });
+// Restoring as a new workspace switches to it
+const restoreAsNew = createRestoreBackupAsNewMutation({
+  onSuccess: (restored) => {
+    show = false;
+    onRestored?.(restored);
+  },
+});
+// A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
+$effect(() => {
+  if (!show) untrack(() => restoreAsNew.reset());
+});
 </script>
 
 <Modal bind:show>

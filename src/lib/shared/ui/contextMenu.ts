@@ -19,7 +19,8 @@ export const contextMenu =
 
     const onPointerDown = (event: PointerEvent) => {
       // Secondary button, or Ctrl + primary button on macOS
-      pressed = event.button === 2 || (isMac && event.button === 0 && event.ctrlKey);
+      pressed =
+        event.button === 2 || (isMac && event.button === 0 && event.ctrlKey);
     };
     const onPointerUp = () => {
       if (!pressed) return;

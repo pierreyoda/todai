@@ -1,19 +1,19 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  import type { Tag } from "#domains/tags";
-  import TodoPanelAppliedFilter from "./TodoPanelAppliedFilter.svelte";
+import type { Tag } from "#domains/tags";
+import TodoPanelAppliedFilter from "./TodoPanelAppliedFilter.svelte";
 
-  type TodoPanelFiltersProps = {
-    selectedTags: readonly Tag[];
-    onDismissedTag: (tagId: Tag["id"]) => void;
-    class?: ClassValue;
-  };
-  const {
-    selectedTags,
-    onDismissedTag,
-    class: extraClass,
-  }: TodoPanelFiltersProps = $props();
+type TodoPanelFiltersProps = {
+  selectedTags: readonly Tag[];
+  onDismissedTag: (tagId: Tag["id"]) => void;
+  class?: ClassValue;
+};
+const {
+  selectedTags,
+  onDismissedTag,
+  class: extraClass,
+}: TodoPanelFiltersProps = $props();
 </script>
 
 <div class={["container", extraClass]}>

@@ -2,8 +2,8 @@ import type { UUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { Tag } from "#domains/tags";
-import type { Todo } from "./types";
 import { createTodoSearch, filterTodos } from "./search";
+import type { Todo } from "./types";
 
 const DATE = new Date("2026-10-01T00:00:00Z");
 
@@ -18,7 +18,10 @@ const tag = (id: string, name: string): Tag => ({
 const todo = (
   id: string,
   title: string,
-  { tagIds = [], description }: { tagIds?: string[]; description?: string } = {},
+  {
+    tagIds = [],
+    description,
+  }: { tagIds?: string[]; description?: string } = {},
 ): Todo => ({
   id: id as UUID,
   day: "2026-10-01",
@@ -84,7 +87,10 @@ describe("createTodoSearch", () => {
 
   it("finds tags by their current name", () => {
     const renamed = [tag("work", "office"), tag("urgent", "urgent")];
-    expect(search("office", TODOS, renamed)?.sort()).toEqual(["cafe", "report"]);
+    expect(search("office", TODOS, renamed)?.sort()).toEqual([
+      "cafe",
+      "report",
+    ]);
     expect(search("work", TODOS, renamed)).toEqual([]);
   });
 

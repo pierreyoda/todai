@@ -1,58 +1,57 @@
 <script lang="ts">
-  import { open } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+import IconPlus from "#shared/ui/icons/IconPlus.svelte";
+import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
+import {
+  createImportWorkspaceMutation,
+  createRemoveWorkspaceMutation,
+} from "../api/mutations";
+import type { Workspace } from "../model/types";
+import WorkspaceRemoveModal from "./WorkspaceRemoveModal.svelte";
+import WorkspacesTable from "./WorkspacesTable.svelte";
+import WorkspaceUpsertModal from "./WorkspaceUpsertModal.svelte";
 
-  import type { Workspace } from "../model/types";
-  import {
-    createImportWorkspaceMutation,
-    createRemoveWorkspaceMutation,
-  } from "../api/mutations";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
-  import IconPlus from "#shared/ui/icons/IconPlus.svelte";
-  import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
-  import WorkspacesTable from "./WorkspacesTable.svelte";
-  import WorkspaceUpsertModal from "./WorkspaceUpsertModal.svelte";
-  import WorkspaceRemoveModal from "./WorkspaceRemoveModal.svelte";
+type WorkspaceSettingsProps = {
+  activeWorkspace: Workspace | null;
+  workspaces: readonly Workspace[];
+};
+const { activeWorkspace, workspaces }: WorkspaceSettingsProps = $props();
+const onlyNew = $derived(!activeWorkspace || workspaces.length === 0);
 
-  type WorkspaceSettingsProps = {
-    activeWorkspace: Workspace | null;
-    workspaces: readonly Workspace[];
-  };
-  const { activeWorkspace, workspaces }: WorkspaceSettingsProps = $props();
-  const onlyNew = $derived(!activeWorkspace || workspaces.length === 0);
+const importWorkspaceMutation = createImportWorkspaceMutation();
+const removeWorkspaceMutation = createRemoveWorkspaceMutation({
+  onSuccess: () => (showRemoveDialog = false),
+});
 
-  const importWorkspaceMutation = createImportWorkspaceMutation();
-  const removeWorkspaceMutation = createRemoveWorkspaceMutation({
-    onSuccess: () => (showRemoveDialog = false),
+let showUpsertDialog = $state(false);
+/** Created if `null`. */
+let editedWorkspace = $state<Workspace | null>(null);
+const openUpsertDialog = (workspace: Workspace | null) => {
+  editedWorkspace = workspace;
+  showUpsertDialog = true;
+};
+
+let importingWorkspace = $state(false);
+const importWorkspace = async () => {
+  if (importingWorkspace || importWorkspaceMutation.isPending) return;
+  importingWorkspace = true;
+  const path = await open({
+    filters: [{ name: "Todai Workspace", extensions: ["sqlite3"] }],
   });
+  importingWorkspace = false;
+  if (!path) return;
+  importWorkspaceMutation.mutate(path);
+};
 
-  let showUpsertDialog = $state(false);
-  /** Created if `null`. */
-  let editedWorkspace = $state<Workspace | null>(null);
-  const openUpsertDialog = (workspace: Workspace | null) => {
-    editedWorkspace = workspace;
-    showUpsertDialog = true;
-  };
-
-  let importingWorkspace = $state(false);
-  const importWorkspace = async () => {
-    if (importingWorkspace || importWorkspaceMutation.isPending) return;
-    importingWorkspace = true;
-    const path = await open({
-      filters: [{ name: "Todai Workspace", extensions: ["sqlite3"] }],
-    });
-    importingWorkspace = false;
-    if (!path) return;
-    importWorkspaceMutation.mutate(path);
-  };
-
-  let showRemoveDialog = $state(false);
-  /** Kept once closed, so that the modal doesn't lose its content while closing. */
-  let removedWorkspace = $state<Workspace | null>(null);
-  const openRemoveDialog = (workspace: Workspace) => {
-    removedWorkspace = workspace;
-    showRemoveDialog = true;
-  };
+let showRemoveDialog = $state(false);
+/** Kept once closed, so that the modal doesn't lose its content while closing. */
+let removedWorkspace = $state<Workspace | null>(null);
+const openRemoveDialog = (workspace: Workspace) => {
+  removedWorkspace = workspace;
+  showRemoveDialog = true;
+};
 </script>
 
 <SettingsContainer>

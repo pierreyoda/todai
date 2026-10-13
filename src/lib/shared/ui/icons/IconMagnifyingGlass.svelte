@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconMagnifyingGlassProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconMagnifyingGlassProps = $props();
+type IconMagnifyingGlassProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconMagnifyingGlassProps = $props();
 </script>
 
 <svg

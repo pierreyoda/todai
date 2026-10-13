@@ -1,52 +1,49 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import { dateToTodaiDate, formatDay } from "#core/time";
+import { noteDrafts, noteQueryOptions } from "#domains/notes";
+import type { Tag } from "#domains/tags";
+import { SidePanelTag, TagsEmptyState, TagUpsertModal } from "#domains/tags";
+import {
+  activeWorkspaceQueryOptions,
+  SidePanelWorkspace,
+} from "#domains/workspaces";
+import Collapse from "#shared/ui/Collapse.svelte";
+import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
+import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+import IconLink from "#shared/ui/icons/IconLink.svelte";
+import IconPlus from "#shared/ui/icons/IconPlus.svelte";
+import IconSun from "#shared/ui/icons/IconSun.svelte";
+import SidePanelLink from "./SidePanelLink.svelte";
 
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import { noteQueryOptions } from "#domains/notes";
-  import type { Tag } from "#domains/tags";
-  import { dateToTodaiDate, formatDay } from "#core/time";
-  import { noteDrafts } from "#domains/notes";
-  import Collapse from "#shared/ui/Collapse.svelte";
-  import { SidePanelTag } from "#domains/tags";
-  import IconSun from "#shared/ui/icons/IconSun.svelte";
-  import IconPlus from "#shared/ui/icons/IconPlus.svelte";
-  import SidePanelLink from "./SidePanelLink.svelte";
-  import { TagUpsertModal } from "#domains/tags";
-  import { TagsEmptyState } from "#domains/tags";
-  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
-  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
-  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
-  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
-  import IconLink from "#shared/ui/icons/IconLink.svelte";
-  import { SidePanelWorkspace } from "#domains/workspaces";
-  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+type SidePanelProps = {
+  tags?: readonly Tag[] | "error" | "loading";
+  selectedTagId?: Tag["id"] | null;
+  onSelectedTagChanged?: (tagId: Tag["id"] | null) => void;
+};
 
-  type SidePanelProps = {
-    tags?: readonly Tag[] | "error" | "loading";
-    selectedTagId?: Tag["id"] | null;
-    onSelectedTagChanged?: (tagId: Tag["id"] | null) => void;
-  };
+const { tags, selectedTagId, onSelectedTagChanged }: SidePanelProps = $props();
 
-  const { tags, selectedTagId, onSelectedTagChanged }: SidePanelProps =
-    $props();
+let showTagCreationModal = $state(false);
+// The header's "+" button then gives way to a more inviting one, in the section's body
+const hasNoTags = $derived(Array.isArray(tags) && tags.length === 0);
 
-  let showTagCreationModal = $state(false);
-  // The header's "+" button then gives way to a more inviting one, in the section's body
-  const hasNoTags = $derived(Array.isArray(tags) && tags.length === 0);
+const day = dateToTodaiDate(new Date());
+const today = formatDay(day);
 
-  const day = dateToTodaiDate(new Date());
-  const today = formatDay(day);
+// Only from a usable workspace's database
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const note = createQuery(() => ({
+  ...noteQueryOptions(day),
+  enabled: activeWorkspace.data?.available === true,
+}));
+// As written while it's open, rather than once saved
+const todayHasNote = $derived(noteDrafts.hasNote(day, !!note.data));
 
-  // Only from a usable workspace's database
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const note = createQuery(() => ({
-    ...noteQueryOptions(day),
-    enabled: activeWorkspace.data?.available === true,
-  }));
-  // As written while it's open, rather than once saved
-  const todayHasNote = $derived(noteDrafts.hasNote(day, !!note.data));
-
-  // TODO: add closing mechanism (click outside, button with icon)
+// TODO: add closing mechanism (click outside, button with icon)
 </script>
 
 <aside class="side-panel">

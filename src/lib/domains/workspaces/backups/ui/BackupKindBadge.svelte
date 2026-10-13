@@ -1,26 +1,26 @@
 <script lang="ts">
-  import type { WorkspaceBackupKind } from "../model/types";
-  import IconClock from "#shared/ui/icons/IconClock.svelte";
+import IconClock from "#shared/ui/icons/IconClock.svelte";
+import type { WorkspaceBackupKind } from "../model/types";
 
-  const LABELS: Record<WorkspaceBackupKind, string> = {
-    manual: "Manual",
-    automatic: "Automatic",
-    pre_migration: "Before update",
-    pre_restore: "Before restore",
-  };
+const LABELS: Record<WorkspaceBackupKind, string> = {
+  manual: "Manual",
+  automatic: "Automatic",
+  pre_migration: "Before update",
+  pre_restore: "Before restore",
+};
 
-  const DESCRIPTIONS: Record<WorkspaceBackupKind, string> = {
-    manual: "Made on request",
-    automatic: "Made when the workspace was opened, at most once a day",
-    pre_migration:
-      "Made before an update of todai changed the workspace's database",
-    pre_restore: "The workspace's state before restoring another backup",
-  };
+const DESCRIPTIONS: Record<WorkspaceBackupKind, string> = {
+  manual: "Made on request",
+  automatic: "Made when the workspace was opened, at most once a day",
+  pre_migration:
+    "Made before an update of todai changed the workspace's database",
+  pre_restore: "The workspace's state before restoring another backup",
+};
 
-  type BackupKindBadgeProps = {
-    kind: WorkspaceBackupKind;
-  };
-  const { kind }: BackupKindBadgeProps = $props();
+type BackupKindBadgeProps = {
+  kind: WorkspaceBackupKind;
+};
+const { kind }: BackupKindBadgeProps = $props();
 </script>
 
 <span class={["badge", kind]} title={DESCRIPTIONS[kind]}>

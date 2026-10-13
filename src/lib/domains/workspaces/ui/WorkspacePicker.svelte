@@ -1,30 +1,29 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownSection,
+  DropdownTrigger,
+} from "#shared/ui/dropdown/index.ts";
+import IconChevronUpDown from "#shared/ui/icons/IconChevronUpDown.svelte";
+import type { Workspace } from "../model/types";
+import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
 
-  import type { Workspace } from "../model/types";
-  import {
-    Dropdown,
-    DropdownItem,
-    DropdownMenu,
-    DropdownSection,
-    DropdownTrigger,
-  } from "#shared/ui/dropdown/index.ts";
-  import IconChevronUpDown from "#shared/ui/icons/IconChevronUpDown.svelte";
-  import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
-
-  type WorkspacePickerProps = {
-    workspaces: readonly Workspace[];
-    selected: Workspace;
-    onPicked: (workspace: Workspace) => void;
-    /** Applied to the button opening it. */
-    class?: ClassValue;
-  };
-  const {
-    workspaces,
-    selected,
-    onPicked,
-    class: extraClass,
-  }: WorkspacePickerProps = $props();
+type WorkspacePickerProps = {
+  workspaces: readonly Workspace[];
+  selected: Workspace;
+  onPicked: (workspace: Workspace) => void;
+  /** Applied to the button opening it. */
+  class?: ClassValue;
+};
+const {
+  workspaces,
+  selected,
+  onPicked,
+  class: extraClass,
+}: WorkspacePickerProps = $props();
 </script>
 
 {#snippet status({ available, isActive }: Workspace)}

@@ -109,7 +109,7 @@ export interface IssueSnapshot {
   /** The first few. */
   assignees: string[];
   /** The first few. */
-  labels: { name: string; /** Format: #RRGGBB. */ color: string }[];
+  labels: { name: string /** Format: #RRGGBB. */; color: string }[];
   milestone?: string;
   comments: number;
   /** The first few pull requests that close it once merged, or did. */
@@ -123,7 +123,14 @@ export interface IssueSnapshot {
  * - `closed`: a pull request closed without being merged (or an issue closed for another reason than below);
  * - `completed`, `not_planned`, `duplicate`: a closed issue.
  */
-export type ItemState = "open" | "draft" | "merged" | "closed" | "completed" | "not_planned" | "duplicate";
+export type ItemState =
+  | "open"
+  | "draft"
+  | "merged"
+  | "closed"
+  | "completed"
+  | "not_planned"
+  | "duplicate";
 
 /** A pull request or issue mentioned by another one, e.g. an issue a pull request closes. */
 export interface RelatedItem extends ParsedLink {

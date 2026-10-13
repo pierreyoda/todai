@@ -1,65 +1,79 @@
 <script lang="ts">
-  import SvelteMarkdown, { type MarkedExtension } from "@humanspeak/svelte-markdown";
-  import { openUrl } from "@tauri-apps/plugin-opener";
-  import { tick } from "svelte";
+import SvelteMarkdown, {
+  type MarkedExtension,
+} from "@humanspeak/svelte-markdown";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { tick } from "svelte";
 
-  import IconArrowTopRightOnSquare from "#shared/ui/icons/IconArrowTopRightOnSquare.svelte";
-  import IconPhoto from "#shared/ui/icons/IconPhoto.svelte";
+import IconArrowTopRightOnSquare from "#shared/ui/icons/IconArrowTopRightOnSquare.svelte";
+import IconPhoto from "#shared/ui/icons/IconPhoto.svelte";
 
-  /** Markdown, rendered: e.g. in an editor's preview, or in the calendar's preview of a day's note. */
-  type MarkdownContentProps = {
-    content: string;
-    /**
-     * Checks or unchecks the task shown `index`-th, `checked` before, with `text` as its text. Returns whether it did:
-     * not if its line can't be found in `content`. Without it, tasks can't be checked.
-     */
-    onToggleTask?: (task: { index: number; checked: boolean; text: string }) => boolean;
-    /** What in-text links (`#heading`) scroll, if they can. */
-    scroller?: HTMLElement;
-  };
-  const { content, onToggleTask, scroller }: MarkdownContentProps = $props();
+/** Markdown, rendered: e.g. in an editor's preview, or in the calendar's preview of a day's note. */
+type MarkdownContentProps = {
+  content: string;
+  /**
+   * Checks or unchecks the task shown `index`-th, `checked` before, with `text` as its text. Returns whether it did:
+   * not if its line can't be found in `content`. Without it, tasks can't be checked.
+   */
+  onToggleTask?: (task: {
+    index: number;
+    checked: boolean;
+    text: string;
+  }) => boolean;
+  /** What in-text links (`#heading`) scroll, if they can. */
+  scroller?: HTMLElement;
+};
+const { content, onToggleTask, scroller }: MarkdownContentProps = $props();
 
-  /** HTML isn't interpreted but shown as typed: the text can neither load remote content, nor navigate the app. */
-  const NO_HTML: MarkedExtension = {
-    tokenizer: { html: () => undefined, tag: () => undefined },
-  };
-  // The same array at each render: a new one would have the whole text parsed again
-  const extensions = [NO_HTML];
+/** HTML isn't interpreted but shown as typed: the text can neither load remote content, nor navigate the app. */
+const NO_HTML: MarkedExtension = {
+  tokenizer: { html: () => undefined, tag: () => undefined },
+};
+// The same array at each render: a new one would have the whole text parsed again
+const extensions = [NO_HTML];
 
-  let root = $state<HTMLElement>();
+let root = $state<HTMLElement>();
 
-  const taskBoxes = () => [...(root?.querySelectorAll<HTMLInputElement>("input[data-task]") ?? [])];
+const taskBoxes = () => [
+  ...(root?.querySelectorAll<HTMLInputElement>("input[data-task]") ?? []),
+];
 
-  const onTaskClick = (event: MouseEvent, checked: boolean, text: string) => {
-    if (!onToggleTask) return;
-    const box = event.currentTarget as HTMLInputElement;
-    const index = taskBoxes().indexOf(box);
-    const focused = document.activeElement === box;
-    if (!onToggleTask({ index, checked, text })) {
-      // Left as it is
-      event.preventDefault();
-      return;
-    }
-    // Rendered again from the edited text: focus follows, for the keyboard
-    if (focused) void tick().then(() => taskBoxes()[index]?.focus());
-  };
-
-  const isExternal = (href: string) => /^(https?|mailto|tel):/i.test(href);
-
-  /** Opens external links in their default application, and in-text ones (`#heading`) here: never in the app. */
-  const onLinkClick = (event: MouseEvent, href: string | undefined) => {
+const onTaskClick = (event: MouseEvent, checked: boolean, text: string) => {
+  if (!onToggleTask) return;
+  const box = event.currentTarget as HTMLInputElement;
+  const index = taskBoxes().indexOf(box);
+  const focused = document.activeElement === box;
+  if (!onToggleTask({ index, checked, text })) {
+    // Left as it is
     event.preventDefault();
-    if (!href) return;
-    if (href.startsWith("#")) {
-      const target = root?.querySelector(`#${CSS.escape(decodeURIComponent(href.slice(1)))}`);
-      // Rather than `scrollIntoView`, which would also scroll the page around it
-      if (scroller && target) {
-        scroller.scrollTop += target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-      }
-    } else if (isExternal(href)) {
-      openUrl(href).catch((error) => console.error(`Could not open ${href}:`, error));
+    return;
+  }
+  // Rendered again from the edited text: focus follows, for the keyboard
+  if (focused) void tick().then(() => taskBoxes()[index]?.focus());
+};
+
+const isExternal = (href: string) => /^(https?|mailto|tel):/i.test(href);
+
+/** Opens external links in their default application, and in-text ones (`#heading`) here: never in the app. */
+const onLinkClick = (event: MouseEvent, href: string | undefined) => {
+  event.preventDefault();
+  if (!href) return;
+  if (href.startsWith("#")) {
+    const target = root?.querySelector(
+      `#${CSS.escape(decodeURIComponent(href.slice(1)))}`,
+    );
+    // Rather than `scrollIntoView`, which would also scroll the page around it
+    if (scroller && target) {
+      scroller.scrollTop +=
+        target.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top;
     }
-  };
+  } else if (isExternal(href)) {
+    openUrl(href).catch((error) =>
+      console.error(`Could not open ${href}:`, error),
+    );
+  }
+};
 </script>
 
 <div class="markdown" bind:this={root}>

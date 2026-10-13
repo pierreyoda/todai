@@ -1,5 +1,10 @@
 /** What the rest of the frontend may use of domains/notes. */
-export { monthNotesQueryOptions, noteKeys, noteMonthsQueryOptions, noteQueryOptions } from "./api/queries";
+export {
+  monthNotesQueryOptions,
+  noteKeys,
+  noteMonthsQueryOptions,
+  noteQueryOptions,
+} from "./api/queries";
 export { notePath } from "./model/paths";
 export type { Note } from "./model/types";
 export { noteDrafts } from "./state/noteDrafts.svelte";

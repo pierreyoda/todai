@@ -1,17 +1,16 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import {
+  activeWorkspaceQueryOptions,
+  WorkspaceSettings,
+  workspacesQueryOptions,
+} from "#domains/workspaces";
+import LoadingState from "#shared/ui/LoadingState.svelte";
+import SidePanel from "#shell/SidePanel.svelte";
 
-  import {
-    workspacesQueryOptions,
-    activeWorkspaceQueryOptions,
-  } from "#domains/workspaces";
-  import SidePanel from "#shell/SidePanel.svelte";
-  import LoadingState from "#shared/ui/LoadingState.svelte";
-  import { WorkspaceSettings } from "#domains/workspaces";
-
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const workspaces = createQuery(() => workspacesQueryOptions);
-  const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const workspaces = createQuery(() => workspacesQueryOptions);
+const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
 </script>
 
 <main>

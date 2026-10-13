@@ -1,49 +1,48 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import { describeProblem } from "#domains/todos";
+import type { Workspace } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import IconPullRequest from "#shared/ui/icons/IconPullRequest.svelte";
+import { formatTime } from "#shared/utils/timestamps.ts";
+import {
+  createDisconnectGitHubMutation,
+  createRefindGhMutation,
+} from "../api/mutations";
+import {
+  ghStatusQueryOptions,
+  githubApiStatusQueryOptions,
+} from "../api/queries";
+import { githubConnectionState } from "../model/connection";
+import GitHubConnectModal from "./GitHubConnectModal.svelte";
 
-  import type { Workspace } from "#domains/workspaces";
-  import {
-    createDisconnectGitHubMutation,
-    createRefindGhMutation,
-  } from "../api/mutations";
-  import {
-    ghStatusQueryOptions,
-    githubApiStatusQueryOptions,
-  } from "../api/queries";
-  import { formatTime } from "#shared/utils/timestamps.ts";
-  import { githubConnectionState } from "../model/connection";
-  import { describeProblem } from "#domains/todos";
-  import Button from "#shared/ui/Button.svelte";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import IconPullRequest from "#shared/ui/icons/IconPullRequest.svelte";
-  import GitHubConnectModal from "./GitHubConnectModal.svelte";
+type GitHubCardProps = {
+  workspace: Workspace;
+};
+const { workspace }: GitHubCardProps = $props();
 
-  type GitHubCardProps = {
-    workspace: Workspace;
-  };
-  const { workspace }: GitHubCardProps = $props();
+const titleId = $props.id();
+const ghStatus = createQuery(() => ghStatusQueryOptions);
+const refind = createRefindGhMutation();
+const disconnect = createDisconnectGitHubMutation();
+const connection = $derived(
+  githubConnectionState(workspace.githubLogin, ghStatus.data),
+);
+const needsAttention = $derived(
+  connection === "signed_out" || connection === "gh_missing",
+);
+// GitHub's side, once the GitHub CLI's is fine: which also tells whether GitHub accepts its token
+const apiStatus = createQuery(() => ({
+  ...githubApiStatusQueryOptions(workspace.id),
+  enabled: connection === "connected",
+}));
+const rateLimit = $derived(apiStatus.data?.rateLimit);
+const apiProblem = $derived(
+  apiStatus.data?.problem && describeProblem(apiStatus.data.problem),
+);
 
-  const titleId = $props.id();
-  const ghStatus = createQuery(() => ghStatusQueryOptions);
-  const refind = createRefindGhMutation();
-  const disconnect = createDisconnectGitHubMutation();
-  const connection = $derived(
-    githubConnectionState(workspace.githubLogin, ghStatus.data),
-  );
-  const needsAttention = $derived(
-    connection === "signed_out" || connection === "gh_missing",
-  );
-  // GitHub's side, once the GitHub CLI's is fine: which also tells whether GitHub accepts its token
-  const apiStatus = createQuery(() => ({
-    ...githubApiStatusQueryOptions(workspace.id),
-    enabled: connection === "connected",
-  }));
-  const rateLimit = $derived(apiStatus.data?.rateLimit);
-  const apiProblem = $derived(
-    apiStatus.data?.problem && describeProblem(apiStatus.data.problem),
-  );
-
-  let showConnectModal = $state(false);
+let showConnectModal = $state(false);
 </script>
 
 <article

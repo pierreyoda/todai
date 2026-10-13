@@ -1,8 +1,8 @@
 import { type QueryClient, queryOptions } from "@tanstack/svelte-query";
 
 import type { Day } from "#core/time";
-import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 import { refreshGitHubAttention } from "#domains/workspaces";
+import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 import { invalidateTodosOf } from "../../api/queries";
 import { invokeLinks } from "./commands";
 
@@ -29,7 +29,10 @@ export const linkStatusesQueryOptions = (day: Day) =>
   queryOptions({
     queryKey: linkStatusKeys.day(day),
     queryFn: async () => {
-      const outcome = await invokeLinks({ name: "refresh_links", args: { day } });
+      const outcome = await invokeLinks({
+        name: "refresh_links",
+        args: { day },
+      });
       refreshGitHubAttention(queryClient);
       if (outcome.refreshed > 0) await invalidateTodosOf(queryClient, day);
       return outcome;
@@ -44,7 +47,9 @@ export const linkStatusesQueryOptions = (day: Day) =>
  * or not (e.g. once one is added). Resolves once done, even if it fails.
  */
 export const refreshLinksOf = (queryClient: QueryClient, day: Day) =>
-  queryClient.fetchQuery({ ...linkStatusesQueryOptions(day), staleTime: 0 }).catch(() => undefined);
+  queryClient
+    .fetchQuery({ ...linkStatusesQueryOptions(day), staleTime: 0 })
+    .catch(() => undefined);
 
 /**
  * What `url` would show once added: what GitHub tells about its pull request or issue, through the active workspace's
@@ -54,7 +59,10 @@ export const linkPreviewQueryOptions = (url: string) =>
   queryOptions({
     queryKey: linkStatusKeys.preview(url),
     queryFn: async () => {
-      const preview = await invokeLinks({ name: "preview_link", args: { url } });
+      const preview = await invokeLinks({
+        name: "preview_link",
+        args: { url },
+      });
       refreshGitHubAttention(queryClient);
       return preview;
     },
@@ -78,7 +86,9 @@ export const parseLinkQueryOptions = (url: string) =>
   });
 
 /** What `url` would show once added (see `linkPreviewQueryOptions`), fetched now: e.g. to title a todo after it. */
-export const fetchLinkPreview = (url: string) => queryClient.fetchQuery(linkPreviewQueryOptions(url));
+export const fetchLinkPreview = (url: string) =>
+  queryClient.fetchQuery(linkPreviewQueryOptions(url));
 
 /** What `url` is recognized as (see `parseLinkQueryOptions`), fetched now: e.g. once submitted, before recognized. */
-export const fetchParsedLink = (url: string) => queryClient.fetchQuery(parseLinkQueryOptions(url));
+export const fetchParsedLink = (url: string) =>
+  queryClient.fetchQuery(parseLinkQueryOptions(url));

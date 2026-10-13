@@ -1,30 +1,30 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
 
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import type { TodoLink } from "../model/types";
-  import { formatLinksCount } from "../model/links";
-  import { itemState, linkStatus } from "../model/statuses";
-  import Button from "#shared/ui/Button.svelte";
-  import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
-  import IconLink from "#shared/ui/icons/IconLink.svelte";
-  import LinkChip from "./LinkChip.svelte";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
+import IconLink from "#shared/ui/icons/IconLink.svelte";
+import { formatLinksCount } from "../model/links";
+import { itemState, linkStatus } from "../model/statuses";
+import type { TodoLink } from "../model/types";
+import LinkChip from "./LinkChip.svelte";
 
-  /** A todo's links, in little: their count, then their list on hover or click. */
-  type LinksMarkerProps = {
-    links: readonly TodoLink[];
-    /** The todo's title, which names the list. */
-    title: string;
-  };
-  const { links, title }: LinksMarkerProps = $props();
+/** A todo's links, in little: their count, then their list on hover or click. */
+type LinksMarkerProps = {
+  links: readonly TodoLink[];
+  /** The todo's title, which names the list. */
+  title: string;
+};
+const { links, title }: LinksMarkerProps = $props();
 
-  const panelId = $props.id();
-  // With their status, as last fetched, through the workspace's connection: the calendar never fetches them
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const connected = $derived(!!activeWorkspace.data?.githubLogin);
-  const allOnGitHub = $derived(links.every((link) => link.github));
+const panelId = $props.id();
+// With their status, as last fetched, through the workspace's connection: the calendar never fetches them
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const connected = $derived(!!activeWorkspace.data?.githubLogin);
+const allOnGitHub = $derived(links.every((link) => link.github));
 
-  const popover = new HoverPopover();
+const popover = new HoverPopover();
 </script>
 
 <span

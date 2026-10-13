@@ -1,51 +1,50 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import Button from "#shared/ui/Button.svelte";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import FieldText from "#shared/ui/FieldText.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import { formatFileSize } from "#shared/utils/files.ts";
+import { workspaceBackupsQueryOptions } from "../backups/api/queries";
+import type { Workspace } from "../model/types";
 
-  import type { Workspace } from "../model/types";
-  import { workspaceBackupsQueryOptions } from "../backups/api/queries";
-  import { formatFileSize } from "#shared/utils/files.ts";
-  import Button from "#shared/ui/Button.svelte";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
-  import FieldText from "#shared/ui/FieldText.svelte";
-  import Modal from "#shared/ui/Modal.svelte";
+/** To be typed by the user, to allow the deletion. */
+const CONFIRMATION = "Delete";
 
-  /** To be typed by the user, to allow the deletion. */
-  const CONFIRMATION = "Delete";
+type WorkspaceRemoveModalProps = {
+  /** Bindable. */
+  show: boolean;
+  workspace: Workspace;
+  /** With whether its backups are to be deleted too. */
+  onDelete: (deleteBackups: boolean) => void;
+};
+let {
+  show = $bindable(),
+  workspace,
+  onDelete,
+}: WorkspaceRemoveModalProps = $props();
 
-  type WorkspaceRemoveModalProps = {
-    /** Bindable. */
-    show: boolean;
-    workspace: Workspace;
-    /** With whether its backups are to be deleted too. */
-    onDelete: (deleteBackups: boolean) => void;
-  };
-  let {
-    show = $bindable(),
-    workspace,
-    onDelete,
-  }: WorkspaceRemoveModalProps = $props();
+const backups = createQuery(() => ({
+  ...workspaceBackupsQueryOptions(workspace.id),
+  enabled: show,
+}));
+const backupsCount = $derived(backups.data?.length ?? 0);
+const backupsSize = $derived(
+  (backups.data ?? []).reduce((total, { size }) => total + (size ?? 0), 0),
+);
 
-  const backups = createQuery(() => ({
-    ...workspaceBackupsQueryOptions(workspace.id),
-    enabled: show,
-  }));
-  const backupsCount = $derived(backups.data?.length ?? 0);
-  const backupsSize = $derived(
-    (backups.data ?? []).reduce((total, { size }) => total + (size ?? 0), 0),
-  );
+let typed = $state("");
+const confirmed = $derived(typed.trim() === CONFIRMATION);
+// Kept by default: they can still be restored as a new workspace, from the files
+let deleteBackups = $state(false);
+$effect(() => {
+  if (!show) {
+    typed = "";
+    deleteBackups = false;
+  }
+});
 
-  let typed = $state("");
-  const confirmed = $derived(typed.trim() === CONFIRMATION);
-  // Kept by default: they can still be restored as a new workspace, from the files
-  let deleteBackups = $state(false);
-  $effect(() => {
-    if (!show) {
-      typed = "";
-      deleteBackups = false;
-    }
-  });
-
-  const formId = $props.id();
+const formId = $props.id();
 </script>
 
 <Modal bind:show>

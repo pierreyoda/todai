@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+import type { Snippet } from "svelte";
 
-  type SettingsContainerProps = {
-    title: Snippet;
-    children: Snippet;
-  };
-  const { title, children }: SettingsContainerProps = $props();
+type SettingsContainerProps = {
+  title: Snippet;
+  children: Snippet;
+};
+const { title, children }: SettingsContainerProps = $props();
 </script>
 
 <section>

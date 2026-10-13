@@ -1,35 +1,35 @@
 <script lang="ts">
-  import type { HTMLTextareaAttributes } from "svelte/elements";
+import type { HTMLTextareaAttributes } from "svelte/elements";
 
-  type FieldTextAreaProps = Omit<HTMLTextareaAttributes, "value"> & {
-    label: string;
-    /** Keeps the label for screen readers only. */
-    hideLabel?: boolean;
-    value?: string;
-    /** Monospace, e.g. to write Markdown. */
-    mono?: boolean;
-    /**
-     * Takes its container's height rather than `rows` lines, without resize handle: the container must be a flex column
-     * of bounded height.
-     */
-    fill?: boolean;
-    class?: string;
-    /** Bindable: the inner `<textarea>` element. */
-    ref?: HTMLTextAreaElement;
-  };
+type FieldTextAreaProps = Omit<HTMLTextareaAttributes, "value"> & {
+  label: string;
+  /** Keeps the label for screen readers only. */
+  hideLabel?: boolean;
+  value?: string;
+  /** Monospace, e.g. to write Markdown. */
+  mono?: boolean;
+  /**
+   * Takes its container's height rather than `rows` lines, without resize handle: the container must be a flex column
+   * of bounded height.
+   */
+  fill?: boolean;
+  class?: string;
+  /** Bindable: the inner `<textarea>` element. */
+  ref?: HTMLTextAreaElement;
+};
 
-  const textareaId = $props.id();
-  let {
-    label,
-    hideLabel = false,
-    value = $bindable(""),
-    mono = false,
-    fill = false,
-    class: extraFieldClass = "",
-    ref = $bindable(),
-    rows = 3,
-    ...textareaProps
-  }: FieldTextAreaProps = $props();
+const textareaId = $props.id();
+let {
+  label,
+  hideLabel = false,
+  value = $bindable(""),
+  mono = false,
+  fill = false,
+  class: extraFieldClass = "",
+  ref = $bindable(),
+  rows = 3,
+  ...textareaProps
+}: FieldTextAreaProps = $props();
 </script>
 
 <div class={["field", fill && "fill", extraFieldClass]}>

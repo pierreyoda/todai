@@ -31,9 +31,12 @@ describe("basename", () => {
     expect(basename("/Users//me///todai.db")).toBe("todai.db");
   });
 
-  it.each(["", "/", "//", "\\"])("is empty for the empty or root path %j", (path) => {
-    expect(basename(path)).toBe("");
-  });
+  it.each(["", "/", "//", "\\"])(
+    "is empty for the empty or root path %j",
+    (path) => {
+      expect(basename(path)).toBe("");
+    },
+  );
 });
 
 describe("isValidPath", () => {
@@ -48,17 +51,27 @@ describe("isValidPath", () => {
     expect(isValidPath(path)).toBe(true);
   });
 
-  it.each(["", "todai.sqlite3", "relative/todai.sqlite3", "./todai.sqlite3", "~/todai.sqlite3", "C:todai.sqlite3"])(
-    "rejects the relative path %j",
-    (path) => {
-      expect(isValidPath(path)).toBe(false);
-    },
-  );
+  it.each([
+    "",
+    "todai.sqlite3",
+    "relative/todai.sqlite3",
+    "./todai.sqlite3",
+    "~/todai.sqlite3",
+    "C:todai.sqlite3",
+  ])("rejects the relative path %j", (path) => {
+    expect(isValidPath(path)).toBe(false);
+  });
 
-  it.each(["/", "C:\\", "\\\\server\\share", "\\\\server\\share\\", "/Users/me/", "C:\\Users\\me\\", "/Users/me/.", "/Users/me/.."])(
-    "rejects the path %j, which has no file name",
-    (path) => {
-      expect(isValidPath(path)).toBe(false);
-    },
-  );
+  it.each([
+    "/",
+    "C:\\",
+    "\\\\server\\share",
+    "\\\\server\\share\\",
+    "/Users/me/",
+    "C:\\Users\\me\\",
+    "/Users/me/.",
+    "/Users/me/..",
+  ])("rejects the path %j, which has no file name", (path) => {
+    expect(isValidPath(path)).toBe(false);
+  });
 });

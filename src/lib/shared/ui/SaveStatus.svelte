@@ -1,16 +1,16 @@
 <script lang="ts">
-  import type { AutosaveStatus } from "../utils/autosave.svelte";
-  import { formatFullDateTime, formatTime } from "../utils/timestamps";
-  import IconCheckCircle from "./icons/IconCheckCircle.svelte";
-  import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
+import type { AutosaveStatus } from "../utils/autosave.svelte";
+import { formatFullDateTime, formatTime } from "../utils/timestamps";
+import IconCheckCircle from "./icons/IconCheckCircle.svelte";
+import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
 
-  /** Where an `Autosave` is, in a few words: e.g. next to what it saves. */
-  type SaveStatusProps = {
-    status: AutosaveStatus;
-    /** When what's saved was last saved, if it was. */
-    savedAt?: Date;
-  };
-  const { status, savedAt }: SaveStatusProps = $props();
+/** Where an `Autosave` is, in a few words: e.g. next to what it saves. */
+type SaveStatusProps = {
+  status: AutosaveStatus;
+  /** When what's saved was last saved, if it was. */
+  savedAt?: Date;
+};
+const { status, savedAt }: SaveStatusProps = $props();
 </script>
 
 <!-- Not a live region: it changes at every pause while typing. Failures are announced by the page's banner. -->

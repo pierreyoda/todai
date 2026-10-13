@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { reorderTodos, sameOrder } from "./order";
 
 const items = ["a", "b", "c", "d"].map((id) => ({ id }));
-const ids = (list: readonly { id: string }[]) => list.map(({ id }) => id).join("");
+const ids = (list: readonly { id: string }[]) =>
+  list.map(({ id }) => id).join("");
 
 describe("reorderTodos", () => {
   it.each([
@@ -17,9 +18,12 @@ describe("reorderTodos", () => {
     // Already there
     ["b", "c", "before", "abcd"],
     ["c", "b", "after", "abcd"],
-  ] as const)("moves %s next to %s (%s): %s", (id, targetId, placement, expected) => {
-    expect(ids(reorderTodos(items, id, targetId, placement))).toBe(expected);
-  });
+  ] as const)(
+    "moves %s next to %s (%s): %s",
+    (id, targetId, placement, expected) => {
+      expect(ids(reorderTodos(items, id, targetId, placement))).toBe(expected);
+    },
+  );
 
   it.each([
     ["itself", "b", "b"],
@@ -38,7 +42,9 @@ describe("reorderTodos", () => {
 describe("sameOrder", () => {
   it("compares the items' IDs in order", () => {
     expect(sameOrder(items, [...items])).toBe(true);
-    expect(sameOrder(items, reorderTodos(items, "a", "b", "after"))).toBe(false);
+    expect(sameOrder(items, reorderTodos(items, "a", "b", "after"))).toBe(
+      false,
+    );
     expect(sameOrder(items, items.slice(1))).toBe(false);
   });
 });

@@ -5,7 +5,11 @@ import { describe, expect, it } from "vitest";
 import type { Day } from "#core/time";
 import { tagKeys } from "#domains/tags";
 import type { Todo, TodoMonth } from "../model/types";
-import { invalidateTodosOf, setCachedTodoDescription, todoKeys } from "./queries";
+import {
+  invalidateTodosOf,
+  setCachedTodoDescription,
+  todoKeys,
+} from "./queries";
 
 describe("invalidateTodosOf", () => {
   const keys = {
@@ -68,7 +72,13 @@ describe("setCachedTodoDescription", () => {
   const otherDay = todo("other-day", "2026-10-04");
   const otherMonth = todo("other-month", "2026-09-30");
   const months: TodoMonth[] = [
-    { month: "2026-10", count: 3, completedCount: 0, estimatedMinutes: 0, estimatedPoints: 0 },
+    {
+      month: "2026-10",
+      count: 3,
+      completedCount: 0,
+      estimatedMinutes: 0,
+      estimatedPoints: 0,
+    },
   ];
 
   /** The cached lists, by name: the edited todo's, then others. */
@@ -115,7 +125,12 @@ describe("setCachedTodoDescription", () => {
     setCachedTodoDescription(queryClient, edited, "After");
 
     expect((data("day") as Todo[])[1]).toBe(sameDay);
-    for (const name of ["otherDay", "otherMonth", "otherUnfinished", "months"]) {
+    for (const name of [
+      "otherDay",
+      "otherMonth",
+      "otherUnfinished",
+      "months",
+    ]) {
       expect(data(name), name).toBe(lists[name][1]);
     }
   });

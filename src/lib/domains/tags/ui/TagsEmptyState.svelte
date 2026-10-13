@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { scale } from "svelte/transition";
-  import { backOut } from "svelte/easing";
+import { backOut } from "svelte/easing";
+import { scale } from "svelte/transition";
+import IconPlus from "#shared/ui/icons/IconPlus.svelte";
+import IconTag from "#shared/ui/icons/IconTag.svelte";
 
-  import IconTag from "#shared/ui/icons/IconTag.svelte";
-  import IconPlus from "#shared/ui/icons/IconPlus.svelte";
-
-  type TagsEmptyStateProps = {
-    onCreate: () => void;
-  };
-  const { onCreate }: TagsEmptyStateProps = $props();
+type TagsEmptyStateProps = {
+  onCreate: () => void;
+};
+const { onCreate }: TagsEmptyStateProps = $props();
 </script>
 
 <button

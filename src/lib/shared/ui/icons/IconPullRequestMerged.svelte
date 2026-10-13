@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconPullRequestMergedProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconPullRequestMergedProps = $props();
+type IconPullRequestMergedProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconPullRequestMergedProps = $props();
 </script>
 
 <!-- A branch merged back into the first one -->

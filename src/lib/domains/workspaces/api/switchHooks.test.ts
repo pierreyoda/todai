@@ -54,7 +54,9 @@ describe("runAfterWorkspaceSwitch", () => {
     const done: string[] = [];
     let finishFirst = () => {};
     const first = new Promise<void>((resolve) => (finishFirst = resolve));
-    stops.push(afterWorkspaceSwitch(() => first.then(() => done.push("first"))));
+    stops.push(
+      afterWorkspaceSwitch(() => first.then(() => done.push("first"))),
+    );
     stops.push(afterWorkspaceSwitch(async () => done.push("second")));
 
     const running = runAfterWorkspaceSwitch();

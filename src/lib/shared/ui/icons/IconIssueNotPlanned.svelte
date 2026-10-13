@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconIssueNotPlannedProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconIssueNotPlannedProps = $props();
+type IconIssueNotPlannedProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconIssueNotPlannedProps = $props();
 </script>
 
 <!-- An issue, struck through -->

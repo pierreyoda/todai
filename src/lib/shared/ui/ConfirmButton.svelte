@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { ButtonProps } from "./Button.svelte";
-  import Button from "./Button.svelte";
+import type { ButtonProps } from "./Button.svelte";
+import Button from "./Button.svelte";
 
-  type ConfirmButtonProps = ButtonProps;
-  const { children, onclick, ...props }: ConfirmButtonProps = $props();
+type ConfirmButtonProps = ButtonProps;
+const { children, onclick, ...props }: ConfirmButtonProps = $props();
 
-  let confirm = $state(false);
+let confirm = $state(false);
 </script>
 
 <Button

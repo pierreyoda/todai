@@ -1,7 +1,6 @@
 import type { UUID } from "node:crypto";
-
-import { createInvoker } from "#shared/ipc/invoke.ts";
 import type { Workspace } from "#domains/workspaces";
+import { createInvoker } from "#shared/ipc/invoke.ts";
 import type { GhStatus, GitHubApiStatus } from "../model/types";
 
 /** Commands about the app itself rather than the active workspace's content. */
@@ -49,4 +48,5 @@ type IntegrationCommands = {
   };
 };
 
-export const invokeIntegrations = createInvoker<IntegrationCommands>("app command");
+export const invokeIntegrations =
+  createInvoker<IntegrationCommands>("app command");

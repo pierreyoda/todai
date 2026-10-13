@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { fade, fly } from "svelte/transition";
-  import { cubicOut } from "svelte/easing";
+import { cubicOut } from "svelte/easing";
+import { fade, fly } from "svelte/transition";
 
-  import { toasts } from "../utils/toasts.svelte";
-  import Button from "./Button.svelte";
-  import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
-  import IconXMark from "./icons/IconXMark.svelte";
+import { toasts } from "../utils/toasts.svelte";
+import Button from "./Button.svelte";
+import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
+import IconXMark from "./icons/IconXMark.svelte";
 </script>
 
 <!-- The app's `toasts`, at the bottom of the window. Paused while pointed at or focused, so that an action stays in

@@ -1,19 +1,19 @@
 <script lang="ts" module>
-  import type { Attachment } from "svelte/attachments";
-  import type { HTMLButtonAttributes } from "svelte/elements";
+import type { Attachment } from "svelte/attachments";
+import type { HTMLButtonAttributes } from "svelte/elements";
 
-  /** Attributes making a button toggle the menu, to spread onto it. */
-  export type DropdownTriggerAttributes = Pick<
-    HTMLButtonAttributes,
-    | "type"
-    | "id"
-    | "aria-haspopup"
-    | "aria-expanded"
-    | "aria-controls"
-    | "onpointerdown"
-    | "onclick"
-    | "onkeydown"
-  > & { [key: symbol]: Attachment<HTMLButtonElement> };
+/** Attributes making a button toggle the menu, to spread onto it. */
+export type DropdownTriggerAttributes = Pick<
+  HTMLButtonAttributes,
+  | "type"
+  | "id"
+  | "aria-haspopup"
+  | "aria-expanded"
+  | "aria-controls"
+  | "onpointerdown"
+  | "onclick"
+  | "onkeydown"
+> & { [key: symbol]: Attachment<HTMLButtonElement> };
 </script>
 
 <script lang="ts">

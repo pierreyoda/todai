@@ -14,7 +14,9 @@ const beforeHooks = new Set<BeforeWorkspaceSwitch>();
 const afterHooks = new Set<AfterWorkspaceSwitch>();
 
 /** Asks `hook` before each switch, until the returned function is called. */
-export const beforeWorkspaceSwitch = (hook: BeforeWorkspaceSwitch): (() => void) => {
+export const beforeWorkspaceSwitch = (
+  hook: BeforeWorkspaceSwitch,
+): (() => void) => {
   beforeHooks.add(hook);
   return () => {
     beforeHooks.delete(hook);
@@ -33,7 +35,9 @@ export const canSwitchWorkspace = async (): Promise<boolean> => {
  * Calls `hook` after each switch, until the returned function is called. Lets the data of the higher domains (e.g. the
  * notes) react, without the workspaces knowing about them.
  */
-export const afterWorkspaceSwitch = (hook: AfterWorkspaceSwitch): (() => void) => {
+export const afterWorkspaceSwitch = (
+  hook: AfterWorkspaceSwitch,
+): (() => void) => {
   afterHooks.add(hook);
   return () => {
     afterHooks.delete(hook);
@@ -41,4 +45,5 @@ export const afterWorkspaceSwitch = (hook: AfterWorkspaceSwitch): (() => void) =
 };
 
 /** Calls the hooks at once: resolves once they're all done. */
-export const runAfterWorkspaceSwitch = (): Promise<unknown[]> => Promise.all([...afterHooks].map((hook) => hook()));
+export const runAfterWorkspaceSwitch = (): Promise<unknown[]> =>
+  Promise.all([...afterHooks].map((hook) => hook()));

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-
-import type { Estimate } from "./types";
 import { formatEstimate, formatEstimates } from "./estimates";
+import type { Estimate } from "./types";
 
 const minutes = (value: number): Estimate => ({ unit: "minutes", value });
 const points = (value: number): Estimate => ({ unit: "points", value });
@@ -39,7 +38,9 @@ describe("formatEstimate", () => {
 
 describe("formatEstimates", () => {
   it("sums each unit separately, minutes first", () => {
-    expect(formatEstimates([points(3), minutes(90), points(5), minutes(45)])).toBe("2h 15m · 8 pts");
+    expect(
+      formatEstimates([points(3), minutes(90), points(5), minutes(45)]),
+    ).toBe("2h 15m · 8 pts");
   });
 
   it("omits a unit without estimates", () => {
@@ -52,7 +53,9 @@ describe("formatEstimates", () => {
   });
 
   it("skips todos without an estimate", () => {
-    expect(formatEstimates([undefined, minutes(15), null, points(2)])).toBe("15m · 2 pts");
+    expect(formatEstimates([undefined, minutes(15), null, points(2)])).toBe(
+      "15m · 2 pts",
+    );
   });
 
   it("is undefined without any estimate", () => {
@@ -61,12 +64,20 @@ describe("formatEstimates", () => {
   });
 
   it("accepts any iterable", () => {
-    const todos = [{ estimate: minutes(20) }, { estimate: undefined }, { estimate: points(3) }];
-    expect(formatEstimates(todos.map((todo) => todo.estimate).values())).toBe("20m · 3 pts");
+    const todos = [
+      { estimate: minutes(20) },
+      { estimate: undefined },
+      { estimate: points(3) },
+    ];
+    expect(formatEstimates(todos.map((todo) => todo.estimate).values())).toBe(
+      "20m · 3 pts",
+    );
   });
 
   it.each(INVALID_VALUES)("rejects the invalid value %j", (value) => {
-    expect(() => formatEstimates([minutes(10), minutes(value)])).toThrow(RangeError);
+    expect(() => formatEstimates([minutes(10), minutes(value)])).toThrow(
+      RangeError,
+    );
     expect(() => formatEstimates([points(value)])).toThrow(RangeError);
   });
 });

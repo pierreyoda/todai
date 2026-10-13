@@ -1,120 +1,119 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
+import { createQuery } from "@tanstack/svelte-query";
+import { untrack } from "svelte";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import { computePosition } from "#shared/ui/dropdown/positioning.ts";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import IconArrowPath from "#shared/ui/icons/IconArrowPath.svelte";
+import IconArrowTopRightOnSquare from "#shared/ui/icons/IconArrowTopRightOnSquare.svelte";
+import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import { formatRelativeTime } from "#shared/utils/timestamps.ts";
+import type { Todo } from "../../model/types";
+import {
+  createRefreshTodoLinkMutation,
+  createRemoveTodoLinkMutation,
+} from "../api/mutations";
+import { openLink } from "../api/openLink";
+import { hasLink } from "../model/links";
+import {
+  checkName,
+  describeChecks,
+  describeProblem,
+  describeReview,
+  itemState,
+  linkStatus,
+  notableChecks,
+  stateStatus,
+} from "../model/statuses";
+import type { TodoLink } from "../model/types";
+import LinkChip from "./LinkChip.svelte";
+import LinkKindIcon from "./LinkKindIcon.svelte";
 
-  import type { Todo } from "../../model/types";
-  import type { TodoLink } from "../model/types";
-  import {
-    createRefreshTodoLinkMutation,
-    createRemoveTodoLinkMutation,
-  } from "../api/mutations";
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import { formatRelativeTime } from "#shared/utils/timestamps.ts";
-  import { hasLink } from "../model/links";
-  import {
-    checkName,
-    describeChecks,
-    describeProblem,
-    describeReview,
-    itemState,
-    linkStatus,
-    notableChecks,
-    stateStatus,
-  } from "../model/statuses";
-  import { openLink } from "../api/openLink";
-  import Button from "#shared/ui/Button.svelte";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import IconArrowPath from "#shared/ui/icons/IconArrowPath.svelte";
-  import IconArrowTopRightOnSquare from "#shared/ui/icons/IconArrowTopRightOnSquare.svelte";
-  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
-  import { computePosition } from "#shared/ui/dropdown/positioning.ts";
-  import LinkChip from "./LinkChip.svelte";
-  import LinkKindIcon from "./LinkKindIcon.svelte";
+type LinkPopoverProps = {
+  /** Bindable. */
+  open: boolean;
+  /** A GitHub link of `todo`. */
+  link: TodoLink;
+  todo: Todo;
+  /** What it's shown next to: its chip. */
+  anchor: HTMLElement | undefined;
+};
+let { open = $bindable(), link, todo, anchor }: LinkPopoverProps = $props();
 
-  type LinkPopoverProps = {
-    /** Bindable. */
-    open: boolean;
-    /** A GitHub link of `todo`. */
-    link: TodoLink;
-    todo: Todo;
-    /** What it's shown next to: its chip. */
-    anchor: HTMLElement | undefined;
-  };
-  let { open = $bindable(), link, todo, anchor }: LinkPopoverProps = $props();
+const titleId = $props.id();
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const refresh = createRefreshTodoLinkMutation(() => todo);
+const remove = createRemoveTodoLinkMutation(() => todo);
 
-  const titleId = $props.id();
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const refresh = createRefreshTodoLinkMutation(() => todo);
-  const remove = createRemoveTodoLinkMutation(() => todo);
+const snapshot = $derived(link.snapshot);
+const linkState = $derived(snapshot && itemState(snapshot));
+const status = $derived(linkStatus(link));
+const github = $derived(link.github);
+const isIssue = $derived(
+  snapshot ? snapshot.type === "issue" : link.kind === "github_issue",
+);
+const refreshProblem = $derived(
+  refresh.data?.problem && describeProblem(refresh.data.problem),
+);
 
-  const snapshot = $derived(link.snapshot);
-  const linkState = $derived(snapshot && itemState(snapshot));
-  const status = $derived(linkStatus(link));
-  const github = $derived(link.github);
-  const isIssue = $derived(
-    snapshot ? snapshot.type === "issue" : link.kind === "github_issue",
-  );
-  const refreshProblem = $derived(
-    refresh.data?.problem && describeProblem(refresh.data.problem),
-  );
+const CHECK_OUTCOMES = {
+  passed: "Passed",
+  failed: "Failed",
+  running: "Running",
+  skipped: "Skipped",
+} as const;
 
-  const CHECK_OUTCOMES = {
-    passed: "Passed",
-    failed: "Failed",
-    running: "Running",
-    skipped: "Skipped",
-  } as const;
+let popover = $state<HTMLDivElement>();
 
-  let popover = $state<HTMLDivElement>();
-
-  const position = () => {
-    if (!popover || !anchor) return;
-    const { x, y } = computePosition({
-      anchor: anchor.getBoundingClientRect(),
-      floating: popover.getBoundingClientRect(),
-      viewport: {
-        width: document.documentElement.clientWidth,
-        height: document.documentElement.clientHeight,
-      },
-      placement: "bottom-start",
-      offset: 6,
-    });
-    popover.style.left = `${x}px`;
-    popover.style.top = `${y}px`;
-  };
-
-  // Follows `open`: shown as a popover, so that clicking outside or pressing Escape closes it
-  $effect(() => {
-    if (!popover) return;
-    const shown = popover.matches(":popover-open");
-    if (open && !shown) {
-      // What the last refresh ran into is only worth showing until closed
-      untrack(() => refresh.reset());
-      popover.showPopover({ source: anchor });
-      // Positioned in the same task as the opening, so it never paints at the default position
-      position();
-      popover.focus({ preventScroll: true });
-    } else if (!open && shown) {
-      popover.hidePopover();
-    }
+const position = () => {
+  if (!popover || !anchor) return;
+  const { x, y } = computePosition({
+    anchor: anchor.getBoundingClientRect(),
+    floating: popover.getBoundingClientRect(),
+    viewport: {
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+    },
+    placement: "bottom-start",
+    offset: 6,
   });
+  popover.style.left = `${x}px`;
+  popover.style.top = `${y}px`;
+};
 
-  // Kept next to its chip, which can move, e.g. when the list scrolls
-  $effect(() => {
-    if (!open) return;
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, {
-      capture: true,
-      passive: true,
-    });
-    return () => {
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, { capture: true });
-    };
+// Follows `open`: shown as a popover, so that clicking outside or pressing Escape closes it
+$effect(() => {
+  if (!popover) return;
+  const shown = popover.matches(":popover-open");
+  if (open && !shown) {
+    // What the last refresh ran into is only worth showing until closed
+    untrack(() => refresh.reset());
+    popover.showPopover({ source: anchor });
+    // Positioned in the same task as the opening, so it never paints at the default position
+    position();
+    popover.focus({ preventScroll: true });
+  } else if (!open && shown) {
+    popover.hidePopover();
+  }
+});
+
+// Kept next to its chip, which can move, e.g. when the list scrolls
+$effect(() => {
+  if (!open) return;
+  window.addEventListener("resize", position);
+  window.addEventListener("scroll", position, {
+    capture: true,
+    passive: true,
   });
+  return () => {
+    window.removeEventListener("resize", position);
+    window.removeEventListener("scroll", position, { capture: true });
+  };
+});
 
-  /** Whether focus was within when it closed: then given back to its chip. */
-  let hadFocus = false;
+/** Whether focus was within when it closed: then given back to its chip. */
+let hadFocus = false;
 </script>
 
 <div

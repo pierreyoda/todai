@@ -23,10 +23,16 @@ const LIST_ITEM = /^(\s*)(?:([-*+])|(\d{1,9})([.)]))(\s+)(\[[ xX]\]\s+)?/;
 /** Opening and closing lines of fenced code blocks. */
 const CODE_FENCE = /^ {0,3}(?:```|~~~)/;
 
-const caret = (offset: number): TextSelection => ({ start: offset, end: offset });
+const caret = (offset: number): TextSelection => ({
+  start: offset,
+  end: offset,
+});
 
 /** The bounds of the line containing `offset`, without its line break. */
-const lineAt = (text: string, offset: number): { start: number; end: number } => {
+const lineAt = (
+  text: string,
+  offset: number,
+): { start: number; end: number } => {
   const start = offset === 0 ? 0 : text.lastIndexOf("\n", offset - 1) + 1;
   const lineBreak = text.indexOf("\n", offset);
   return { start, end: lineBreak === -1 ? text.length : lineBreak };
@@ -47,7 +53,10 @@ const isInCodeBlock = (text: string, lineStart: number): boolean =>
  *
  * `null` for a plain new line: outside of lists or code blocks, within a marker, or replacing a selection.
  */
-export const continueList = (text: string, { start, end }: TextSelection): TextEdit | null => {
+export const continueList = (
+  text: string,
+  { start, end }: TextSelection,
+): TextEdit | null => {
   if (start !== end) return null;
   const line = lineAt(text, start);
   const match = LIST_ITEM.exec(text.slice(line.start, line.end));
@@ -56,12 +65,22 @@ export const continueList = (text: string, { start, end }: TextSelection): TextE
   if (start < markerEnd) return null;
 
   if (text.slice(markerEnd, line.end).trim() === "") {
-    return { from: line.start, to: line.end, insert: "", selection: caret(line.start) };
+    return {
+      from: line.start,
+      to: line.end,
+      insert: "",
+      selection: caret(line.start),
+    };
   }
   const [, indent, bullet, number, delimiter, spacing, task] = match;
   const marker = bullet ?? `${Number(number) + 1}${delimiter}`;
   const insert = `\n${indent}${marker}${spacing}${task ? "[ ] " : ""}`;
-  return { from: start, to: start, insert, selection: caret(start + insert.length) };
+  return {
+    from: start,
+    to: start,
+    insert,
+    selection: caret(start + insert.length),
+  };
 };
 
 /**
@@ -70,10 +89,17 @@ export const continueList = (text: string, { start, end }: TextSelection): TextE
  *
  * `null` if no line changes.
  */
-const shiftLines = (text: string, { start, end }: TextSelection, direction: 1 | -1): TextEdit | null => {
+const shiftLines = (
+  text: string,
+  { start, end }: TextSelection,
+  direction: 1 | -1,
+): TextEdit | null => {
   const from = lineAt(text, start).start;
   // A selection ending at the start of a line leaves that line out
-  const to = lineAt(text, end > start && text[end - 1] === "\n" ? end - 1 : end).end;
+  const to = lineAt(
+    text,
+    end > start && text[end - 1] === "\n" ? end - 1 : end,
+  ).end;
 
   let lineStart = from;
   let mappedStart = start;
@@ -83,7 +109,8 @@ const shiftLines = (text: string, { start, end }: TextSelection, direction: 1 | 
     .split("\n")
     .map((line) => {
       const added = direction > 0 && line !== "" ? INDENT.length : 0;
-      const removed = direction < 0 ? (/^(?:\t| {1,2})/.exec(line)?.[0].length ?? 0) : 0;
+      const removed =
+        direction < 0 ? (/^(?:\t| {1,2})/.exec(line)?.[0].length ?? 0) : 0;
       // How much an offset moves with this line's change: a caret at its start moves with its text
       const shift = (offset: number) =>
         added > 0
@@ -99,7 +126,12 @@ const shiftLines = (text: string, { start, end }: TextSelection, direction: 1 | 
 
   const insert = lines.join("\n");
   if (insert === text.slice(from, to)) return null;
-  return { from, to, insert, selection: { start: mappedStart, end: mappedEnd } };
+  return {
+    from,
+    to,
+    insert,
+    selection: { start: mappedStart, end: mappedEnd },
+  };
 };
 
 /**
@@ -108,12 +140,20 @@ const shiftLines = (text: string, { start, end }: TextSelection, direction: 1 | 
  *
  * `null` if nothing changes, e.g. on empty lines only.
  */
-export const indent = (text: string, selection: TextSelection): TextEdit | null => {
+export const indent = (
+  text: string,
+  selection: TextSelection,
+): TextEdit | null => {
   const { start, end } = selection;
   const line = lineAt(text, start);
   const multiline = end > line.end;
   if (!multiline && !LIST_ITEM.test(text.slice(line.start, line.end))) {
-    return { from: start, to: end, insert: INDENT, selection: caret(start + INDENT.length) };
+    return {
+      from: start,
+      to: end,
+      insert: INDENT,
+      selection: caret(start + INDENT.length),
+    };
   }
   return shiftLines(text, selection, 1);
 };
@@ -123,22 +163,32 @@ export const indent = (text: string, selection: TextSelection): TextEdit | null 
  *
  * `null` if none is indented.
  */
-export const outdent = (text: string, selection: TextSelection): TextEdit | null =>
-  shiftLines(text, selection, -1);
+export const outdent = (
+  text: string,
+  selection: TextSelection,
+): TextEdit | null => shiftLines(text, selection, -1);
 
 /**
  * Wraps the selection with `marker`, e.g. `**` to make it bold, or unwraps it if already wrapped (`marker` either
  * around or within it). Spaces at the selection's ends stay out, as Markdown ignores emphasis starting or ending with
  * one. With a caret, inserts both markers around it.
  */
-export const toggleWrap = (text: string, selection: TextSelection, marker: string): TextEdit => {
+export const toggleWrap = (
+  text: string,
+  selection: TextSelection,
+  marker: string,
+): TextEdit => {
   let { start, end } = selection;
   while (start < end && /\s/.test(text[start])) start++;
   while (end > start && /\s/.test(text[end - 1])) end--;
   const length = marker.length;
   const selected = text.slice(start, end);
 
-  if (start >= length && text.slice(start - length, start) === marker && text.startsWith(marker, end)) {
+  if (
+    start >= length &&
+    text.slice(start - length, start) === marker &&
+    text.startsWith(marker, end)
+  ) {
     return {
       from: start - length,
       to: end + length,
@@ -146,7 +196,11 @@ export const toggleWrap = (text: string, selection: TextSelection, marker: strin
       selection: { start: start - length, end: end - length },
     };
   }
-  if (selected.length >= 2 * length && selected.startsWith(marker) && selected.endsWith(marker)) {
+  if (
+    selected.length >= 2 * length &&
+    selected.startsWith(marker) &&
+    selected.endsWith(marker)
+  ) {
     return {
       from: start,
       to: end,
@@ -166,7 +220,8 @@ export const toggleWrap = (text: string, selection: TextSelection, marker: strin
  * A task list item's line: its prefix (blockquotes, indentation, marker), its box, then its text. Marked only makes
  * an item a task when its box is followed by spaces and text.
  */
-const TASK_LINE = /^((?:[ \t]*>[ \t]?)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\] +(\S.*)$/;
+const TASK_LINE =
+  /^((?:[ \t]*>[ \t]?)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\] +(\S.*)$/;
 
 /** A task list item of a Markdown text. */
 export type Task = {
@@ -208,7 +263,10 @@ export const findTasks = (text: string): Task[] => {
 /** How many of the task list items of `text` are checked (`done`), out of how many (`total`): as `findTasks` finds them. */
 export const taskProgress = (text: string): { done: number; total: number } => {
   const tasks = findTasks(text);
-  return { done: tasks.filter(({ checked }) => checked).length, total: tasks.length };
+  return {
+    done: tasks.filter(({ checked }) => checked).length,
+    total: tasks.length,
+  };
 };
 
 /**
@@ -227,7 +285,11 @@ export const toggleTask = (
   let closestDistance = Infinity;
   for (const [index, candidate] of findTasks(text).entries()) {
     const distance = Math.abs(index - task.index);
-    if (candidate.checked === task.checked && candidate.text === wanted && distance < closestDistance) {
+    if (
+      candidate.checked === task.checked &&
+      candidate.text === wanted &&
+      distance < closestDistance
+    ) {
       closest = candidate;
       closestDistance = distance;
     }

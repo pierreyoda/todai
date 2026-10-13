@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconPullRequestClosedProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconPullRequestClosedProps = $props();
+type IconPullRequestClosedProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconPullRequestClosedProps = $props();
 </script>
 
 <!-- A branch crossed out where it would merge -->

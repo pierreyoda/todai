@@ -37,7 +37,10 @@ export const createAddTodoFromLinkMutation = (getDay: () => Day) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
     mutationFn: ({ url, title }: { url: string; title?: string }) =>
-      invokeLinks({ name: "create_todo_from_link", args: { day: getDay(), url, title } }),
+      invokeLinks({
+        name: "create_todo_from_link",
+        args: { day: getDay(), url, title },
+      }),
     onSuccess: () => {
       refreshLinksOf(queryClient, getDay());
       // Returned so the mutation stays pending until the list is refetched, with the todo.
@@ -69,11 +72,13 @@ export const createRemoveTodoLinkMutation = (getTodo: () => Todo) => {
 export const createRefreshTodoLinkMutation = (getTodo: () => Todo) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (link: TodoLink) => invokeLinks({ name: "refresh_link", args: { id: link.id } }),
+    mutationFn: (link: TodoLink) =>
+      invokeLinks({ name: "refresh_link", args: { id: link.id } }),
     // Returned so the mutation stays pending until the lists are refetched, with the status.
     onSuccess: (outcome) => {
       refreshGitHubAttention(queryClient);
-      if (outcome.refreshed > 0) return invalidateTodosOf(queryClient, getTodo().day);
+      if (outcome.refreshed > 0)
+        return invalidateTodosOf(queryClient, getTodo().day);
     },
   }));
 };

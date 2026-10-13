@@ -2,8 +2,8 @@ import { queryOptions } from "@tanstack/svelte-query";
 
 import type { Day, Month } from "#core/time";
 import { monthBounds } from "#core/time";
-import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 import { afterWorkspaceSwitch } from "#domains/workspaces";
+import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 import { invokeNotes } from "./commands";
 
 /**
@@ -19,7 +19,9 @@ export const noteKeys = {
 
 // Dropped rather than only refetched when switching to another workspace: the note's editor is kept while its note is
 // shown, and must start over
-afterWorkspaceSwitch(() => queryClient.resetQueries({ queryKey: noteKeys.all }));
+afterWorkspaceSwitch(() =>
+  queryClient.resetQueries({ queryKey: noteKeys.all }),
+);
 
 /** `null` if `day` has no note. */
 export const noteQueryOptions = (day: Day) =>

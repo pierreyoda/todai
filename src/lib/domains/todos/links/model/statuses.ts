@@ -1,3 +1,7 @@
+import type { GitHubProblem } from "#core/github";
+import { formatTime } from "#shared/utils/timestamps.ts";
+import type { Todo } from "../../model/types";
+import { hasLink } from "./links";
 import type {
   Check,
   Checks,
@@ -8,10 +12,6 @@ import type {
   RelatedItem,
   TodoLink,
 } from "./types";
-import type { Todo } from "../../model/types";
-import type { GitHubProblem } from "#core/github";
-import { formatTime } from "#shared/utils/timestamps.ts";
-import { hasLink } from "./links";
 
 /**
  * How a link's status reads, which colors it and picks its glyph:
@@ -21,7 +21,14 @@ import { hasLink } from "./links";
  * - `neutral`: closed otherwise, or a draft;
  * - `warn`: GitHub can't tell about it.
  */
-export type LinkTone = "open" | "good" | "bad" | "pending" | "merged" | "neutral" | "warn";
+export type LinkTone =
+  | "open"
+  | "good"
+  | "bad"
+  | "pending"
+  | "merged"
+  | "neutral"
+  | "warn";
 
 /** The one word shown after a link's label, e.g. "Checks failing". */
 export interface LinkStatus {
@@ -50,17 +57,23 @@ const STATE_STATUSES: Record<ItemState, LinkStatus> = {
 };
 
 /** Where a pull request or issue stands, in a word: e.g. "Merged", or "Not planned". */
-export const stateStatus = (state: ItemState): LinkStatus => STATE_STATUSES[state];
+export const stateStatus = (state: ItemState): LinkStatus =>
+  STATE_STATUSES[state];
 
 /** Picked by priority: what matters most first, e.g. failing checks before a review. */
 const pullRequestStatus = (pull: PullRequestSnapshot): LinkStatus => {
   const state = itemState(pull);
   if (state !== "open") return stateStatus(state);
-  if (pull.checks?.state === "failure") return { word: "Checks failing", tone: "bad" };
-  if (pull.reviewDecision === "changes_requested") return { word: "Changes requested", tone: "bad" };
-  if (pull.reviewDecision === "approved") return { word: "Approved", tone: "good" };
-  if (pull.reviewDecision === "review_required") return { word: "Review required", tone: "pending" };
-  if (pull.checks?.state === "pending") return { word: "Checks running", tone: "pending" };
+  if (pull.checks?.state === "failure")
+    return { word: "Checks failing", tone: "bad" };
+  if (pull.reviewDecision === "changes_requested")
+    return { word: "Changes requested", tone: "bad" };
+  if (pull.reviewDecision === "approved")
+    return { word: "Approved", tone: "good" };
+  if (pull.reviewDecision === "review_required")
+    return { word: "Review required", tone: "pending" };
+  if (pull.checks?.state === "pending")
+    return { word: "Checks running", tone: "pending" };
   return stateStatus(state);
 };
 
@@ -72,11 +85,17 @@ const pullRequestStatus = (pull: PullRequestSnapshot): LinkStatus => {
  *
  * `null` for a link never fetched, e.g. a plain web link.
  */
-export const linkStatus = ({ snapshot, fetchError }: Pick<TodoLink, "snapshot" | "fetchError">): LinkStatus | null => {
+export const linkStatus = ({
+  snapshot,
+  fetchError,
+}: Pick<TodoLink, "snapshot" | "fetchError">): LinkStatus | null => {
   if (fetchError === "no_access") return { word: "No access", tone: "warn" };
-  if (fetchError === "sso_required") return { word: "SSO required", tone: "warn" };
+  if (fetchError === "sso_required")
+    return { word: "SSO required", tone: "warn" };
   if (!snapshot) return null;
-  return snapshot.type === "pull_request" ? pullRequestStatus(snapshot) : stateStatus(itemState(snapshot));
+  return snapshot.type === "pull_request"
+    ? pullRequestStatus(snapshot)
+    : stateStatus(itemState(snapshot));
 };
 
 /**
@@ -86,7 +105,9 @@ export const linkStatus = ({ snapshot, fetchError }: Pick<TodoLink, "snapshot" |
 export const doneSuggestion = ({
   completed,
   links,
-}: Pick<Todo, "completed" | "links">): { link: TodoLink; state: "merged" | "completed" } | undefined => {
+}: Pick<Todo, "completed" | "links">):
+  | { link: TodoLink; state: "merged" | "completed" }
+  | undefined => {
   if (completed) return undefined;
   for (const link of links) {
     const state = link.snapshot && itemState(link.snapshot);
@@ -104,18 +125,28 @@ export const closingPullRequest = (
   links: readonly Pick<ParsedLink, "url">[],
 ): RelatedItem | undefined =>
   snapshot?.type === "issue"
-    ? snapshot.closedBy.find((item) => item.state !== "closed" && !hasLink(links, item.url))
+    ? snapshot.closedBy.find(
+        (item) => item.state !== "closed" && !hasLink(links, item.url),
+      )
     : undefined;
 
 /** When the most recently fetched of `links` was: what their statuses are from, if any. */
-export const statusesFetchedAt = (links: readonly Pick<TodoLink, "fetchedAt">[]): Date | undefined =>
+export const statusesFetchedAt = (
+  links: readonly Pick<TodoLink, "fetchedAt">[],
+): Date | undefined =>
   links.reduce<Date | undefined>(
-    (latest, { fetchedAt }) => (fetchedAt && (!latest || fetchedAt > latest) ? fetchedAt : latest),
+    (latest, { fetchedAt }) =>
+      fetchedAt && (!latest || fetchedAt > latest) ? fetchedAt : latest,
     undefined,
   );
 
 /** E.g. "2 of 3 passed, 1 running", or "4 skipped" when none ran. */
-export const describeChecks = ({ passed, failed, running, skipped }: Checks): string => {
+export const describeChecks = ({
+  passed,
+  failed,
+  running,
+  skipped,
+}: Checks): string => {
   const ran = passed + failed + running;
   if (ran === 0) return `${skipped} skipped`;
   return [
@@ -127,7 +158,12 @@ export const describeChecks = ({ passed, failed, running, skipped }: Checks): st
     .join(", ");
 };
 
-const CHECK_ORDER: Record<Check["outcome"], number> = { failed: 0, running: 1, passed: 2, skipped: 3 };
+const CHECK_ORDER: Record<Check["outcome"], number> = {
+  failed: 0,
+  running: 1,
+  passed: 2,
+  skipped: 3,
+};
 
 /** The checks worth listing, failing then running then passed ones, without the skipped ones: at most `max`, if given. */
 export const notableChecks = (checks: Checks, max?: number): Check[] =>
@@ -137,17 +173,25 @@ export const notableChecks = (checks: Checks, max?: number): Check[] =>
     .slice(0, max);
 
 /** E.g. "check · svelte-check": a GitHub Actions job is named after its workflow first. */
-export const checkName = ({ name, workflow }: Pick<Check, "name" | "workflow">): string =>
+export const checkName = ({
+  name,
+  workflow,
+}: Pick<Check, "name" | "workflow">): string =>
   workflow ? `${workflow} · ${name}` : name;
 
-const REVIEW_DECISIONS: Record<NonNullable<PullRequestSnapshot["reviewDecision"]>, string> = {
+const REVIEW_DECISIONS: Record<
+  NonNullable<PullRequestSnapshot["reviewDecision"]>,
+  string
+> = {
   approved: "Approved",
   changes_requested: "Changes requested",
   review_required: "Required, not given yet",
 };
 
 /** E.g. "Approved", or "Not required" when its repository requires none. */
-export const describeReview = ({ reviewDecision }: Pick<PullRequestSnapshot, "reviewDecision">): string =>
+export const describeReview = ({
+  reviewDecision,
+}: Pick<PullRequestSnapshot, "reviewDecision">): string =>
   reviewDecision ? REVIEW_DECISIONS[reviewDecision] : "Not required";
 
 /**
@@ -165,7 +209,9 @@ export const describeProblem = (
   switch (problem.kind) {
     case "offline":
       return {
-        label: statusesFrom ? `Offline · link statuses from ${formatTime(statusesFrom)}` : "Offline",
+        label: statusesFrom
+          ? `Offline · link statuses from ${formatTime(statusesFrom)}`
+          : "Offline",
         detail: `GitHub could not be reached: ${kept}.`,
       };
     case "signed_out":

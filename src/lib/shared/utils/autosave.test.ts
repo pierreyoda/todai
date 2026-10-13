@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Autosave, AUTOSAVE_DELAY } from "./autosave.svelte";
+import { AUTOSAVE_DELAY, Autosave } from "./autosave.svelte";
 
 /** A save to settle by hand, recording what it was called with. */
 const manualSave = () => {
-  const calls: { content: string; resolve: () => void; reject: (error: unknown) => void }[] = [];
+  const calls: {
+    content: string;
+    resolve: () => void;
+    reject: (error: unknown) => void;
+  }[] = [];
   let inProgress = 0;
   let maxInProgress = 0;
   const save = (content: string) =>
@@ -15,7 +19,11 @@ const manualSave = () => {
         inProgress--;
         settled();
       };
-      calls.push({ content, resolve: settle(resolve), reject: (error) => settle(() => reject(error))() });
+      calls.push({
+        content,
+        resolve: settle(resolve),
+        reject: (error) => settle(() => reject(error))(),
+      });
     });
   return { save, calls, maxInProgress: () => maxInProgress };
 };

@@ -1,25 +1,28 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
-  import { formatFullDateTime, formatRelativeTime } from "#shared/utils/timestamps.ts";
-  import { dateToTodaiDate } from "#core/time";
-  import { basename } from "#shared/utils/paths.ts";
-  import Button from "#shared/ui/Button.svelte";
-  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
-  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
-  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
-  import Table from "#shared/ui/table/Table.svelte";
-  import type { Workspace } from "../model/types";
-  import { createSwitchWorkspaceMutation } from "../api/mutations";
-  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+import { dateToTodaiDate } from "#core/time";
+import Button from "#shared/ui/Button.svelte";
+import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+import Table from "#shared/ui/table/Table.svelte";
+import { basename } from "#shared/utils/paths.ts";
+import {
+  formatFullDateTime,
+  formatRelativeTime,
+} from "#shared/utils/timestamps.ts";
+import { goto } from "$app/navigation";
+import { createSwitchWorkspaceMutation } from "../api/mutations";
+import type { Workspace } from "../model/types";
 
-  type WorkspacesTableProps = {
-    workspaces: readonly Workspace[];
-    onEdit: (workspace: Workspace) => void;
-    onRemove: (workspace: Workspace) => void;
-  };
-  const { workspaces, onEdit, onRemove }: WorkspacesTableProps = $props();
+type WorkspacesTableProps = {
+  workspaces: readonly Workspace[];
+  onEdit: (workspace: Workspace) => void;
+  onRemove: (workspace: Workspace) => void;
+};
+const { workspaces, onEdit, onRemove }: WorkspacesTableProps = $props();
 
-  const switchWorkspace = createSwitchWorkspaceMutation();
+const switchWorkspace = createSwitchWorkspaceMutation();
 </script>
 
 {#snippet pathCell({ path }: Workspace)}

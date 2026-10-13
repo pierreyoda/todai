@@ -43,7 +43,8 @@ export class HoverPopover {
       if (!this.open) return;
       const onpointerdown = (event: PointerEvent) => {
         const target = event.target as Node;
-        if (!this.button?.contains(target) && !this.panel?.contains(target)) this.open = false;
+        if (!this.button?.contains(target) && !this.panel?.contains(target))
+          this.open = false;
       };
       const onkeydown = (event: KeyboardEvent) => {
         if (event.key !== "Escape") return;
@@ -54,7 +55,10 @@ export class HoverPopover {
       document.addEventListener("pointerdown", onpointerdown, true);
       document.addEventListener("keydown", onkeydown);
       window.addEventListener("resize", this.#position);
-      window.addEventListener("scroll", this.#position, { capture: true, passive: true });
+      window.addEventListener("scroll", this.#position, {
+        capture: true,
+        passive: true,
+      });
       return () => {
         document.removeEventListener("pointerdown", onpointerdown, true);
         document.removeEventListener("keydown", onkeydown);
@@ -66,12 +70,14 @@ export class HoverPopover {
 
   /** On the group holding the button and the panel. */
   readonly onpointerenter = (event: PointerEvent) => {
-    if (event.pointerType === "mouse") this.#later(() => (this.open = true), HOVER_OPEN_MS);
+    if (event.pointerType === "mouse")
+      this.#later(() => (this.open = true), HOVER_OPEN_MS);
   };
 
   /** On the group holding the button and the panel. */
   readonly onpointerleave = (event: PointerEvent) => {
-    if (event.pointerType === "mouse") this.#later(() => (this.open = false), HOVER_CLOSE_MS);
+    if (event.pointerType === "mouse")
+      this.#later(() => (this.open = false), HOVER_CLOSE_MS);
   };
 
   /** On the button: clicked once hovered, the panel is kept shown; with the keyboard, shown or hidden. */

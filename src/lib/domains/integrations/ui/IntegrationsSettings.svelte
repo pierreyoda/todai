@@ -1,17 +1,17 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
-  import type { Workspace } from "#domains/workspaces";
-  import { WorkspacePicker } from "#domains/workspaces";
-  import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
-  import GitHubCard from "./GitHubCard.svelte";
-  import LinksBehaviorSettings from "./LinksBehaviorSettings.svelte";
+import type { Workspace } from "#domains/workspaces";
+import { WorkspacePicker } from "#domains/workspaces";
+import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
+import { goto } from "$app/navigation";
+import GitHubCard from "./GitHubCard.svelte";
+import LinksBehaviorSettings from "./LinksBehaviorSettings.svelte";
 
-  type IntegrationsSettingsProps = {
-    workspaces: readonly Workspace[];
-    /** The one whose integrations are shown, among `workspaces`. */
-    workspace: Workspace;
-  };
-  const { workspaces, workspace }: IntegrationsSettingsProps = $props();
+type IntegrationsSettingsProps = {
+  workspaces: readonly Workspace[];
+  /** The one whose integrations are shown, among `workspaces`. */
+  workspace: Workspace;
+};
+const { workspaces, workspace }: IntegrationsSettingsProps = $props();
 </script>
 
 <SettingsContainer>

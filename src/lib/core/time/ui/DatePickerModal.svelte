@@ -1,139 +1,136 @@
 <script lang="ts">
-  import { tick, untrack } from "svelte";
+import { tick, untrack } from "svelte";
+import Button from "#shared/ui/Button.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import type { Day } from "../days";
+import {
+  addDays,
+  addMonths,
+  calendarWeeksOfMonth,
+  dateToTodaiDate,
+  formatFullDay,
+  formatMonth,
+  monthBounds,
+  monthOf,
+} from "../days";
 
-  import type { Day } from "../days";
-  import {
-    addDays,
-    addMonths,
-    calendarWeeksOfMonth,
-    dateToTodaiDate,
-    formatFullDay,
-    formatMonth,
-    monthBounds,
-    monthOf,
-  } from "../days";
-  import Button from "#shared/ui/Button.svelte";
-  import Modal from "#shared/ui/Modal.svelte";
+/**
+ * A month calendar in a modal, to pick a day: see `DatePicker` for a button opening it.
+ *
+ * The calendar follows the WAI-ARIA date picker dialog pattern: arrows move by day and week, Home and End to the
+ * week's bounds, Page Up and Page Down by month (by year with Shift), Enter or Space picks the focused day.
+ */
+type DatePickerModalProps = {
+  /** Bindable: whether it's shown. Closed once a day is picked. */
+  show: boolean;
+  /** The selected day, if any: focused when opened, rather than today. */
+  day?: Day | null;
+  /** Title of the modal. */
+  label?: string;
+  onPick: (day: Day) => void;
+};
+let {
+  show = $bindable(),
+  day = null,
+  label,
+  onPick,
+}: DatePickerModalProps = $props();
 
-  /**
-   * A month calendar in a modal, to pick a day: see `DatePicker` for a button opening it.
-   *
-   * The calendar follows the WAI-ARIA date picker dialog pattern: arrows move by day and week, Home and End to the
-   * week's bounds, Page Up and Page Down by month (by year with Shift), Enter or Space picks the focused day.
-   */
-  type DatePickerModalProps = {
-    /** Bindable: whether it's shown. Closed once a day is picked. */
-    show: boolean;
-    /** The selected day, if any: focused when opened, rather than today. */
-    day?: Day | null;
-    /** Title of the modal. */
-    label?: string;
-    onPick: (day: Day) => void;
-  };
-  let {
-    show = $bindable(),
-    day = null,
-    label,
-    onPick,
-  }: DatePickerModalProps = $props();
+const WEEKDAYS = [
+  ["Mo", "Monday"],
+  ["Tu", "Tuesday"],
+  ["We", "Wednesday"],
+  ["Th", "Thursday"],
+  ["Fr", "Friday"],
+  ["Sa", "Saturday"],
+  ["Su", "Sunday"],
+] as const;
 
-  const WEEKDAYS = [
-    ["Mo", "Monday"],
-    ["Tu", "Tuesday"],
-    ["We", "Wednesday"],
-    ["Th", "Thursday"],
-    ["Fr", "Friday"],
-    ["Sa", "Saturday"],
-    ["Su", "Sunday"],
-  ] as const;
+const monthId = $props.id();
 
-  const monthId = $props.id();
+/** Updated when opening, so that a modal opened after midnight shows the right day. */
+let today = $state(dateToTodaiDate(new Date()));
+/** The day focusable in the calendar (roving tabindex), which also sets the displayed month. */
+let focusedDay = $state<Day>(dateToTodaiDate(new Date()));
+let grid = $state<HTMLTableElement>();
 
-  /** Updated when opening, so that a modal opened after midnight shows the right day. */
-  let today = $state(dateToTodaiDate(new Date()));
-  /** The day focusable in the calendar (roving tabindex), which also sets the displayed month. */
-  let focusedDay = $state<Day>(dateToTodaiDate(new Date()));
-  let grid = $state<HTMLTableElement>();
+const month = $derived(monthOf(focusedDay));
+const weeks = $derived(calendarWeeksOfMonth(month));
 
-  const month = $derived(monthOf(focusedDay));
-  const weeks = $derived(calendarWeeksOfMonth(month));
+/** Whether the month `count` months away can be displayed: its weeks must stay within 0000-9999. */
+const canShowMonth = (count: number) => {
+  try {
+    calendarWeeksOfMonth(addMonths(month, count));
+    return true;
+  } catch {
+    return false;
+  }
+};
 
-  /** Whether the month `count` months away can be displayed: its weeks must stay within 0000-9999. */
-  const canShowMonth = (count: number) => {
-    try {
-      calendarWeeksOfMonth(addMonths(month, count));
-      return true;
-    } catch {
-      return false;
-    }
-  };
+/** The same day of the month `count` months away, or its last day if shorter (e.g. Jan 31 => Feb 28). */
+const shiftMonths = (from: Day, count: number): Day => {
+  const [, last] = monthBounds(addMonths(monthOf(from), count));
+  const sameDay = `${last.slice(0, 8)}${from.slice(8)}`;
+  return sameDay <= last ? sameDay : last;
+};
 
-  /** The same day of the month `count` months away, or its last day if shorter (e.g. Jan 31 => Feb 28). */
-  const shiftMonths = (from: Day, count: number): Day => {
-    const [, last] = monthBounds(addMonths(monthOf(from), count));
-    const sameDay = `${last.slice(0, 8)}${from.slice(8)}`;
-    return sameDay <= last ? sameDay : last;
-  };
+const focusDayButton = () =>
+  grid?.querySelector<HTMLButtonElement>(`[data-day="${focusedDay}"]`)?.focus();
 
-  const focusDayButton = () =>
-    grid
-      ?.querySelector<HTMLButtonElement>(`[data-day="${focusedDay}"]`)
-      ?.focus();
+/**
+ * Makes `getTarget()` the focused day, ignored when it can't be displayed (out of 0000-9999).
+ *
+ * @param moveFocus Whether to also move the browser's focus to it: not for the month buttons, which keep it.
+ */
+const setFocusedDay = async (getTarget: () => Day, moveFocus = true) => {
+  let target: Day;
+  try {
+    target = getTarget();
+    calendarWeeksOfMonth(monthOf(target));
+  } catch {
+    return;
+  }
+  focusedDay = target;
+  if (!moveFocus) return;
+  // The target may be in another month, rendered on the next update
+  await tick();
+  focusDayButton();
+};
 
-  /**
-   * Makes `getTarget()` the focused day, ignored when it can't be displayed (out of 0000-9999).
-   *
-   * @param moveFocus Whether to also move the browser's focus to it: not for the month buttons, which keep it.
-   */
-  const setFocusedDay = async (getTarget: () => Day, moveFocus = true) => {
-    let target: Day;
-    try {
-      target = getTarget();
-      calendarWeeksOfMonth(monthOf(target));
-    } catch {
-      return;
-    }
-    focusedDay = target;
-    if (!moveFocus) return;
-    // The target may be in another month, rendered on the next update
-    await tick();
-    focusDayButton();
-  };
-
-  // Each time it's opened
-  $effect(() => {
-    if (!show) return;
-    untrack(() => {
-      today = dateToTodaiDate(new Date());
-      focusedDay = day ?? today;
-    });
-    // Once the modal's `showModal()` ran, which focuses its close button: the focused day takes over
-    void tick().then(focusDayButton);
+// Each time it's opened
+$effect(() => {
+  if (!show) return;
+  untrack(() => {
+    today = dateToTodaiDate(new Date());
+    focusedDay = day ?? today;
   });
+  // Once the modal's `showModal()` ran, which focuses its close button: the focused day takes over
+  void tick().then(focusDayButton);
+});
 
-  const pick = (pickedDay: Day) => {
-    show = false;
-    onPick(pickedDay);
-  };
+const pick = (pickedDay: Day) => {
+  show = false;
+  onPick(pickedDay);
+};
 
-  const onkeydown = (event: KeyboardEvent) => {
-    const week = weeks.find((days) => days.includes(focusedDay));
-    const years = event.shiftKey ? 12 : 1;
-    const moves: Partial<Record<string, () => Day>> = {
-      ArrowLeft: () => addDays(focusedDay, -1),
-      ArrowRight: () => addDays(focusedDay, 1),
-      ArrowUp: () => addDays(focusedDay, -7),
-      ArrowDown: () => addDays(focusedDay, 7),
-      Home: () => week![0],
-      End: () => week![6],
-      PageUp: () => shiftMonths(focusedDay, -years),
-      PageDown: () => shiftMonths(focusedDay, years),
-    };
-    const move = moves[event.key];
-    if (!move || !week) return;
-    event.preventDefault();
-    setFocusedDay(move);
+const onkeydown = (event: KeyboardEvent) => {
+  const week = weeks.find((days) => days.includes(focusedDay));
+  const years = event.shiftKey ? 12 : 1;
+  const moves: Partial<Record<string, () => Day>> = {
+    ArrowLeft: () => addDays(focusedDay, -1),
+    ArrowRight: () => addDays(focusedDay, 1),
+    ArrowUp: () => addDays(focusedDay, -7),
+    ArrowDown: () => addDays(focusedDay, 7),
+    Home: () => week![0],
+    End: () => week![6],
+    PageUp: () => shiftMonths(focusedDay, -years),
+    PageDown: () => shiftMonths(focusedDay, years),
   };
+  const move = moves[event.key];
+  if (!move || !week) return;
+  event.preventDefault();
+  setFocusedDay(move);
+};
 </script>
 
 <Modal bind:show>

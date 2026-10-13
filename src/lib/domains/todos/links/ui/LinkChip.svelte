@@ -1,41 +1,41 @@
 <script lang="ts">
-  import type { ItemState, ParsedLink } from "../model/types";
-  import { describeLink } from "../model/links";
-  import type { LinkStatus } from "../model/statuses";
-  import { openLink } from "../api/openLink";
-  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
-  import LinkKindIcon from "./LinkKindIcon.svelte";
+import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import { openLink } from "../api/openLink";
+import { describeLink } from "../model/links";
+import type { LinkStatus } from "../model/statuses";
+import type { ItemState, ParsedLink } from "../model/types";
+import LinkKindIcon from "./LinkKindIcon.svelte";
 
-  type LinkChipProps = {
-    /** A todo's link, one about to be added, or one mentioned by a pull request or issue. */
-    link: ParsedLink;
-    /** Where its pull request or issue stands, once known: picks and colors its icon. */
-    state?: ItemState;
-    /** Its status word, after its label: `"loading"` while fetched for the first time. */
-    status?: LinkStatus | "loading" | null;
-    /** Opens its details, instead of opening the link in the browser. */
-    onclick?: (event: MouseEvent) => void;
-    /** Whether its details are open. */
-    active?: boolean;
-    /** Bindable: the chip's element, e.g. to anchor its details to. */
-    ref?: HTMLElement;
-  };
-  let {
-    link,
-    state,
-    status,
-    onclick,
-    active = false,
-    ref = $bindable(),
-  }: LinkChipProps = $props();
+type LinkChipProps = {
+  /** A todo's link, one about to be added, or one mentioned by a pull request or issue. */
+  link: ParsedLink;
+  /** Where its pull request or issue stands, once known: picks and colors its icon. */
+  state?: ItemState;
+  /** Its status word, after its label: `"loading"` while fetched for the first time. */
+  status?: LinkStatus | "loading" | null;
+  /** Opens its details, instead of opening the link in the browser. */
+  onclick?: (event: MouseEvent) => void;
+  /** Whether its details are open. */
+  active?: boolean;
+  /** Bindable: the chip's element, e.g. to anchor its details to. */
+  ref?: HTMLElement;
+};
+let {
+  link,
+  state,
+  status,
+  onclick,
+  active = false,
+  ref = $bindable(),
+}: LinkChipProps = $props();
 
-  const title = $derived(
-    [
-      describeLink(link),
-      typeof status === "object" && status ? ` · ${status.word}` : "",
-      onclick ? "" : ": opens in your browser",
-    ].join(""),
-  );
+const title = $derived(
+  [
+    describeLink(link),
+    typeof status === "object" && status ? ` · ${status.word}` : "",
+    onclick ? "" : ": opens in your browser",
+  ].join(""),
+);
 </script>
 
 {#snippet content()}

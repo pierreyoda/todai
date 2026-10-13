@@ -1,43 +1,42 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+import type { Snippet } from "svelte";
+import {
+  Dropdown,
+  DropdownDivider,
+  DropdownItem,
+  DropdownMenu,
+} from "#shared/ui/dropdown/index.ts";
+import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+import { createDeleteTagMutation } from "../api/mutations";
+import type { Tag } from "../model/types";
+import TagUpsertModal from "./TagUpsertModal.svelte";
 
-  import type { Tag } from "../model/types";
-  import { createDeleteTagMutation } from "../api/mutations";
-  import TagUpsertModal from "./TagUpsertModal.svelte";
-  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
-  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
-  import {
-    Dropdown,
-    DropdownDivider,
-    DropdownItem,
-    DropdownMenu,
-  } from "#shared/ui/dropdown/index.ts";
+type SidePanelTagDropdownProps = {
+  /** Bindable value. */
+  open?: boolean;
+  tag: Tag;
+  onRename: () => void;
+  /** Called once `tag` is deleted. */
+  onDeleted: () => void;
+  /** The tag's row, with a `DropdownTrigger` opening the menu. */
+  children: Snippet;
+};
+let {
+  open = $bindable(false),
+  tag,
+  onRename,
+  onDeleted,
+  children,
+}: SidePanelTagDropdownProps = $props();
 
-  type SidePanelTagDropdownProps = {
-    /** Bindable value. */
-    open?: boolean;
-    tag: Tag;
-    onRename: () => void;
-    /** Called once `tag` is deleted. */
-    onDeleted: () => void;
-    /** The tag's row, with a `DropdownTrigger` opening the menu. */
-    children: Snippet;
-  };
-  let {
-    open = $bindable(false),
-    tag,
-    onRename,
-    onDeleted,
-    children,
-  }: SidePanelTagDropdownProps = $props();
+const deleteTag = createDeleteTagMutation({ onSuccess: () => onDeleted() });
+let confirmDeletion = $state(false);
+$effect(() => {
+  if (!open) confirmDeletion = false;
+});
 
-  const deleteTag = createDeleteTagMutation({ onSuccess: () => onDeleted() });
-  let confirmDeletion = $state(false);
-  $effect(() => {
-    if (!open) confirmDeletion = false;
-  });
-
-  let showColorModal = $state(false);
+let showColorModal = $state(false);
 </script>
 
 <Dropdown bind:open>

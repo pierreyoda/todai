@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
+export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
 </script>
 
 <script lang="ts">

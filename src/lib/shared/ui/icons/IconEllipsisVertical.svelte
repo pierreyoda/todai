@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconEllipsisVerticalProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconEllipsisVerticalProps = $props();
+type IconEllipsisVerticalProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconEllipsisVerticalProps = $props();
 </script>
 
 <svg

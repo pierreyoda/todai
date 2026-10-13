@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type WorkspaceFormData = Pick<Workspace, "name" | "path">;
+export type WorkspaceFormData = Pick<Workspace, "name" | "path">;
 </script>
 
 <script lang="ts">

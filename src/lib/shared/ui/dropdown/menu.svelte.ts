@@ -142,9 +142,7 @@ export class MenuState {
     // Return focus to the trigger, unless the user moved it elsewhere (e.g. clicked an input outside)
     if (
       this.#restoreFocusOnClose &&
-      (!focused ||
-        focused === document.body ||
-        this.menuEl?.contains(focused))
+      (!focused || focused === document.body || this.menuEl?.contains(focused))
     ) {
       this.triggerEl?.focus({ preventScroll: true });
     }
@@ -185,9 +183,7 @@ export class MenuState {
         break;
       }
       default:
-        if (
-          !this.#searchTypeahead(event, items, index)
-        ) {
+        if (!this.#searchTypeahead(event, items, index)) {
           return;
         }
     }

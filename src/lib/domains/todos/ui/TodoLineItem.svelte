@@ -1,107 +1,107 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
-  import { attachDraggable, attachDroppable } from "@thisux/sveltednd";
+import { createQuery } from "@tanstack/svelte-query";
+import { attachDraggable, attachDroppable } from "@thisux/sveltednd";
+import { taskProgress } from "#core/markdown";
+import type { Tag } from "#domains/tags";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import EditableText from "#shared/ui/EditableText.svelte";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import IconCheckCircle from "#shared/ui/icons/IconCheckCircle.svelte";
+import IconClock from "#shared/ui/icons/IconClock.svelte";
+import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
+import IconGripVertical from "#shared/ui/icons/IconGripVertical.svelte";
+import {
+  createToggleTodoMutation,
+  createUpdateTodoMutation,
+} from "../api/mutations";
+import { doneSuggestion } from "../links/model/statuses";
+import TodoLinkChip from "../links/ui/TodoLinkChip.svelte";
+import { formatEstimates } from "../model/estimates";
+import type { Placement, Todo } from "../model/types";
+import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
+import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
+import TodoUpsertModal from "./TodoUpsertModal.svelte";
 
-  import type { Placement, Todo } from "../model/types";
-  import type { Tag } from "#domains/tags";
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import {
-    createToggleTodoMutation,
-    createUpdateTodoMutation,
-  } from "../api/mutations";
-  import EditableText from "#shared/ui/EditableText.svelte";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
-  import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
-  import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
-  import TodoUpsertModal from "./TodoUpsertModal.svelte";
-  import Button from "#shared/ui/Button.svelte";
-  import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
-  import IconClock from "#shared/ui/icons/IconClock.svelte";
-  import TodoLinkChip from "../links/ui/TodoLinkChip.svelte";
-  import IconCheckCircle from "#shared/ui/icons/IconCheckCircle.svelte";
-  import IconGripVertical from "#shared/ui/icons/IconGripVertical.svelte";
-  import { doneSuggestion } from "../links/model/statuses";
-  import { taskProgress } from "#core/markdown";
-  import { formatEstimates } from "../model/estimates";
-
-  type TodoLineItemProps = {
-    item: Todo;
-    tags: readonly Tag[];
-    /**
-     * Set to let it be reordered among the todos as completed as it, by dragging its handle (or from the keyboard, with
-     * the handle focused): called with each one dropped on it.
-     */
-    onReorder?: (droppedId: Todo["id"], placement: Placement) => void;
-  };
-  const { item, tags, onReorder }: TodoLineItemProps = $props();
-
-  /** What's dragged: as plain data, as it's serialized during a drag. Its title is announced from the keyboard. */
-  type DraggedTodo = Pick<Todo, "id" | "title">;
-  /** Completed todos and the others are reordered separately, as they're listed. */
-  const dropGroup = $derived(item.completed ? "completed-todos" : "todos");
-
-  let row = $state<HTMLLIElement>();
-  /** While dragged or moved from the keyboard: not on a mere click of the handle, which also starts a drag. */
-  let dragged = $state(false);
+type TodoLineItemProps = {
+  item: Todo;
+  tags: readonly Tag[];
   /**
-   * Whether the pointer is over it: tracked rather than read from `:hover`, which WebKit leaves on the row a drag started
-   * from until the next click, as it never gets the mouse's release during a drag.
+   * Set to let it be reordered among the todos as completed as it, by dragging its handle (or from the keyboard, with
+   * the handle focused): called with each one dropped on it.
    */
-  let hovered = $state(false);
-  /** The row follows the pointer while its handle is dragged, rather than the handle alone. */
-  const setRowDragImage = (event: DragEvent) => {
-    if (!row || !event.dataTransfer) return;
-    const { left, top } = row.getBoundingClientRect();
-    event.dataTransfer.setDragImage(
-      row,
-      event.clientX - left,
-      event.clientY - top,
-    );
-  };
+  onReorder?: (droppedId: Todo["id"], placement: Placement) => void;
+};
+const { item, tags, onReorder }: TodoLineItemProps = $props();
 
-  // Its GitHub links show their status through the workspace's connection, if any
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const connected = $derived(!!activeWorkspace.data?.githubLogin);
+/** What's dragged: as plain data, as it's serialized during a drag. Its title is announced from the keyboard. */
+type DraggedTodo = Pick<Todo, "id" | "title">;
+/** Completed todos and the others are reordered separately, as they're listed. */
+const dropGroup = $derived(item.completed ? "completed-todos" : "todos");
 
-  // Resolved from the tags list, so they follow tag renames without refetching todos
-  const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
-
-  // Follows the server state, but is checked/unchecked right away on click.
-  let completed = $derived(item.completed);
-  const toggleCompleted = createToggleTodoMutation(() => item, {
-    onError: () => (completed = item.completed),
-  });
-  /** Its merged pull request or completed issue, if any, which suggests marking it as done. */
-  const doneBecause = $derived(
-    connected && activeWorkspace.data?.linksSuggestDone
-      ? doneSuggestion({ completed, links: item.links })
-      : undefined,
+let row = $state<HTMLLIElement>();
+/** While dragged or moved from the keyboard: not on a mere click of the handle, which also starts a drag. */
+let dragged = $state(false);
+/**
+ * Whether the pointer is over it: tracked rather than read from `:hover`, which WebKit leaves on the row a drag started
+ * from until the next click, as it never gets the mouse's release during a drag.
+ */
+let hovered = $state(false);
+/** The row follows the pointer while its handle is dragged, rather than the handle alone. */
+const setRowDragImage = (event: DragEvent) => {
+  if (!row || !event.dataTransfer) return;
+  const { left, top } = row.getBoundingClientRect();
+  event.dataTransfer.setDragImage(
+    row,
+    event.clientX - left,
+    event.clientY - top,
   );
+};
 
-  // svelte-ignore state_referenced_locally: edited locally, then saved
-  let editedTitle = $state(item.title);
-  const updateTitle = createUpdateTodoMutation({
-    onError: () => (editedTitle = item.title),
-  });
-  const saveTitle = (title: string) => {
-    editedTitle = title;
-    // Also called when confirming the unchanged title
-    if (title !== item.title) updateTitle.mutate({ todo: item, changes: { title } });
-  };
+// Its GitHub links show their status through the workspace's connection, if any
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const connected = $derived(!!activeWorkspace.data?.githubLogin);
 
-  let openedDropdownMenu = $state(false);
-  let menuButton = $state<HTMLButtonElement>();
+// Resolved from the tags list, so they follow tag renames without refetching todos
+const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
 
-  let showEditModal = $state(false);
-  /** Whether the edit modal was opened to edit the description: its editor is then focused. */
-  let editingDescription = $state(false);
-  const openEditModal = (description: boolean) => {
-    editingDescription = description;
-    showEditModal = true;
-  };
+// Follows the server state, but is checked/unchecked right away on click.
+let completed = $derived(item.completed);
+const toggleCompleted = createToggleTodoMutation(() => item, {
+  onError: () => (completed = item.completed),
+});
+/** Its merged pull request or completed issue, if any, which suggests marking it as done. */
+const doneBecause = $derived(
+  connected && activeWorkspace.data?.linksSuggestDone
+    ? doneSuggestion({ completed, links: item.links })
+    : undefined,
+);
 
-  /** Its description's tasks, counted next to its tags. */
-  const tasks = $derived(taskProgress(item.description ?? ""));
+// svelte-ignore state_referenced_locally: edited locally, then saved
+let editedTitle = $state(item.title);
+const updateTitle = createUpdateTodoMutation({
+  onError: () => (editedTitle = item.title),
+});
+const saveTitle = (title: string) => {
+  editedTitle = title;
+  // Also called when confirming the unchanged title
+  if (title !== item.title)
+    updateTitle.mutate({ todo: item, changes: { title } });
+};
+
+let openedDropdownMenu = $state(false);
+let menuButton = $state<HTMLButtonElement>();
+
+let showEditModal = $state(false);
+/** Whether the edit modal was opened to edit the description: its editor is then focused. */
+let editingDescription = $state(false);
+const openEditModal = (description: boolean) => {
+  editingDescription = description;
+  showEditModal = true;
+};
+
+/** Its description's tasks, counted next to its tags. */
+const tasks = $derived(taskProgress(item.description ?? ""));
 </script>
 
 <li

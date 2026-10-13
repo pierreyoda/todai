@@ -1,35 +1,35 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import type { ClassValue } from "svelte/elements";
+import type { Snippet } from "svelte";
+import type { ClassValue } from "svelte/elements";
 
-  import DropdownItem from "./DropdownItem.svelte";
-  import DropdownMenu from "./DropdownMenu.svelte";
-  import { getMenuContext, MenuState } from "./menu.svelte";
+import DropdownItem from "./DropdownItem.svelte";
+import DropdownMenu from "./DropdownMenu.svelte";
+import { getMenuContext, MenuState } from "./menu.svelte";
 
-  type DropdownSubmenuProps = {
-    /** Text of the item opening the submenu. */
-    label: string;
-    /** Leading `<svg>` of the item opening the submenu. */
-    icon?: Snippet;
-    disabled?: boolean;
-    /** Whether clicking a submenu item leaves the dropdown open. Defaults to the parent menu's. */
-    keepOpenOnClick?: boolean;
-    /** Applied to the submenu panel. */
-    class?: ClassValue;
-    /** The submenu items, which can include nested `DropdownSubmenu`s. */
-    children: Snippet;
-  };
-  const {
-    label,
-    icon,
-    disabled = false,
-    keepOpenOnClick,
-    class: extraClass,
-    children,
-  }: DropdownSubmenuProps = $props();
+type DropdownSubmenuProps = {
+  /** Text of the item opening the submenu. */
+  label: string;
+  /** Leading `<svg>` of the item opening the submenu. */
+  icon?: Snippet;
+  disabled?: boolean;
+  /** Whether clicking a submenu item leaves the dropdown open. Defaults to the parent menu's. */
+  keepOpenOnClick?: boolean;
+  /** Applied to the submenu panel. */
+  class?: ClassValue;
+  /** The submenu items, which can include nested `DropdownSubmenu`s. */
+  children: Snippet;
+};
+const {
+  label,
+  icon,
+  disabled = false,
+  keepOpenOnClick,
+  class: extraClass,
+  children,
+}: DropdownSubmenuProps = $props();
 
-  const id = $props.id();
-  const menu = new MenuState({ id, parent: getMenuContext() });
+const id = $props.id();
+const menu = new MenuState({ id, parent: getMenuContext() });
 </script>
 
 <DropdownItem {icon} {disabled} submenu={menu}>{label}</DropdownItem>
