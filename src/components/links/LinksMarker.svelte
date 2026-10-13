@@ -5,8 +5,8 @@
   import type { TodoLink } from "../../client/types";
   import { formatLinksCount } from "../../utils/links";
   import { itemState, linkStatus } from "../../utils/linkStatuses";
-  import { computePosition } from "../common/dropdown/positioning";
   import Button from "../common/Button.svelte";
+  import { HoverPopover } from "../common/hoverPopover.svelte";
   import IconLink from "../common/icons/IconLink.svelte";
   import LinkChip from "./LinkChip.svelte";
 
@@ -18,106 +18,30 @@
   };
   const { links, title }: LinksMarkerProps = $props();
 
-  /** How long hovering takes to show the list, and leaving it to hide it. */
-  const HOVER_OPEN_MS = 150;
-  const HOVER_CLOSE_MS = 200;
-
   const panelId = $props.id();
   // With their status, as last fetched, through the workspace's connection: the calendar never fetches them
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
   const connected = $derived(!!activeWorkspace.data?.githubLogin);
   const allOnGitHub = $derived(links.every((link) => link.github));
 
-  let open = $state(false);
-  let button = $state<HTMLButtonElement>();
-  let panel = $state<HTMLDivElement>();
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const later = (action: () => void, delay: number) => {
-    clearTimeout(timer);
-    timer = setTimeout(action, delay);
-  };
-  $effect(() => () => clearTimeout(timer));
-
-  const position = () => {
-    if (!button || !panel) return;
-    const { x, y } = computePosition({
-      anchor: button.getBoundingClientRect(),
-      floating: panel.getBoundingClientRect(),
-      viewport: {
-        width: document.documentElement.clientWidth,
-        height: document.documentElement.clientHeight,
-      },
-      placement: "bottom-start",
-      offset: 4,
-    });
-    panel.style.left = `${x}px`;
-    panel.style.top = `${y}px`;
-  };
-
-  // A manual popover, so that hovering it leaves any other one open (e.g. a menu)
-  $effect(() => {
-    if (!panel) return;
-    const shown = panel.matches(":popover-open");
-    if (open && !shown) {
-      panel.showPopover();
-      // Positioned in the same task as the opening, so it never paints at the default position
-      position();
-    } else if (!open && shown) {
-      panel.hidePopover();
-    }
-  });
-
-  // Closed by Escape or by clicking elsewhere, as it's not light-dismissed
-  $effect(() => {
-    if (!open) return;
-    const onpointerdown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!button?.contains(target) && !panel?.contains(target)) open = false;
-    };
-    const onkeydown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      const hadFocus = panel?.contains(document.activeElement);
-      open = false;
-      if (hadFocus) button?.focus();
-    };
-    document.addEventListener("pointerdown", onpointerdown, true);
-    document.addEventListener("keydown", onkeydown);
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, { capture: true, passive: true });
-    return () => {
-      document.removeEventListener("pointerdown", onpointerdown, true);
-      document.removeEventListener("keydown", onkeydown);
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, { capture: true });
-    };
-  });
+  const popover = new HoverPopover();
 </script>
 
-<!-- Hovering the marker or its list keeps it shown: the list is part of the group, though shown on top -->
 <span
   class="group"
   role="presentation"
-  onpointerenter={(event) => {
-    if (event.pointerType === "mouse") later(() => (open = true), HOVER_OPEN_MS);
-  }}
-  onpointerleave={(event) => {
-    if (event.pointerType === "mouse") later(() => (open = false), HOVER_CLOSE_MS);
-  }}
+  onpointerenter={popover.onpointerenter}
+  onpointerleave={popover.onpointerleave}
 >
   <Button
-    bind:ref={button}
+    bind:ref={popover.button}
     style="plain"
     size="xs"
-    class={["marker", open && "open"]}
+    class={["marker", popover.open && "open"]}
     aria-label={formatLinksCount(links.length)}
-    aria-expanded={open}
+    aria-expanded={popover.open}
     aria-controls={panelId}
-    onclick={(event) => {
-      clearTimeout(timer);
-      // Clicked once hovered: kept shown. With the keyboard: shown or hidden.
-      open = event.detail > 0 ? true : !open;
-    }}
+    onclick={popover.onclick}
   >
     <IconLink />
     {#if links.length > 1}
@@ -125,7 +49,7 @@
     {/if}
   </Button>
   <div
-    bind:this={panel}
+    bind:this={popover.panel}
     id={panelId}
     popover="manual"
     role="dialog"
