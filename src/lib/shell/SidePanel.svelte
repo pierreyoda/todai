@@ -10,7 +10,7 @@
   import { SidePanelTag } from "#domains/tags";
   import IconSun from "#shared/ui/icons/IconSun.svelte";
   import IconPlus from "#shared/ui/icons/IconPlus.svelte";
-  import SidePanelLink from "./layout/SidePanelLink.svelte";
+  import SidePanelLink from "./SidePanelLink.svelte";
   import { TagUpsertModal } from "#domains/tags";
   import { TagsEmptyState } from "#domains/tags";
   import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
@@ -54,7 +54,7 @@
   <nav aria-label="Pages">
     <ul class="links">
       <li>
-        <SidePanelLink label="Today" routeId="/" hint={today}>
+        <SidePanelLink label="Today" routeId="/(workspace)" hint={today}>
           {#snippet icon()}
             <IconSun />
           {/snippet}
@@ -63,7 +63,7 @@
           <li>
             <SidePanelLink
               label="Notes"
-              routeId="/today/notes"
+              routeId="/(workspace)/today/notes"
               nested
               indicator={todayHasNote ? "Today has a note" : undefined}
             >

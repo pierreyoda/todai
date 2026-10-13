@@ -5,7 +5,7 @@
     workspacesQueryOptions,
     activeWorkspaceQueryOptions,
   } from "#domains/workspaces";
-  import SidePanel from "../../../components/SidePanel.svelte";
+  import SidePanel from "#shell/SidePanel.svelte";
   import LoadingState from "#shared/ui/LoadingState.svelte";
   import { WorkspaceSettings } from "#domains/workspaces";
 

@@ -1,14 +1,18 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import type { Snippet } from "svelte";
 
   import type { RouteId } from "$app/types";
 
+  /** A page that doesn't need parameters, so it can be linked to as is. */
+  type StaticRouteId = Exclude<RouteId, `${string}[${string}`>;
+
   type SidePanelLinkProps = {
     label: string;
     /** Leading icon, colored by the link. */
     icon: Snippet;
-    routeId: RouteId;
+    routeId: StaticRouteId;
     /** Short trailing text, e.g. a date. */
     hint?: string;
     /** A sub-page of the link above it: slimmer, to sit in its indented list. */
@@ -31,13 +35,17 @@
     currentOnSubPages = false,
   }: SidePanelLinkProps = $props();
 
+  /** Without the groups organizing the routes (e.g. `(workspace)`), as their URLs are. */
+  const withoutGroups = (id: string) => id.replace(/\/\([^/]+\)/g, "") || "/";
+
   const current = $derived.by(() => {
-    const id = page.route.id ?? "/";
-    return id === routeId || (currentOnSubPages && id.startsWith(`${routeId}/`));
+    const id = withoutGroups(page.route.id ?? "/");
+    const linked = withoutGroups(routeId);
+    return id === linked || (currentOnSubPages && id.startsWith(`${linked}/`));
   });
 </script>
 
-<a href={routeId} class={["link", nested && "nested"]} aria-current={current ? "page" : undefined}>
+<a href={resolve(routeId)} class={["link", nested && "nested"]} aria-current={current ? "page" : undefined}>
   <span class="icon">{@render icon()}</span>
   <span class="label">{label}</span>
   {#if hint}

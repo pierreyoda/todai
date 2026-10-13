@@ -3,7 +3,7 @@
 
   import { page } from "$app/state";
   import { workspacesQueryOptions } from "#domains/workspaces";
-  import SidePanel from "../../../components/SidePanel.svelte";
+  import SidePanel from "#shell/SidePanel.svelte";
   import LoadingState from "#shared/ui/LoadingState.svelte";
   import { IntegrationsSettings } from "#domains/integrations";
   import { pickedWorkspace } from "#domains/workspaces";

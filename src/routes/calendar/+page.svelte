@@ -4,7 +4,7 @@
   import type { Tag } from "#domains/tags";
   import { dateToTodaiDate } from "#core/time";
   import { tagsQueryOptions } from "#domains/tags";
-  import SidePanel from "../../components/SidePanel.svelte";
+  import SidePanel from "#shell/SidePanel.svelte";
   import { VerticalCalendar } from "#domains/agenda";
 
   const day = dateToTodaiDate(new Date());

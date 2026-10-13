@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
  * - `core/<module>`: todai's building blocks (days, Markdown, GitHub), importing only `shared`;
  * - `domains/<domain>`: its business areas, importing `shared`, `core`, and the lower domains listed in `DOMAINS`;
  * - `shell`: the app's frame (side panel, workspace guard), importing any of them;
- * then `src/routes` composes them. The legacy folders are moved into `src/lib` bottom-up, so it never imports them.
+ * then `src/routes` composes them. Other folders of `src` hold no source files.
  *
  * Across modules, imports go through the aliases of `package.json`: `#core/<module>` and `#domains/<domain>` only reach
  * their `index.ts`, their public surface. Within a module, they're relative.
@@ -29,9 +29,6 @@ const DOMAINS: Readonly<Record<string, readonly string[]>> = {
   integrations: ["workspaces", "todos"],
 };
 
-/** Moved into `src/lib`, then removed. */
-const LEGACY_FOLDERS = ["client", "utils", "components", "constants"];
-
 /** For `api/` only, along with the `invoke…` functions of its commands. */
 const API_ONLY_IMPORTS = new Set(["createMutation", "useQueryClient"]);
 
@@ -44,12 +41,11 @@ type Import = { specifier: string; names: string[] };
 
 /**
  * The module of `path` (relative to `src`): `shared`, `core/<module>`, `domains/<domain>` or `shell` in `src/lib`, else
- * `routes` or `legacy`; `null` for any other file (e.g. `app.css`, or one of `src/lib` outside of the modules).
+ * `routes`; `null` for any other file (e.g. `app.css`, or one of `src/lib` outside of the modules).
  */
 const moduleOf = (path: string): string | null => {
   const [root, layer, name, ...rest] = path.split("/");
   if (root === "routes") return "routes";
-  if (LEGACY_FOLDERS.includes(root)) return "legacy";
   if (root !== "lib" || name === undefined) return null;
   if (layer === "shared" || layer === "shell") return layer;
   if ((layer === "core" || layer === "domains") && rest.length > 0) return `${layer}/${name}`;
@@ -58,7 +54,7 @@ const moduleOf = (path: string): string | null => {
 
 /** Whether module `from` may import module `to`, another one: only from a lower layer. */
 const mayImport = (from: string, to: string | null): boolean => {
-  if (to === null || to === "legacy" || to === "routes" || from === "shared") return false;
+  if (to === null || to === "routes" || from === "shared") return false;
   if (to === "shared" || from === "shell") return to !== "shell";
   if (from.startsWith("core/")) return false;
   // From a domain
@@ -115,15 +111,17 @@ const importsOf = (code: string): Import[] => [
   ...[...code.matchAll(/\bimport\s*\(?\s*["']([^"']+)["']/g)].map(([, specifier]) => ({ specifier, names: [] })),
 ];
 
-/** How the imports of `file` break the architecture, if they do. The legacy folders aren't checked. */
+/** How the imports of `file` break the architecture, if they do. */
 const violationsOf = (file: SourceFile): string[] => {
   const { path } = file;
   const from = moduleOf(path);
   const violations: string[] = [];
   const flag = (reason: string) => violations.push(`src/${path}: ${reason}`);
 
-  if (path.startsWith("lib/") && from === null) flag("outside of shared, core/<module>, domains/<domain> and shell");
-  if (from === null || from === "legacy") return violations;
+  // Unless right in `src`, like SvelteKit's own files (e.g. `app.d.ts`)
+  if (from === null && path.startsWith("lib/")) flag("outside of shared, core/<module>, domains/<domain> and shell");
+  else if (from === null && path.includes("/")) flag("outside of src/lib and src/routes");
+  if (from === null) return violations;
   const domain = from.startsWith("domains/") ? from.slice("domains/".length) : undefined;
   if (domain !== undefined && !(domain in DOMAINS)) flag(`an unknown domain: add "${domain}" to DOMAINS`);
 
@@ -154,11 +152,9 @@ const violationsOf = (file: SourceFile): string[] => {
       if (inModel && /\/(api|state|ui)\//.test(`${target.resolved}/`)) {
         flag(`${imports}: model/ doesn't depend on the rest of its module`);
       }
-    } else if (from !== "routes" && to === "legacy") {
-      flag(`${imports}: src/lib doesn't depend on the legacy folders, moved into it bottom-up`);
     } else if (from !== "routes" && !mayImport(from, to)) {
       flag(`${imports}: ${from} may not depend on ${to ?? "files outside of the modules"}`);
-    } else if (!target.alias && to !== null && to !== "legacy") {
+    } else if (!target.alias && to !== null) {
       flag(`${imports}: another module, relatively: import it through its alias (#shared/…, #core/…, #domains/…)`);
     }
   }
@@ -200,21 +196,17 @@ describe("the architecture's rules", () => {
       svelte(`import { page } from "$app/state";\nimport { NoteMarker } from "#domains/notes";`),
     ],
     [
-      "routes to import the legacy folders relatively, and modules through their aliases",
-      "routes/+page.svelte",
+      "routes to import their own files relatively, and modules through their aliases",
+      "routes/(workspace)/calendar/notes/[day]/+page.svelte",
       svelte(
-        `import "../app.css";\nimport TodoPanel from "../components/todos/TodoPanel.svelte";\n` +
-          `import { VerticalCalendar } from "#domains/agenda";\nimport SidePanel from "#shell/SidePanel.svelte";`,
+        `import "../../../../../app.css";\nimport type { PageProps } from "./$types";\n` +
+          `import { NotePanel } from "#domains/notes";\nimport SidePanel from "#shell/SidePanel.svelte";`,
       ),
     ],
-    [
-      "the legacy folders to import anything",
-      "components/todos/TodoLineItem.svelte",
-      svelte(`import { createMutation } from "@tanstack/svelte-query";\nimport { invokeClient } from "../../client";`),
-    ],
+    ["SvelteKit's own files, right in src", "app.d.ts", "declare global {}"],
     [
       "commented out imports",
-      "lib/shared/lib/toasts.svelte.ts",
+      "lib/shared/utils/toasts.svelte.ts",
       `// import type { Day } from "../../../client/types";\n/* import { addDays } from "#core/time"; */\nexport const x = 1;`,
     ],
   ])("allows %s", (_, path, source) => {
@@ -235,7 +227,8 @@ describe("the architecture's rules", () => {
       svelte(`import TodoSummaryItem from "../../todos/ui/TodoSummaryItem.svelte";`),
     ],
     ["a module importing its own index.ts", "lib/domains/todos/ui/TodoPanel.svelte", svelte(`import { todoKeys } from "#domains/todos";`)],
-    ["src/lib importing the legacy folders", "lib/core/time/days.ts", `import type { Day } from "../../../client/types";`],
+    ["src/lib importing files outside of its modules", "lib/core/time/days.ts", `import type { Day } from "../../../client/types";`],
+    ["a source file outside of src/lib and src/routes", "utils/dates.ts", "export const x = 1;"],
     ["shared importing a module", "lib/shared/ui/DatePicker.svelte", svelte(`import { addDays } from "#core/time";`)],
     ["a core module importing another one", "lib/core/markdown/model/editing.ts", `import { addDays } from "#core/time";`],
     ["a domain importing the shell", "lib/domains/notes/ui/NotePanel.svelte", svelte(`import SidePanel from "#shell/SidePanel.svelte";`)],
