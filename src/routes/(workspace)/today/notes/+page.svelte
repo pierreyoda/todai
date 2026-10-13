@@ -1,15 +1,13 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import { dateToTodaiDate } from "#core/time";
+import { NotePanel, noteQueryOptions } from "#domains/notes";
+import LoadingState from "#shared/ui/LoadingState.svelte";
+import SidePanel from "#shell/SidePanel.svelte";
 
-  import { noteQueryOptions } from "#domains/notes";
-  import { dateToTodaiDate } from "#core/time";
-  import SidePanel from "#shell/SidePanel.svelte";
-  import { NotePanel } from "#domains/notes";
-  import LoadingState from "#shared/ui/LoadingState.svelte";
-
-  // Fixed once opened, like the todos' day: left open past midnight, it's still the note of the day it was opened.
-  const day = dateToTodaiDate(new Date());
-  const note = createQuery(() => noteQueryOptions(day));
+// Fixed once opened, like the todos' day: left open past midnight, it's still the note of the day it was opened.
+const day = dateToTodaiDate(new Date());
+const note = createQuery(() => noteQueryOptions(day));
 </script>
 
 <main>

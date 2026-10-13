@@ -1,109 +1,117 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
+import { createQuery } from "@tanstack/svelte-query";
+import { untrack } from "svelte";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import FieldText from "#shared/ui/FieldText.svelte";
+import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import { goto } from "$app/navigation";
+import type { Todo } from "../../model/types";
+import { createAddTodoLinksMutation } from "../api/mutations";
+import { linkPreviewQueryOptions, parseLinkQueryOptions } from "../api/queries";
+import { hasLink, linkKindName } from "../model/links";
+import {
+  closingPullRequest,
+  describeProblem,
+  itemState,
+  linkStatus,
+  stateStatus,
+} from "../model/statuses";
+import LinkChip from "./LinkChip.svelte";
+import LinkKindIcon from "./LinkKindIcon.svelte";
 
-  import { goto } from "$app/navigation";
-  import { createAddTodoLinksMutation } from "../api/mutations";
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import {
-    linkPreviewQueryOptions,
-    parseLinkQueryOptions,
-  } from "../api/queries";
-  import type { Todo } from "../../model/types";
-  import { hasLink, linkKindName } from "../model/links";
-  import {
-    closingPullRequest,
-    describeProblem,
-    itemState,
-    linkStatus,
-    stateStatus,
-  } from "../model/statuses";
-  import Button from "#shared/ui/Button.svelte";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
-  import FieldText from "#shared/ui/FieldText.svelte";
-  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
-  import Modal from "#shared/ui/Modal.svelte";
-  import LinkChip from "./LinkChip.svelte";
-  import LinkKindIcon from "./LinkKindIcon.svelte";
+type AddLinkModalProps = {
+  /** Bindable. */
+  show: boolean;
+  todo: Todo;
+};
+let { show = $bindable(), todo }: AddLinkModalProps = $props();
 
-  type AddLinkModalProps = {
-    /** Bindable. */
-    show: boolean;
-    todo: Todo;
-  };
-  let { show = $bindable(), todo }: AddLinkModalProps = $props();
+const formId = $props.id();
+let input = $state<HTMLInputElement>();
+let url = $state("");
+/** `url`, trimmed, once typing pauses: what's recognized. */
+let typedUrl = $state("");
+$effect(() => {
+  const value = url.trim();
+  const timeout = setTimeout(() => (typedUrl = value), 150);
+  return () => clearTimeout(timeout);
+});
+/** Whether to also add the pull request closing the issue linked. */
+let alsoAddClosing = $state(true);
 
-  const formId = $props.id();
-  let input = $state<HTMLInputElement>();
-  let url = $state("");
-  /** `url`, trimmed, once typing pauses: what's recognized. */
-  let typedUrl = $state("");
-  $effect(() => {
-    const value = url.trim();
-    const timeout = setTimeout(() => (typedUrl = value), 150);
-    return () => clearTimeout(timeout);
+const addLinks = createAddTodoLinksMutation(() => todo);
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const login = $derived(activeWorkspace.data?.githubLogin);
+
+// Blank each time it's opened, ready to paste into
+$effect(() => {
+  if (!show) return;
+  untrack(() => {
+    url = "";
+    typedUrl = "";
+    alsoAddClosing = true;
+    addLinks.reset();
   });
-  /** Whether to also add the pull request closing the issue linked. */
-  let alsoAddClosing = $state(true);
+  // Once the dialog is shown, which would otherwise focus its close button
+  setTimeout(() => input?.focus());
+});
 
-  const addLinks = createAddTodoLinksMutation(() => todo);
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const login = $derived(activeWorkspace.data?.githubLogin);
+const parsed = createQuery(() => ({
+  ...parseLinkQueryOptions(typedUrl),
+  enabled: typedUrl !== "",
+}));
+/** Whether what's recognized is what's typed, rather than what was typed a moment ago. */
+const settled = $derived(typedUrl !== "" && typedUrl === url.trim());
+const recognized = $derived(
+  settled && parsed.isSuccess ? parsed.data : undefined,
+);
+const invalid = $derived(
+  settled && parsed.isError ? String(parsed.error) : undefined,
+);
 
-  // Blank each time it's opened, ready to paste into
-  $effect(() => {
-    if (!show) return;
-    untrack(() => {
-      url = "";
-      typedUrl = "";
-      alsoAddClosing = true;
-      addLinks.reset();
-    });
-    // Once the dialog is shown, which would otherwise focus its close button
-    setTimeout(() => input?.focus());
-  });
+// What GitHub tells about it, through the workspace's connection
+const previewed = createQuery(() => ({
+  ...linkPreviewQueryOptions(recognized?.url ?? ""),
+  enabled: !!login && !!recognized?.github,
+}));
+const preview = $derived(
+  login && recognized?.github && previewed.data?.link
+    ? previewed.data
+    : undefined,
+);
+const lookingUp = $derived(
+  !!login && !!recognized?.github && previewed.isFetching && !preview,
+);
+/** Where GitHub says it is, e.g. a pull request pasted as an issue. */
+const link = $derived(preview?.link ?? recognized);
+const snapshot = $derived(preview?.snapshot);
+const status = $derived(preview && linkStatus(preview));
+const problem = $derived(preview?.problem && describeProblem(preview.problem));
 
-  const parsed = createQuery(() => ({
-    ...parseLinkQueryOptions(typedUrl),
-    enabled: typedUrl !== "",
-  }));
-  /** Whether what's recognized is what's typed, rather than what was typed a moment ago. */
-  const settled = $derived(typedUrl !== "" && typedUrl === url.trim());
-  const recognized = $derived(settled && parsed.isSuccess ? parsed.data : undefined);
-  const invalid = $derived(settled && parsed.isError ? String(parsed.error) : undefined);
+const alreadyLinked = $derived(
+  !!recognized &&
+    (hasLink(todo.links, recognized.url) ||
+      (!!link && hasLink(todo.links, link.url))),
+);
+const closing = $derived(closingPullRequest(snapshot, todo.links));
+const urls = $derived.by(() => {
+  const added = link?.url ?? url.trim();
+  return closing && alsoAddClosing ? [added, closing.url] : [added];
+});
+// Not waiting for the recognition to settle: the backend checks the URL anyway
+const canAdd = $derived(
+  url.trim() !== "" && !invalid && !alreadyLinked && !addLinks.isPending,
+);
 
-  // What GitHub tells about it, through the workspace's connection
-  const previewed = createQuery(() => ({
-    ...linkPreviewQueryOptions(recognized?.url ?? ""),
-    enabled: !!login && !!recognized?.github,
-  }));
-  const preview = $derived(
-    login && recognized?.github && previewed.data?.link ? previewed.data : undefined,
-  );
-  const lookingUp = $derived(!!login && !!recognized?.github && previewed.isFetching && !preview);
-  /** Where GitHub says it is, e.g. a pull request pasted as an issue. */
-  const link = $derived(preview?.link ?? recognized);
-  const snapshot = $derived(preview?.snapshot);
-  const status = $derived(preview && linkStatus(preview));
-  const problem = $derived(preview?.problem && describeProblem(preview.problem));
-
-  const alreadyLinked = $derived(
-    !!recognized && (hasLink(todo.links, recognized.url) || (!!link && hasLink(todo.links, link.url))),
-  );
-  const closing = $derived(closingPullRequest(snapshot, todo.links));
-  const urls = $derived.by(() => {
-    const added = link?.url ?? url.trim();
-    return closing && alsoAddClosing ? [added, closing.url] : [added];
-  });
-  // Not waiting for the recognition to settle: the backend checks the URL anyway
-  const canAdd = $derived(url.trim() !== "" && !invalid && !alreadyLinked && !addLinks.isPending);
-
-  const onsubmit = (event: SubmitEvent) => {
-    event.preventDefault();
-    if (!canAdd) return;
-    addLinks.mutate(urls, { onSuccess: () => (show = false) });
-  };
+const onsubmit = (event: SubmitEvent) => {
+  event.preventDefault();
+  if (!canAdd) return;
+  addLinks.mutate(urls, { onSuccess: () => (show = false) });
+};
 </script>
 
 <Modal bind:show>

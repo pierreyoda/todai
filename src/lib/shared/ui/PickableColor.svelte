@@ -1,15 +1,15 @@
 <script lang="ts">
-  import Button from "./Button.svelte";
+import Button from "./Button.svelte";
 
-  type PickableColorProps = {
-    label: string;
-    /** Format: "#RRGGBB" */
-    preset: string;
-    selected: boolean;
-    onPicked: () => void;
-  };
+type PickableColorProps = {
+  label: string;
+  /** Format: "#RRGGBB" */
+  preset: string;
+  selected: boolean;
+  onPicked: () => void;
+};
 
-  const { label, preset, selected, onPicked }: PickableColorProps = $props();
+const { label, preset, selected, onPicked }: PickableColorProps = $props();
 </script>
 
 <Button

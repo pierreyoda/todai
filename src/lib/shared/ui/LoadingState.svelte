@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+import type { Snippet } from "svelte";
 
-  import IconSpinner from "./icons/IconSpinner.svelte";
+import IconSpinner from "./icons/IconSpinner.svelte";
 
-  type LoadingStateProps = {
-    state: "loading" | "error";
-    loading?: Snippet;
-    error?: Snippet;
-  };
-  const { state, loading, error }: LoadingStateProps = $props();
+type LoadingStateProps = {
+  state: "loading" | "error";
+  loading?: Snippet;
+  error?: Snippet;
+};
+const { state, loading, error }: LoadingStateProps = $props();
 </script>
 
 {#if state === "loading"}

@@ -1,32 +1,32 @@
 <script lang="ts" module>
-  /**
-   * [check mark, checked background]
-   * Theme variables are spelled out in full so Tailwind detects and emits them.
-   */
-  const colors = {
-    zinc: ["var(--color-white)", "var(--color-zinc-600)"],
-    white: ["var(--color-zinc-900)", "var(--color-white)"],
-    dark: ["var(--color-white)", "var(--color-zinc-900)"],
-    red: ["var(--color-white)", "var(--color-red-600)"],
-    orange: ["var(--color-white)", "var(--color-orange-500)"],
-    amber: ["var(--color-amber-950)", "var(--color-amber-400)"],
-    yellow: ["var(--color-yellow-950)", "var(--color-yellow-300)"],
-    lime: ["var(--color-lime-950)", "var(--color-lime-300)"],
-    green: ["var(--color-white)", "var(--color-green-600)"],
-    emerald: ["var(--color-white)", "var(--color-emerald-600)"],
-    teal: ["var(--color-white)", "var(--color-teal-600)"],
-    cyan: ["var(--color-cyan-950)", "var(--color-cyan-300)"],
-    sky: ["var(--color-white)", "var(--color-sky-500)"],
-    blue: ["var(--color-white)", "var(--color-blue-600)"],
-    indigo: ["var(--color-white)", "var(--color-indigo-500)"],
-    violet: ["var(--color-white)", "var(--color-violet-500)"],
-    purple: ["var(--color-white)", "var(--color-purple-500)"],
-    fuchsia: ["var(--color-white)", "var(--color-fuchsia-500)"],
-    pink: ["var(--color-white)", "var(--color-pink-500)"],
-    rose: ["var(--color-white)", "var(--color-rose-500)"],
-  } as const satisfies Record<string, readonly [string, string]>;
+/**
+ * [check mark, checked background]
+ * Theme variables are spelled out in full so Tailwind detects and emits them.
+ */
+const colors = {
+  zinc: ["var(--color-white)", "var(--color-zinc-600)"],
+  white: ["var(--color-zinc-900)", "var(--color-white)"],
+  dark: ["var(--color-white)", "var(--color-zinc-900)"],
+  red: ["var(--color-white)", "var(--color-red-600)"],
+  orange: ["var(--color-white)", "var(--color-orange-500)"],
+  amber: ["var(--color-amber-950)", "var(--color-amber-400)"],
+  yellow: ["var(--color-yellow-950)", "var(--color-yellow-300)"],
+  lime: ["var(--color-lime-950)", "var(--color-lime-300)"],
+  green: ["var(--color-white)", "var(--color-green-600)"],
+  emerald: ["var(--color-white)", "var(--color-emerald-600)"],
+  teal: ["var(--color-white)", "var(--color-teal-600)"],
+  cyan: ["var(--color-cyan-950)", "var(--color-cyan-300)"],
+  sky: ["var(--color-white)", "var(--color-sky-500)"],
+  blue: ["var(--color-white)", "var(--color-blue-600)"],
+  indigo: ["var(--color-white)", "var(--color-indigo-500)"],
+  violet: ["var(--color-white)", "var(--color-violet-500)"],
+  purple: ["var(--color-white)", "var(--color-purple-500)"],
+  fuchsia: ["var(--color-white)", "var(--color-fuchsia-500)"],
+  pink: ["var(--color-white)", "var(--color-pink-500)"],
+  rose: ["var(--color-white)", "var(--color-rose-500)"],
+} as const satisfies Record<string, readonly [string, string]>;
 
-  export type FieldCheckboxColor = keyof typeof colors;
+export type FieldCheckboxColor = keyof typeof colors;
 </script>
 
 <script lang="ts">

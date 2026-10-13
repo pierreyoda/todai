@@ -1,79 +1,79 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import type { ClassValue } from "svelte/elements";
+import type { Snippet } from "svelte";
+import type { ClassValue } from "svelte/elements";
 
-  import { getMenuContext, type MenuState } from "./menu.svelte";
+import { getMenuContext, type MenuState } from "./menu.svelte";
 
-  type DropdownItemProps = {
-    /** Renders a link instead of a button. */
-    href?: string;
-    disabled?: boolean;
-    /** Called before the whole dropdown closes, if it does (see `keepOpen`). */
-    onclick?: (event: MouseEvent) => void;
-    /**
-     * Whether clicking the item leaves the dropdown open. Defaults to its menu's `keepOpenOnClick`.
-     *
-     * Must be `false` for items opening a modal: WebKit's `showModal()` hides the menu without a `toggle` event,
-     * which leaves it open in state, and impossible to reopen.
-     */
-    keepOpen?: boolean;
-    /** Leading `<svg>`, sized and colored by the item. */
-    icon?: Snippet;
-    class?: ClassValue;
-    /** Internal: the submenu this item opens, provided by `DropdownSubmenu`. */
-    submenu?: MenuState;
-    children: Snippet;
-  };
-  const {
-    href,
-    disabled = false,
-    onclick,
-    keepOpen,
-    icon,
-    class: extraClass,
-    submenu,
-    children,
-  }: DropdownItemProps = $props();
+type DropdownItemProps = {
+  /** Renders a link instead of a button. */
+  href?: string;
+  disabled?: boolean;
+  /** Called before the whole dropdown closes, if it does (see `keepOpen`). */
+  onclick?: (event: MouseEvent) => void;
+  /**
+   * Whether clicking the item leaves the dropdown open. Defaults to its menu's `keepOpenOnClick`.
+   *
+   * Must be `false` for items opening a modal: WebKit's `showModal()` hides the menu without a `toggle` event,
+   * which leaves it open in state, and impossible to reopen.
+   */
+  keepOpen?: boolean;
+  /** Leading `<svg>`, sized and colored by the item. */
+  icon?: Snippet;
+  class?: ClassValue;
+  /** Internal: the submenu this item opens, provided by `DropdownSubmenu`. */
+  submenu?: MenuState;
+  children: Snippet;
+};
+const {
+  href,
+  disabled = false,
+  onclick,
+  keepOpen,
+  icon,
+  class: extraClass,
+  submenu,
+  children,
+}: DropdownItemProps = $props();
 
-  const menu = getMenuContext();
+const menu = getMenuContext();
 
-  let element = $state<HTMLElement>();
-  $effect(() => {
-    if (submenu) submenu.triggerEl = element;
-  });
+let element = $state<HTMLElement>();
+$effect(() => {
+  if (submenu) submenu.triggerEl = element;
+});
 
-  const isLink = $derived(!!href && !disabled && !submenu);
+const isLink = $derived(!!href && !disabled && !submenu);
 
-  function handleClick(event: MouseEvent) {
-    if (disabled) {
-      event.preventDefault();
-      return;
-    }
-    if (submenu) {
-      // `detail` is 0 for clicks triggered by the keyboard (Enter, Space)
-      submenu.show(event.detail === 0 ? "first" : "none");
-      return;
-    }
-    onclick?.(event);
-    if (!(keepOpen ?? menu.getKeepOpenOnClick())) menu.root.hide();
-  }
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (!submenu || disabled || event.key !== "ArrowRight") return;
+function handleClick(event: MouseEvent) {
+  if (disabled) {
     event.preventDefault();
-    submenu.show("first");
+    return;
   }
+  if (submenu) {
+    // `detail` is 0 for clicks triggered by the keyboard (Enter, Space)
+    submenu.show(event.detail === 0 ? "first" : "none");
+    return;
+  }
+  onclick?.(event);
+  if (!(keepOpen ?? menu.getKeepOpenOnClick())) menu.root.hide();
+}
 
-  function handlePointerEnter() {
-    menu.scheduleHover(() => {
-      if (submenu && !disabled) {
-        // Opening a submenu closes its open siblings (popover stack)
-        submenu.show("none");
-      } else {
-        menu.openChild?.hide();
-      }
-    });
-  }
+function handleKeydown(event: KeyboardEvent) {
+  if (!submenu || disabled || event.key !== "ArrowRight") return;
+  event.preventDefault();
+  submenu.show("first");
+}
+
+function handlePointerEnter() {
+  menu.scheduleHover(() => {
+    if (submenu && !disabled) {
+      // Opening a submenu closes its open siblings (popover stack)
+      submenu.show("none");
+    } else {
+      menu.openChild?.hide();
+    }
+  });
+}
 </script>
 
 <svelte:element

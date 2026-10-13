@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconExclamationTriangleProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconExclamationTriangleProps = $props();
+type IconExclamationTriangleProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconExclamationTriangleProps = $props();
 </script>
 
 <svg

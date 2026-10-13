@@ -8,5 +8,6 @@ import { invokeBackups } from "./commands";
 export const workspaceBackupsQueryOptions = (workspaceId: UUID) =>
   queryOptions({
     queryKey: workspaceKeys.backups(workspaceId),
-    queryFn: () => invokeBackups({ name: "list_workspace_backups", args: { workspaceId } }),
+    queryFn: () =>
+      invokeBackups({ name: "list_workspace_backups", args: { workspaceId } }),
   });

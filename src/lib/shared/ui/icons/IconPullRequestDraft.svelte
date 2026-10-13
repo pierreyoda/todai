@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconPullRequestDraftProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconPullRequestDraftProps = $props();
+type IconPullRequestDraftProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconPullRequestDraftProps = $props();
 </script>
 
 <!-- A branch not ready to merge yet: dotted where it would merge -->

@@ -1,21 +1,25 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import {
+  BackupsSettings,
+  pickedWorkspace,
+  workspacesQueryOptions,
+} from "#domains/workspaces";
+import LoadingState from "#shared/ui/LoadingState.svelte";
+import SidePanel from "#shell/SidePanel.svelte";
+import { page } from "$app/state";
 
-  import { page } from "$app/state";
-  import { workspacesQueryOptions } from "#domains/workspaces";
-  import SidePanel from "#shell/SidePanel.svelte";
-  import LoadingState from "#shared/ui/LoadingState.svelte";
-  import { BackupsSettings } from "#domains/workspaces";
-  import { pickedWorkspace } from "#domains/workspaces";
+const workspaces = createQuery(() => workspacesQueryOptions);
+const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
 
-  const workspaces = createQuery(() => workspacesQueryOptions);
-  const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
-
-  // E.g. picked from the workspaces page. Even without a usable active workspace: restoring one of its backups is how
-  // to get it back.
-  const workspace = $derived(
-    pickedWorkspace(workspaces.data ?? [], page.url.searchParams.get("workspace")),
-  );
+// E.g. picked from the workspaces page. Even without a usable active workspace: restoring one of its backups is how
+// to get it back.
+const workspace = $derived(
+  pickedWorkspace(
+    workspaces.data ?? [],
+    page.url.searchParams.get("workspace"),
+  ),
+);
 </script>
 
 <main>

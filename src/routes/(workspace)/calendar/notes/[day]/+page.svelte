@@ -1,16 +1,14 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import { NotePanel, noteQueryOptions } from "#domains/notes";
+import LoadingState from "#shared/ui/LoadingState.svelte";
+import SidePanel from "#shell/SidePanel.svelte";
+import type { PageProps } from "./$types";
 
-  import { noteQueryOptions } from "#domains/notes";
-  import SidePanel from "#shell/SidePanel.svelte";
-  import { NotePanel } from "#domains/notes";
-  import LoadingState from "#shared/ui/LoadingState.svelte";
-  import type { PageProps } from "./$types";
+const { data }: PageProps = $props();
+const day = $derived(data.day);
 
-  const { data }: PageProps = $props();
-  const day = $derived(data.day);
-
-  const note = createQuery(() => noteQueryOptions(day));
+const note = createQuery(() => noteQueryOptions(day));
 </script>
 
 <main>

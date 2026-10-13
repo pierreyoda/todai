@@ -1,38 +1,37 @@
 <script lang="ts">
-  import { tick } from "svelte";
+import { tick } from "svelte";
+import { contextMenu } from "#shared/ui/contextMenu.ts";
+import { DropdownTrigger } from "#shared/ui/dropdown/index.ts";
+import EditableText from "#shared/ui/EditableText.svelte";
+import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
+import { createUpdateTagMutation } from "../api/mutations";
+import type { Tag } from "../model/types";
+import SidePanelTagDropdown from "./SidePanelTagDropdown.svelte";
 
-  import type { Tag } from "../model/types";
-  import { createUpdateTagMutation } from "../api/mutations";
-  import { contextMenu } from "#shared/ui/contextMenu.ts";
-  import EditableText from "#shared/ui/EditableText.svelte";
-  import { DropdownTrigger } from "#shared/ui/dropdown/index.ts";
-  import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
-  import SidePanelTagDropdown from "./SidePanelTagDropdown.svelte";
+type SidePanelTagProps = {
+  tag: Tag;
+  selected: boolean;
+  onSelectedChanged: (selected: boolean) => void;
+};
+const { tag, selected, onSelectedChanged }: SidePanelTagProps = $props();
 
-  type SidePanelTagProps = {
-    tag: Tag;
-    selected: boolean;
-    onSelectedChanged: (selected: boolean) => void;
-  };
-  const { tag, selected, onSelectedChanged }: SidePanelTagProps = $props();
+const updateTagName = createUpdateTagMutation();
+const saveName = (name: string) => {
+  // Also called when confirming the unchanged name
+  if (name !== tag.name) updateTagName.mutate({ id: tag.id, name });
+};
 
-  const updateTagName = createUpdateTagMutation();
-  const saveName = (name: string) => {
-    // Also called when confirming the unchanged name
-    if (name !== tag.name) updateTagName.mutate({ id: tag.id, name });
-  };
+let renaming = $state(false);
+let selectButton = $state<HTMLButtonElement>();
+const startRenaming = () => (renaming = true);
+const stopRenaming = async () => {
+  renaming = false;
+  await tick();
+  // Its field replaced the tag's button: back on it, unless the focus moved elsewhere (e.g. clicking away)
+  if (document.activeElement === document.body) selectButton?.focus();
+};
 
-  let renaming = $state(false);
-  let selectButton = $state<HTMLButtonElement>();
-  const startRenaming = () => (renaming = true);
-  const stopRenaming = async () => {
-    renaming = false;
-    await tick();
-    // Its field replaced the tag's button: back on it, unless the focus moved elsewhere (e.g. clicking away)
-    if (document.activeElement === document.body) selectButton?.focus();
-  };
-
-  let menuOpen = $state(false);
+let menuOpen = $state(false);
 </script>
 
 <li

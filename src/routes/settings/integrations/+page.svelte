@@ -1,18 +1,19 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import { IntegrationsSettings } from "#domains/integrations";
+import { pickedWorkspace, workspacesQueryOptions } from "#domains/workspaces";
+import LoadingState from "#shared/ui/LoadingState.svelte";
+import SidePanel from "#shell/SidePanel.svelte";
+import { page } from "$app/state";
 
-  import { page } from "$app/state";
-  import { workspacesQueryOptions } from "#domains/workspaces";
-  import SidePanel from "#shell/SidePanel.svelte";
-  import LoadingState from "#shared/ui/LoadingState.svelte";
-  import { IntegrationsSettings } from "#domains/integrations";
-  import { pickedWorkspace } from "#domains/workspaces";
-
-  const workspaces = createQuery(() => workspacesQueryOptions);
-  const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
-  const workspace = $derived(
-    pickedWorkspace(workspaces.data ?? [], page.url.searchParams.get("workspace")),
-  );
+const workspaces = createQuery(() => workspacesQueryOptions);
+const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);
+const workspace = $derived(
+  pickedWorkspace(
+    workspaces.data ?? [],
+    page.url.searchParams.get("workspace"),
+  ),
+);
 </script>
 
 <main>

@@ -5,9 +5,12 @@ import { NoteDrafts } from "./noteDrafts.svelte";
 const DAY = "2026-10-12";
 
 describe("NoteDrafts", () => {
-  it.each([true, false])("tells whether a day not being written has a note as saved (%s)", (saved) => {
-    expect(new NoteDrafts().hasNote(DAY, saved)).toBe(saved);
-  });
+  it.each([true, false])(
+    "tells whether a day not being written has a note as saved (%s)",
+    (saved) => {
+      expect(new NoteDrafts().hasNote(DAY, saved)).toBe(saved);
+    },
+  );
 
   it("follows the draft of a day being written, rather than its saved note", () => {
     const drafts = new NoteDrafts();

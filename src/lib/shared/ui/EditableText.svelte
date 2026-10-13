@@ -1,59 +1,59 @@
 <script lang="ts">
-  import { tick, untrack } from "svelte";
+import { tick, untrack } from "svelte";
 
-  type EditableTextProps = {
-    as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span";
-    value: string;
-    /** Accessible label of the text field, visually hidden. */
-    label: string;
-    class?: string;
-    /** Bindable: whether the text field is shown, e.g. to start editing from a menu rather than a click on the text. */
-    editing?: boolean;
-  };
+type EditableTextProps = {
+  as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span";
+  value: string;
+  /** Accessible label of the text field, visually hidden. */
+  label: string;
+  class?: string;
+  /** Bindable: whether the text field is shown, e.g. to start editing from a menu rather than a click on the text. */
+  editing?: boolean;
+};
 
-  let {
-    as,
-    value = $bindable(),
-    label,
-    class: extraClass = "",
-    editing = $bindable(false),
-  }: EditableTextProps = $props();
+let {
+  as,
+  value = $bindable(),
+  label,
+  class: extraClass = "",
+  editing = $bindable(false),
+}: EditableTextProps = $props();
 
-  let draft = $state("");
-  let trigger = $state<HTMLButtonElement>();
+let draft = $state("");
+let trigger = $state<HTMLButtonElement>();
 
-  const invalid = $derived(draft.trim() === "");
+const invalid = $derived(draft.trim() === "");
 
-  // Started from the text or by the parent: either way, the draft starts from the current text
-  $effect.pre(() => {
-    if (editing) draft = untrack(() => value);
-  });
+// Started from the text or by the parent: either way, the draft starts from the current text
+$effect.pre(() => {
+  if (editing) draft = untrack(() => value);
+});
 
-  const startEditing = () => (editing = true);
+const startEditing = () => (editing = true);
 
-  const stopEditing = async (save: boolean) => {
-    // The input can blur right after Enter/Escape already closed it.
-    if (!editing) return;
-    editing = false;
-    if (save && !invalid) value = draft.trim();
-    await tick();
-    trigger?.focus();
-  };
+const stopEditing = async (save: boolean) => {
+  // The input can blur right after Enter/Escape already closed it.
+  if (!editing) return;
+  editing = false;
+  if (save && !invalid) value = draft.trim();
+  await tick();
+  trigger?.focus();
+};
 
-  const onkeydown = (event: KeyboardEvent) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      stopEditing(true);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      stopEditing(false);
-    }
-  };
+const onkeydown = (event: KeyboardEvent) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    stopEditing(true);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    stopEditing(false);
+  }
+};
 
-  const focusAtEnd = (input: HTMLInputElement) => {
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  };
+const focusAtEnd = (input: HTMLInputElement) => {
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+};
 </script>
 
 <!-- The text and its field share the element, so both get the same typography -->

@@ -1,23 +1,27 @@
 <script lang="ts">
-  import { fly } from "svelte/transition";
-  import { cubicOut } from "svelte/easing";
+import { cubicOut } from "svelte/easing";
+import { fly } from "svelte/transition";
 
-  import type { Tag } from "#domains/tags";
-  import Button from "#shared/ui/Button.svelte";
-  import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";
-  import IconSun from "#shared/ui/icons/IconSun.svelte";
-  import IconTag from "#shared/ui/icons/IconTag.svelte";
+import type { Tag } from "#domains/tags";
+import Button from "#shared/ui/Button.svelte";
+import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";
+import IconSun from "#shared/ui/icons/IconSun.svelte";
+import IconTag from "#shared/ui/icons/IconTag.svelte";
 
-  type TodosEmptyStateProps = {
-    /** Set when the day has todos, but none with this tag. */
-    filterTag?: Tag | null;
-    onClearFilter?: () => void;
-    /** Set when the day has todos, but none matching this query (among the ones with `filterTag`, if set). */
-    searchQuery?: string | null;
-    onClearSearch?: () => void;
-  };
-  const { filterTag, onClearFilter, searchQuery, onClearSearch }: TodosEmptyStateProps =
-    $props();
+type TodosEmptyStateProps = {
+  /** Set when the day has todos, but none with this tag. */
+  filterTag?: Tag | null;
+  onClearFilter?: () => void;
+  /** Set when the day has todos, but none matching this query (among the ones with `filterTag`, if set). */
+  searchQuery?: string | null;
+  onClearSearch?: () => void;
+};
+const {
+  filterTag,
+  onClearFilter,
+  searchQuery,
+  onClearSearch,
+}: TodosEmptyStateProps = $props();
 </script>
 
 <div

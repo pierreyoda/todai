@@ -1,36 +1,36 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
 
-  import { basename } from "#shared/utils/paths.ts";
-  import type { Workspace } from "../model/types";
-  import { createSwitchWorkspaceMutation } from "../api/mutations";
-  import {
-    activeWorkspaceQueryOptions,
-    workspacesQueryOptions,
-  } from "../api/queries";
-  import { toasts } from "#shared/utils/toasts.svelte.ts";
-  import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
-  import WorkspacePicker from "./WorkspacePicker.svelte";
+import { basename } from "#shared/utils/paths.ts";
+import { toasts } from "#shared/utils/toasts.svelte.ts";
+import { createSwitchWorkspaceMutation } from "../api/mutations";
+import {
+  activeWorkspaceQueryOptions,
+  workspacesQueryOptions,
+} from "../api/queries";
+import type { Workspace } from "../model/types";
+import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
+import WorkspacePicker from "./WorkspacePicker.svelte";
 
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const workspace = $derived(activeWorkspace.data ?? null);
-  const workspaces = createQuery(() => workspacesQueryOptions);
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const workspace = $derived(activeWorkspace.data ?? null);
+const workspaces = createQuery(() => workspacesQueryOptions);
 
-  // Stays on the current page, which then shows the other workspace's data
-  const switchWorkspace = createSwitchWorkspaceMutation();
-  const switchTo = (picked: Workspace) => {
-    if (picked.isActive || switchWorkspace.isPending) return;
-    if (!picked.available) {
-      toasts.show(`Can't open “${picked.name}”: its database is missing`, {
-        tone: "error",
-      });
-      return;
-    }
-    switchWorkspace.mutate(picked, {
-      onError: () =>
-        toasts.show(`Could not switch to “${picked.name}”`, { tone: "error" }),
+// Stays on the current page, which then shows the other workspace's data
+const switchWorkspace = createSwitchWorkspaceMutation();
+const switchTo = (picked: Workspace) => {
+  if (picked.isActive || switchWorkspace.isPending) return;
+  if (!picked.available) {
+    toasts.show(`Can't open “${picked.name}”: its database is missing`, {
+      tone: "error",
     });
-  };
+    return;
+  }
+  switchWorkspace.mutate(picked, {
+    onError: () =>
+      toasts.show(`Could not switch to “${picked.name}”`, { tone: "error" }),
+  });
+};
 </script>
 
 <!-- Without an active workspace, the link to create or pick one -->

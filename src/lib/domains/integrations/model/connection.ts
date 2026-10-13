@@ -8,7 +8,12 @@ import type { GhAccount, GhStatus } from "./types";
  * - `signed_out`: through an account the GitHub CLI isn't signed in to anymore (or doesn't know anymore);
  * - `gh_missing`: connected, but the GitHub CLI isn't installed anymore (or not where expected).
  */
-export type GitHubConnectionState = "not_connected" | "checking" | "connected" | "signed_out" | "gh_missing";
+export type GitHubConnectionState =
+  | "not_connected"
+  | "checking"
+  | "connected"
+  | "signed_out"
+  | "gh_missing";
 
 /** Where a workspace connected to the GitHub CLI account `login` (if any) stands, given the GitHub CLI's `status`. */
 export const githubConnectionState = (
@@ -18,7 +23,11 @@ export const githubConnectionState = (
   if (!login) return "not_connected";
   if (!status) return "checking";
   if (status.path === null) return "gh_missing";
-  return status.accounts.some((account) => account.login === login && account.signedIn) ? "connected" : "signed_out";
+  return status.accounts.some(
+    (account) => account.login === login && account.signedIn,
+  )
+    ? "connected"
+    : "signed_out";
 };
 
 /**
@@ -31,6 +40,8 @@ export const preselectedGhAccount = (
 ): GhAccount | undefined => {
   const signedIn = accounts.filter((account) => account.signedIn);
   return (
-    signedIn.find((account) => account.login === current) ?? signedIn.find((account) => account.active) ?? signedIn[0]
+    signedIn.find((account) => account.login === current) ??
+    signedIn.find((account) => account.active) ??
+    signedIn[0]
   );
 };

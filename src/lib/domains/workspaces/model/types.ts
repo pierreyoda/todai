@@ -26,7 +26,10 @@ export interface Workspace {
    * Why its GitHub connection needs the user, if it did the last time GitHub was asked (since todai was opened): the
    * GitHub CLI is missing, or signed out of its account.
    */
-  githubAttention?: Extract<GitHubProblem, { kind: "gh_missing" | "signed_out" }>;
+  githubAttention?: Extract<
+    GitHubProblem,
+    { kind: "gh_missing" | "signed_out" }
+  >;
   /** Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked. */
   linksAutoRefresh: boolean;
   /** Whether a todo whose pull request is merged (or issue completed) offers to be marked as done. */

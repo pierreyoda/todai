@@ -1,10 +1,10 @@
 import type { Tag } from "#domains/tags";
-import type { Todo } from "../model/types";
 import {
   createTodoSearch,
   filterTodos,
   type TodoSearchMatches,
 } from "../model/search";
+import type { Todo } from "../model/types";
 
 /**
  * Fuzzy search over `getTodos()`, by their title, the names of their tags (from `getTags()`), and their description:

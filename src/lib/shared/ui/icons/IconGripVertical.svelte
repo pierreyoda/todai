@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconGripVerticalProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconGripVerticalProps = $props();
+type IconGripVerticalProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconGripVerticalProps = $props();
 </script>
 
 <!-- Two columns of three dots, as drag handles usually show -->

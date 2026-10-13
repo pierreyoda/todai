@@ -1,51 +1,52 @@
 <script lang="ts">
-  import {
-    createAddTodoLinksMutation,
-    createRemoveTodoLinkMutation,
-  } from "../api/mutations";
-  import type { Todo } from "../../model/types";
-  import { formatLinksCount, linkKindName } from "../model/links";
-  import { openLink } from "../api/openLink";
-  import Button from "#shared/ui/Button.svelte";
-  import FieldText from "#shared/ui/FieldText.svelte";
-  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
-  import LinkKindIcon from "./LinkKindIcon.svelte";
+import Button from "#shared/ui/Button.svelte";
+import FieldText from "#shared/ui/FieldText.svelte";
+import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+import type { Todo } from "../../model/types";
+import {
+  createAddTodoLinksMutation,
+  createRemoveTodoLinkMutation,
+} from "../api/mutations";
+import { openLink } from "../api/openLink";
+import { formatLinksCount, linkKindName } from "../model/links";
+import LinkKindIcon from "./LinkKindIcon.svelte";
 
-  /**
-   * The links of a todo, added and removed right away: unlike its other fields, they're not submitted. As tall however
-   * many there are, two lines of them, scrolling past them.
-   */
-  type TodoLinksEditorProps = {
-    todo: Todo;
-  };
-  const { todo }: TodoLinksEditorProps = $props();
+/**
+ * The links of a todo, added and removed right away: unlike its other fields, they're not submitted. As tall however
+ * many there are, two lines of them, scrolling past them.
+ */
+type TodoLinksEditorProps = {
+  todo: Todo;
+};
+const { todo }: TodoLinksEditorProps = $props();
 
-  const titleId = $props.id();
-  let url = $state("");
-  const addLink = createAddTodoLinksMutation(() => todo);
-  const removeLink = createRemoveTodoLinkMutation(() => todo);
+const titleId = $props.id();
+let url = $state("");
+const addLink = createAddTodoLinksMutation(() => todo);
+const removeLink = createRemoveTodoLinkMutation(() => todo);
 
-  const onsubmit = (event: SubmitEvent) => {
-    event.preventDefault();
-    if (!url.trim() || addLink.isPending) return;
-    addLink.mutate([url], { onSuccess: () => (url = "") });
-  };
+const onsubmit = (event: SubmitEvent) => {
+  event.preventDefault();
+  if (!url.trim() || addLink.isPending) return;
+  addLink.mutate([url], { onSuccess: () => (url = "") });
+};
 
-  let list = $state<HTMLUListElement>();
-  /** Whether links are hidden below the box: the last line shown then fades out, as macOS hides scrollbars. */
-  let moreBelow = $state(false);
-  const updateMoreBelow = () => {
-    moreBelow = !!list && list.scrollTop + list.clientHeight < list.scrollHeight - 1;
-  };
-  // As links are added or removed, and once laid out: its modal mounts it closed, 0px tall
-  $effect(() => {
-    void todo.links.length;
-    updateMoreBelow();
-    if (!list) return;
-    const observer = new ResizeObserver(updateMoreBelow);
-    observer.observe(list);
-    return () => observer.disconnect();
-  });
+let list = $state<HTMLUListElement>();
+/** Whether links are hidden below the box: the last line shown then fades out, as macOS hides scrollbars. */
+let moreBelow = $state(false);
+const updateMoreBelow = () => {
+  moreBelow =
+    !!list && list.scrollTop + list.clientHeight < list.scrollHeight - 1;
+};
+// As links are added or removed, and once laid out: its modal mounts it closed, 0px tall
+$effect(() => {
+  void todo.links.length;
+  updateMoreBelow();
+  if (!list) return;
+  const observer = new ResizeObserver(updateMoreBelow);
+  observer.observe(list);
+  return () => observer.disconnect();
+});
 </script>
 
 <section class="links" aria-labelledby={titleId}>

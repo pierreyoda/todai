@@ -1,50 +1,50 @@
 <script lang="ts">
-  import FieldText from "./FieldText.svelte";
-  import IconMagnifyingGlass from "./icons/IconMagnifyingGlass.svelte";
-  import IconXMark from "./icons/IconXMark.svelte";
+import FieldText from "./FieldText.svelte";
+import IconMagnifyingGlass from "./icons/IconMagnifyingGlass.svelte";
+import IconXMark from "./icons/IconXMark.svelte";
 
-  type SearchFieldProps = {
-    /** Bindable: the query. */
-    value?: string;
-    /** Accessible label, also shown as the placeholder. */
-    label: string;
-    /** Whether Cmd+F (Ctrl+F outside macOS) focuses it: for the main search of a page only. */
-    focusShortcut?: boolean;
-    class?: string;
-  };
-  let {
-    value = $bindable(""),
-    label,
-    focusShortcut = false,
-    class: extraClass,
-  }: SearchFieldProps = $props();
+type SearchFieldProps = {
+  /** Bindable: the query. */
+  value?: string;
+  /** Accessible label, also shown as the placeholder. */
+  label: string;
+  /** Whether Cmd+F (Ctrl+F outside macOS) focuses it: for the main search of a page only. */
+  focusShortcut?: boolean;
+  class?: string;
+};
+let {
+  value = $bindable(""),
+  label,
+  focusShortcut = false,
+  class: extraClass,
+}: SearchFieldProps = $props();
 
-  let input = $state<HTMLInputElement>();
+let input = $state<HTMLInputElement>();
 
-  const isMac = navigator.platform.startsWith("Mac");
+const isMac = navigator.platform.startsWith("Mac");
 
-  const clear = () => {
-    value = "";
-    input?.focus();
-  };
+const clear = () => {
+  value = "";
+  input?.focus();
+};
 
-  const onkeydown = (event: KeyboardEvent) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    // Clears the query first, then leaves the field
-    if (value) value = "";
-    else input?.blur();
-  };
+const onkeydown = (event: KeyboardEvent) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  // Clears the query first, then leaves the field
+  if (value) value = "";
+  else input?.blur();
+};
 
-  const onWindowKeydown = (event: KeyboardEvent) => {
-    if (!focusShortcut) return;
-    const modifier = isMac ? event.metaKey : event.ctrlKey;
-    if (!modifier || event.altKey || event.shiftKey) return;
-    if (event.key.toLowerCase() !== "f") return;
-    event.preventDefault();
-    input?.focus();
-    input?.select();
-  };
+const onWindowKeydown = (event: KeyboardEvent) => {
+  if (!focusShortcut) return;
+  const modifier = isMac ? event.metaKey : event.ctrlKey;
+  if (!modifier || event.altKey || event.shiftKey) return;
+  if (event.key.toLowerCase() !== "f") return;
+  event.preventDefault();
+  input?.focus();
+  input?.select();
+};
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />

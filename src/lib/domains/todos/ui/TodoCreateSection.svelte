@@ -1,140 +1,139 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import type { Day } from "#core/time";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import FieldText from "#shared/ui/FieldText.svelte";
+import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
+import { createAddTodoMutation } from "../api/mutations";
+import { createAddTodoFromLinkMutation } from "../links/api/mutations";
+import {
+  fetchLinkPreview,
+  fetchParsedLink,
+  linkPreviewQueryOptions,
+  parseLinkQueryOptions,
+} from "../links/api/queries";
+import { mayBeLink } from "../links/model/links";
+import { itemState, linkStatus, stateStatus } from "../links/model/statuses";
+import type { ParsedLink } from "../links/model/types";
+import LinkKindIcon from "../links/ui/LinkKindIcon.svelte";
 
-  import { createAddTodoMutation } from "../api/mutations";
-  import { createAddTodoFromLinkMutation } from "../links/api/mutations";
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import {
-    fetchLinkPreview,
-    fetchParsedLink,
-    linkPreviewQueryOptions,
-    parseLinkQueryOptions,
-  } from "../links/api/queries";
-  import type { Day } from "#core/time";
-  import type { ParsedLink } from "../links/model/types";
-  import { mayBeLink } from "../links/model/links";
-  import { itemState, linkStatus, stateStatus } from "../links/model/statuses";
-  import FieldText from "#shared/ui/FieldText.svelte";
-  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
-  import LinkKindIcon from "../links/ui/LinkKindIcon.svelte";
+type TodoCreateSectionProps = {
+  day: Day;
+};
+const { day }: TodoCreateSectionProps = $props();
 
-  type TodoCreateSectionProps = {
-    day: Day;
-  };
-  const { day }: TodoCreateSectionProps = $props();
+/** How long creating a todo from a link waits for GitHub's answer, before titling it after the link instead. */
+const PREVIEW_WAIT_MS = 2000;
 
-  /** How long creating a todo from a link waits for GitHub's answer, before titling it after the link instead. */
-  const PREVIEW_WAIT_MS = 2000;
+const listboxId = $props.id();
+let title = $state("");
+const createTodo = createAddTodoMutation({ onSuccess: () => (title = "") });
+const addFromLink = createAddTodoFromLinkMutation(() => day);
 
-  const listboxId = $props.id();
-  let title = $state("");
-  const createTodo = createAddTodoMutation({ onSuccess: () => (title = "") });
-  const addFromLink = createAddTodoFromLinkMutation(() => day);
+// A pasted GitHub pull request or issue can become a todo titled after it, with its link, unless turned off
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const offered = $derived(!!activeWorkspace.data?.linksPasteToCreate);
+const typed = $derived(title.trim());
+const linkTyped = $derived(offered && mayBeLink(typed));
+const parsed = createQuery(() => ({
+  ...parseLinkQueryOptions(typed),
+  enabled: linkTyped,
+}));
+const recognized = $derived(
+  linkTyped && parsed.data?.github ? parsed.data : undefined,
+);
+const connected = $derived(!!activeWorkspace.data?.githubLogin);
+const previewed = createQuery(() => ({
+  ...linkPreviewQueryOptions(recognized?.url ?? ""),
+  enabled: connected && !!recognized,
+}));
+const preview = $derived(
+  connected && recognized && previewed.data?.link ? previewed.data : undefined,
+);
+const link = $derived(preview?.link ?? recognized);
+const snapshot = $derived(preview?.snapshot);
+const status = $derived(preview && linkStatus(preview));
+const lookingUp = $derived(connected && !!recognized && previewed.isPending);
 
-  // A pasted GitHub pull request or issue can become a todo titled after it, with its link, unless turned off
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const offered = $derived(!!activeWorkspace.data?.linksPasteToCreate);
-  const typed = $derived(title.trim());
-  const linkTyped = $derived(offered && mayBeLink(typed));
-  const parsed = createQuery(() => ({
-    ...parseLinkQueryOptions(typed),
-    enabled: linkTyped,
-  }));
-  const recognized = $derived(
-    linkTyped && parsed.data?.github ? parsed.data : undefined,
-  );
-  const connected = $derived(!!activeWorkspace.data?.githubLogin);
-  const previewed = createQuery(() => ({
-    ...linkPreviewQueryOptions(recognized?.url ?? ""),
-    enabled: connected && !!recognized,
-  }));
-  const preview = $derived(
-    connected && recognized && previewed.data?.link ? previewed.data : undefined,
-  );
-  const link = $derived(preview?.link ?? recognized);
-  const snapshot = $derived(preview?.snapshot);
-  const status = $derived(preview && linkStatus(preview));
-  const lookingUp = $derived(connected && !!recognized && previewed.isPending);
+/** What was typed when the suggestions were dismissed (Escape), until it changes. */
+let dismissed = $state<string | null>(null);
+/** Waiting for GitHub's answer, once asked to create the todo. */
+let waiting = $state(false);
+const suggesting = $derived(!!link && dismissed !== typed);
+/** The suggestion picked by Enter. */
+let active = $state<"link" | "plain">("link");
+$effect(() => {
+  if (!suggesting) active = "link";
+});
+const busy = $derived(createTodo.isPending || addFromLink.isPending || waiting);
 
-  /** What was typed when the suggestions were dismissed (Escape), until it changes. */
-  let dismissed = $state<string | null>(null);
-  /** Waiting for GitHub's answer, once asked to create the todo. */
-  let waiting = $state(false);
-  const suggesting = $derived(!!link && dismissed !== typed);
-  /** The suggestion picked by Enter. */
-  let active = $state<"link" | "plain">("link");
-  $effect(() => {
-    if (!suggesting) active = "link";
-  });
-  const busy = $derived(createTodo.isPending || addFromLink.isPending || waiting);
+const createPlain = () => {
+  if (busy || !typed) return;
+  createTodo.mutate({ day, title });
+};
 
-  const createPlain = () => {
-    if (busy || !typed) return;
-    createTodo.mutate({ day, title });
-  };
+/** Creates a todo with the GitHub link `target`, titled after its pull request or issue if GitHub answers in time. */
+const createFromLink = async (target: ParsedLink) => {
+  if (busy) return;
+  const known =
+    preview?.link.url === target.url || recognized?.url === target.url
+      ? preview
+      : undefined;
+  let url = known?.link.url ?? target.url;
+  let named = known?.snapshot?.title;
+  if (!named && connected && !known) {
+    // A moment for GitHub to answer, rather than titling the todo after the link's number
+    waiting = true;
+    const answer = await Promise.race([
+      fetchLinkPreview(target.url).catch(() => undefined),
+      new Promise<undefined>((resolve) =>
+        setTimeout(() => resolve(undefined), PREVIEW_WAIT_MS),
+      ),
+    ]);
+    waiting = false;
+    named = answer?.snapshot?.title;
+    url = answer?.link.url ?? url;
+  }
+  addFromLink.mutate({ url, title: named }, { onSuccess: () => (title = "") });
+};
 
-  /** Creates a todo with the GitHub link `target`, titled after its pull request or issue if GitHub answers in time. */
-  const createFromLink = async (target: ParsedLink) => {
-    if (busy) return;
-    const known = preview?.link.url === target.url || recognized?.url === target.url ? preview : undefined;
-    let url = known?.link.url ?? target.url;
-    let named = known?.snapshot?.title;
-    if (!named && connected && !known) {
-      // A moment for GitHub to answer, rather than titling the todo after the link's number
-      waiting = true;
-      const answer = await Promise.race([
-        fetchLinkPreview(target.url).catch(() => undefined),
-        new Promise<undefined>((resolve) =>
-          setTimeout(() => resolve(undefined), PREVIEW_WAIT_MS),
-        ),
-      ]);
-      waiting = false;
-      named = answer?.snapshot?.title;
-      url = answer?.link.url ?? url;
-    }
-    addFromLink.mutate(
-      { url, title: named },
-      { onSuccess: () => (title = "") },
-    );
-  };
-
-  const onsubmit = async (event: SubmitEvent) => {
-    event.preventDefault();
-    if (suggesting && link) {
-      if (active === "link") createFromLink(link);
-      else createPlain();
+const onsubmit = async (event: SubmitEvent) => {
+  event.preventDefault();
+  if (suggesting && link) {
+    if (active === "link") createFromLink(link);
+    else createPlain();
+    return;
+  }
+  // Submitted right after pasting a link, before it's recognized: created from it, as it would have been suggested
+  if (linkTyped && dismissed !== typed && !parsed.isFetched) {
+    const target = await fetchParsedLink(typed).catch(() => undefined);
+    if (target?.github) {
+      createFromLink(target);
       return;
     }
-    // Submitted right after pasting a link, before it's recognized: created from it, as it would have been suggested
-    if (linkTyped && dismissed !== typed && !parsed.isFetched) {
-      const target = await fetchParsedLink(typed).catch(() => undefined);
-      if (target?.github) {
-        createFromLink(target);
-        return;
-      }
-    }
-    createPlain();
-  };
+  }
+  createPlain();
+};
 
-  const onkeydown = (event: KeyboardEvent) => {
-    if (!suggesting) return;
-    switch (event.key) {
-      case "ArrowDown":
-      case "ArrowUp":
-        event.preventDefault();
-        active = active === "link" ? "plain" : "link";
-        break;
-      case "Enter":
-        event.preventDefault();
-        if (event.shiftKey || active === "plain" || !link) createPlain();
-        else createFromLink(link);
-        break;
-      case "Escape":
-        event.preventDefault();
-        dismissed = typed;
-        break;
-    }
-  };
+const onkeydown = (event: KeyboardEvent) => {
+  if (!suggesting) return;
+  switch (event.key) {
+    case "ArrowDown":
+    case "ArrowUp":
+      event.preventDefault();
+      active = active === "link" ? "plain" : "link";
+      break;
+    case "Enter":
+      event.preventDefault();
+      if (event.shiftKey || active === "plain" || !link) createPlain();
+      else createFromLink(link);
+      break;
+    case "Escape":
+      event.preventDefault();
+      dismissed = typed;
+      break;
+  }
+};
 </script>
 
 <form class="container" {onsubmit}>

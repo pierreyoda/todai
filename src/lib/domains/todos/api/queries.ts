@@ -50,7 +50,10 @@ export const unfinishedTodosQueryOptions = (day: Day) =>
     queryFn: async () => {
       const todos = await invokeTodos({
         name: "list_todos_between",
-        args: { start: addDays(day, -UNFINISHED_TODOS_LOOKBACK_DAYS), end: addDays(day, -1) },
+        args: {
+          start: addDays(day, -UNFINISHED_TODOS_LOOKBACK_DAYS),
+          end: addDays(day, -1),
+        },
       });
       return todos.filter((todo) => !todo.completed);
     },
@@ -68,14 +71,24 @@ export const invalidateTodosOf = (queryClient: QueryClient, day: Day) =>
   ]);
 
 /** The cached lists that can hold a todo of `day`: its month, with its days' lists, and the unfinished todos. */
-const listsKeysOf = (day: Day) => [todoKeys.month(monthOf(day)), todoKeys.unfinished()];
+const listsKeysOf = (day: Day) => [
+  todoKeys.month(monthOf(day)),
+  todoKeys.unfinished(),
+];
 
 /**
  * Cancels the refetches in flight of the lists holding `todo`, so that they don't overwrite a change made to them in
  * the cache.
  */
-export const cancelTodoListsOf = (queryClient: QueryClient, todo: Pick<Todo, "day">) =>
-  Promise.all(listsKeysOf(todo.day).map((queryKey) => queryClient.cancelQueries({ queryKey })));
+export const cancelTodoListsOf = (
+  queryClient: QueryClient,
+  todo: Pick<Todo, "day">,
+) =>
+  Promise.all(
+    listsKeysOf(todo.day).map((queryKey) =>
+      queryClient.cancelQueries({ queryKey }),
+    ),
+  );
 
 /**
  * Sets the description of `todo` (`undefined` for none) in the cached lists holding it, rather than refetching them:
@@ -89,7 +102,9 @@ export const setCachedTodoDescription = (
   for (const queryKey of listsKeysOf(todo.day)) {
     queryClient.setQueriesData<Todo[]>({ queryKey }, (todos) =>
       todos?.some(({ id }) => id === todo.id)
-        ? todos.map((cached) => (cached.id === todo.id ? { ...cached, description } : cached))
+        ? todos.map((cached) =>
+            cached.id === todo.id ? { ...cached, description } : cached,
+          )
         : todos,
     );
   }

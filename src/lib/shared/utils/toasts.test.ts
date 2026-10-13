@@ -12,12 +12,15 @@ describe("Toasts", () => {
     vi.useRealTimers();
   });
 
-  const messages = (toasts: Toasts) => toasts.items.map(({ message }) => message);
+  const messages = (toasts: Toasts) =>
+    toasts.items.map(({ message }) => message);
 
   it("shows a toast for the duration", () => {
     const toasts = new Toasts(DURATION);
     toasts.show("Deleted");
-    expect(toasts.items).toEqual([expect.objectContaining({ message: "Deleted", tone: "info" })]);
+    expect(toasts.items).toEqual([
+      expect.objectContaining({ message: "Deleted", tone: "info" }),
+    ]);
 
     vi.advanceTimersByTime(DURATION - 1);
     expect(messages(toasts)).toEqual(["Deleted"]);
@@ -27,7 +30,10 @@ describe("Toasts", () => {
 
   it("drops the oldest toasts beyond the maximum", () => {
     const toasts = new Toasts(DURATION);
-    const shown = Array.from({ length: MAX_TOASTS + 1 }, (_, i) => `Toast ${i}`);
+    const shown = Array.from(
+      { length: MAX_TOASTS + 1 },
+      (_, i) => `Toast ${i}`,
+    );
     for (const message of shown) toasts.show(message);
     expect(messages(toasts)).toEqual(shown.slice(1));
   });

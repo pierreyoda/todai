@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
-
-import type { Checks, GitHubSnapshot, IssueSnapshot, PullRequestSnapshot, RelatedItem, TodoLink } from "./types";
 import {
   checkName,
   closingPullRequest,
   describeChecks,
   describeProblem,
   describeReview,
+  doneSuggestion,
   itemState,
   linkStatus,
   notableChecks,
-  doneSuggestion,
   statusesFetchedAt,
 } from "./statuses";
+import type {
+  Checks,
+  GitHubSnapshot,
+  IssueSnapshot,
+  PullRequestSnapshot,
+  RelatedItem,
+  TodoLink,
+} from "./types";
 
 const checks = (overrides: Partial<Checks> = {}): Checks => ({
   state: "success",
@@ -24,7 +30,9 @@ const checks = (overrides: Partial<Checks> = {}): Checks => ({
   ...overrides,
 });
 
-const pull = (overrides: Partial<PullRequestSnapshot> = {}): PullRequestSnapshot => ({
+const pull = (
+  overrides: Partial<PullRequestSnapshot> = {},
+): PullRequestSnapshot => ({
   type: "pull_request",
   title: "Add todo_links table and link chips",
   state: "open",
@@ -52,7 +60,10 @@ const issue = (overrides: Partial<IssueSnapshot> = {}): IssueSnapshot => ({
   ...overrides,
 });
 
-const link = (snapshot?: GitHubSnapshot, overrides: Partial<TodoLink> = {}): TodoLink => ({
+const link = (
+  snapshot?: GitHubSnapshot,
+  overrides: Partial<TodoLink> = {},
+): TodoLink => ({
   id: "0199d0c0-0000-7000-8000-000000000001",
   todoId: "0199d0c0-0000-7000-8000-000000000002",
   kind: snapshot?.type === "issue" ? "github_issue" : "github_pull",
@@ -67,54 +78,118 @@ const link = (snapshot?: GitHubSnapshot, overrides: Partial<TodoLink> = {}): Tod
 
 describe("linkStatus", () => {
   it.each([
-    ["merged", pull({ state: "merged", checks: checks({ state: "failure" }) }), "Merged", "merged"],
-    ["closed", pull({ state: "closed", reviewDecision: "approved" }), "Closed", "neutral"],
-    ["a draft", pull({ isDraft: true, checks: checks({ state: "failure" }) }), "Draft", "neutral"],
+    [
+      "merged",
+      pull({ state: "merged", checks: checks({ state: "failure" }) }),
+      "Merged",
+      "merged",
+    ],
+    [
+      "closed",
+      pull({ state: "closed", reviewDecision: "approved" }),
+      "Closed",
+      "neutral",
+    ],
+    [
+      "a draft",
+      pull({ isDraft: true, checks: checks({ state: "failure" }) }),
+      "Draft",
+      "neutral",
+    ],
     [
       "failing its checks",
-      pull({ checks: checks({ state: "failure" }), reviewDecision: "approved" }),
+      pull({
+        checks: checks({ state: "failure" }),
+        reviewDecision: "approved",
+      }),
       "Checks failing",
       "bad",
     ],
     [
       "with changes requested",
-      pull({ reviewDecision: "changes_requested", checks: checks({ state: "pending" }) }),
+      pull({
+        reviewDecision: "changes_requested",
+        checks: checks({ state: "pending" }),
+      }),
       "Changes requested",
       "bad",
     ],
-    ["approved", pull({ reviewDecision: "approved", checks: checks({ state: "pending" }) }), "Approved", "good"],
+    [
+      "approved",
+      pull({
+        reviewDecision: "approved",
+        checks: checks({ state: "pending" }),
+      }),
+      "Approved",
+      "good",
+    ],
     [
       "waiting for a review",
-      pull({ reviewDecision: "review_required", checks: checks({ state: "pending" }) }),
+      pull({
+        reviewDecision: "review_required",
+        checks: checks({ state: "pending" }),
+      }),
       "Review required",
       "pending",
     ],
-    ["running its checks", pull({ checks: checks({ state: "pending" }) }), "Checks running", "pending"],
+    [
+      "running its checks",
+      pull({ checks: checks({ state: "pending" }) }),
+      "Checks running",
+      "pending",
+    ],
     ["green, needing no review", pull({ checks: checks() }), "Open", "open"],
     ["without checks", pull(), "Open", "open"],
-  ] as const)("picks one word for a pull request %s", (_, snapshot, word, tone) => {
-    expect(linkStatus(link(snapshot))).toEqual({ word, tone });
-  });
+  ] as const)(
+    "picks one word for a pull request %s",
+    (_, snapshot, word, tone) => {
+      expect(linkStatus(link(snapshot))).toEqual({ word, tone });
+    },
+  );
 
   it.each([
     ["open", issue(), "Open", "open"],
-    ["completed", issue({ state: "closed", stateReason: "completed" }), "Completed", "merged"],
-    ["not planned", issue({ state: "closed", stateReason: "not_planned" }), "Not planned", "neutral"],
-    ["a duplicate", issue({ state: "closed", stateReason: "duplicate" }), "Duplicate", "neutral"],
-    ["closed long ago, without a reason", issue({ state: "closed" }), "Completed", "merged"],
+    [
+      "completed",
+      issue({ state: "closed", stateReason: "completed" }),
+      "Completed",
+      "merged",
+    ],
+    [
+      "not planned",
+      issue({ state: "closed", stateReason: "not_planned" }),
+      "Not planned",
+      "neutral",
+    ],
+    [
+      "a duplicate",
+      issue({ state: "closed", stateReason: "duplicate" }),
+      "Duplicate",
+      "neutral",
+    ],
+    [
+      "closed long ago, without a reason",
+      issue({ state: "closed" }),
+      "Completed",
+      "merged",
+    ],
   ] as const)("picks one word for an issue %s", (_, snapshot, word, tone) => {
     expect(linkStatus(link(snapshot))).toEqual({ word, tone });
   });
 
   it("warns when GitHub can't tell, whatever was known before", () => {
-    expect(linkStatus(link(pull({ state: "merged" }), { fetchError: "no_access" }))).toEqual({
+    expect(
+      linkStatus(link(pull({ state: "merged" }), { fetchError: "no_access" })),
+    ).toEqual({
       word: "No access",
       tone: "warn",
     });
-    expect(linkStatus(link(undefined, { fetchError: "sso_required" }))).toEqual({
-      word: "SSO required",
-      tone: "warn",
-    });
+    expect(linkStatus(link(undefined, { fetchError: "sso_required" }))).toEqual(
+      {
+        word: "SSO required",
+        tone: "warn",
+      },
+    );
   });
 
   it("has nothing to tell about links never fetched", () => {
@@ -139,25 +214,50 @@ describe("itemState", () => {
 describe("doneSuggestion", () => {
   it("suggests marking a todo as done once one of its pull requests is merged or issues completed", () => {
     const merged = link(pull({ state: "merged" }));
-    expect(doneSuggestion({ completed: false, links: [link(pull()), merged] })).toEqual({
+    expect(
+      doneSuggestion({ completed: false, links: [link(pull()), merged] }),
+    ).toEqual({
       link: merged,
       state: "merged",
     });
-    const completed = link(issue({ state: "closed", stateReason: "completed" }));
-    expect(doneSuggestion({ completed: false, links: [completed] })).toEqual({ link: completed, state: "completed" });
+    const completed = link(
+      issue({ state: "closed", stateReason: "completed" }),
+    );
+    expect(doneSuggestion({ completed: false, links: [completed] })).toEqual({
+      link: completed,
+      state: "completed",
+    });
   });
 
   it("doesn't otherwise", () => {
-    const notPlanned = link(issue({ state: "closed", stateReason: "not_planned" }));
+    const notPlanned = link(
+      issue({ state: "closed", stateReason: "not_planned" }),
+    );
     expect(
-      doneSuggestion({ completed: false, links: [link(pull()), link(pull({ state: "closed" })), link(), notPlanned] }),
+      doneSuggestion({
+        completed: false,
+        links: [
+          link(pull()),
+          link(pull({ state: "closed" })),
+          link(),
+          notPlanned,
+        ],
+      }),
     ).toBeUndefined();
-    expect(doneSuggestion({ completed: true, links: [link(pull({ state: "merged" }))] })).toBeUndefined();
+    expect(
+      doneSuggestion({
+        completed: true,
+        links: [link(pull({ state: "merged" }))],
+      }),
+    ).toBeUndefined();
   });
 });
 
 describe("closingPullRequest", () => {
-  const related = (number: number, state: RelatedItem["state"]): RelatedItem => ({
+  const related = (
+    number: number,
+    state: RelatedItem["state"],
+  ): RelatedItem => ({
     kind: "github_pull",
     url: `https://github.com/pierreyoda/todai/pull/${number}`,
     label: `todai#${number}`,
@@ -167,14 +267,26 @@ describe("closingPullRequest", () => {
   });
 
   it("offers the first pull request closing an issue, unless closed unmerged or already linked", () => {
-    const closedBy = [related(50, "closed"), related(58, "open"), related(61, "draft")];
+    const closedBy = [
+      related(50, "closed"),
+      related(58, "open"),
+      related(61, "draft"),
+    ];
     expect(closingPullRequest(issue({ closedBy }), [])?.label).toBe("todai#58");
-    expect(closingPullRequest(issue({ closedBy }), [{ url: closedBy[1].url }])?.label).toBe("todai#61");
-    expect(closingPullRequest(issue({ closedBy: [related(57, "merged")] }), [])?.label).toBe("todai#57");
+    expect(
+      closingPullRequest(issue({ closedBy }), [{ url: closedBy[1].url }])
+        ?.label,
+    ).toBe("todai#61");
+    expect(
+      closingPullRequest(issue({ closedBy: [related(57, "merged")] }), [])
+        ?.label,
+    ).toBe("todai#57");
   });
 
   it("offers none otherwise", () => {
-    expect(closingPullRequest(issue({ closedBy: [related(50, "closed")] }), [])).toBeUndefined();
+    expect(
+      closingPullRequest(issue({ closedBy: [related(50, "closed")] }), []),
+    ).toBeUndefined();
     expect(closingPullRequest(issue(), [])).toBeUndefined();
     expect(closingPullRequest(pull(), [])).toBeUndefined();
     expect(closingPullRequest(undefined, [])).toBeUndefined();
@@ -198,7 +310,10 @@ describe("statusesFetchedAt", () => {
 describe("describeChecks", () => {
   it.each([
     [checks({ passed: 2, running: 1, skipped: 4 }), "2 of 3 passed, 1 running"],
-    [checks({ passed: 11, failed: 1, running: 1, skipped: 13 }), "11 of 13 passed, 1 failing, 1 running"],
+    [
+      checks({ passed: 11, failed: 1, running: 1, skipped: 13 }),
+      "11 of 13 passed, 1 failing, 1 running",
+    ],
     [checks({ passed: 3 }), "3 of 3 passed"],
     [checks({ passed: 0, skipped: 4 }), "4 skipped"],
   ])("sums up %j as %j", (value, expected) => {
@@ -215,7 +330,8 @@ describe("notableChecks", () => {
       { name: "build", outcome: "failed" },
       { name: "check", outcome: "passed" },
     ] as const;
-    const names = (max?: number) => notableChecks(checks({ runs: [...runs] }), max).map(({ name }) => name);
+    const names = (max?: number) =>
+      notableChecks(checks({ runs: [...runs] }), max).map(({ name }) => name);
     expect(names()).toEqual(["build", "test", "lint", "check"]);
     expect(names(2)).toEqual(["build", "test"]);
   });
@@ -223,7 +339,9 @@ describe("notableChecks", () => {
 
 describe("checkName", () => {
   it("names GitHub Actions jobs after their workflow first", () => {
-    expect(checkName({ name: "svelte-check", workflow: "check" })).toBe("check · svelte-check");
+    expect(checkName({ name: "svelte-check", workflow: "check" })).toBe(
+      "check · svelte-check",
+    );
     expect(checkName({ name: "ci/circleci" })).toBe("ci/circleci");
   });
 });
@@ -245,26 +363,37 @@ describe("describeProblem", () => {
   it("tells since when the statuses are when offline", () => {
     expect(describeProblem({ kind: "offline" }, from)).toEqual({
       label: "Offline · link statuses from 14:02",
-      detail: "GitHub could not be reached: the links show their statuses from 14:02.",
+      detail:
+        "GitHub could not be reached: the links show their statuses from 14:02.",
     });
     expect(describeProblem({ kind: "offline" }).label).toBe("Offline");
   });
 
   it("tells what to do about the GitHub CLI", () => {
-    expect(describeProblem({ kind: "signed_out", login: "pierreyoda" }, from).detail).toContain(
-      "isn't signed in to pierreyoda anymore: run gh auth login",
+    expect(
+      describeProblem({ kind: "signed_out", login: "pierreyoda" }, from).detail,
+    ).toContain("isn't signed in to pierreyoda anymore: run gh auth login");
+    expect(describeProblem({ kind: "gh_missing" }).label).toBe(
+      "GitHub CLI not found",
     );
-    expect(describeProblem({ kind: "gh_missing" }).label).toBe("GitHub CLI not found");
   });
 
   it("tells until when GitHub asked to wait", () => {
-    expect(describeProblem({ kind: "rate_limited", resetAt: new Date(2026, 9, 10, 15, 30) }).label).toBe(
-      "GitHub rate limit · until 15:30",
-    );
+    expect(
+      describeProblem({
+        kind: "rate_limited",
+        resetAt: new Date(2026, 9, 10, 15, 30),
+      }).label,
+    ).toBe("GitHub rate limit · until 15:30");
   });
 
   it("gives GitHub's error as is", () => {
-    expect(describeProblem({ kind: "failed", message: "GitHub answered with HTTP 418." }).detail).toBe(
+    expect(
+      describeProblem({
+        kind: "failed",
+        message: "GitHub answered with HTTP 418.",
+      }).detail,
+    ).toBe(
       "GitHub answered with HTTP 418. Until then, the links show what their URL tells.",
     );
   });

@@ -46,7 +46,13 @@ export class Toasts {
   }
 
   /** Shows a toast for the duration, returning its ID. */
-  show(message: string, { tone = "info", action }: { tone?: Toast["tone"]; action?: ToastAction } = {}): number {
+  show(
+    message: string,
+    {
+      tone = "info",
+      action,
+    }: { tone?: Toast["tone"]; action?: ToastAction } = {},
+  ): number {
     const id = this.#nextId++;
     this.items = [...this.items, { id, message, tone, action }];
     for (const { id: dropped } of this.items.slice(0, -MAX_TOASTS)) {
@@ -93,7 +99,10 @@ export class Toasts {
 
   #start(id: number, timer: Timer) {
     timer.startedAt = Date.now();
-    timer.handle = setTimeout(() => this.dismiss(id), Math.max(timer.remaining, 0));
+    timer.handle = setTimeout(
+      () => this.dismiss(id),
+      Math.max(timer.remaining, 0),
+    );
   }
 }
 

@@ -1,11 +1,14 @@
 import { QueryClient } from "@tanstack/svelte-query";
 import { describe, expect, it } from "vitest";
-
-import { clearActiveWorkspace, invalidateActiveWorkspace, workspaceKeys } from "#domains/workspaces";
-import { linkKeys, linkStatusKeys, todoKeys } from "#domains/todos";
+import { ghKeys } from "#domains/integrations";
 import { noteKeys } from "#domains/notes";
 import { tagKeys } from "#domains/tags";
-import { ghKeys } from "#domains/integrations";
+import { linkKeys, linkStatusKeys, todoKeys } from "#domains/todos";
+import {
+  clearActiveWorkspace,
+  invalidateActiveWorkspace,
+  workspaceKeys,
+} from "#domains/workspaces";
 
 describe("active workspace changes", () => {
   /** The queries of the active workspace's database, then the workspaces. */
@@ -49,16 +52,22 @@ describe("active workspace changes", () => {
   });
 
   it.each([
-    ["the recognized links", linkKeys.parse("https://github.com/pierreyoda/todai/pull/58")],
+    [
+      "the recognized links",
+      linkKeys.parse("https://github.com/pierreyoda/todai/pull/58"),
+    ],
     ["the GitHub CLI status", ghKeys.status()],
-  ])("keeps %s, which don't come from the workspace's database", async (_, key) => {
-    const queryClient = withData();
-    queryClient.setQueryData(key, {});
+  ])(
+    "keeps %s, which don't come from the workspace's database",
+    async (_, key) => {
+      const queryClient = withData();
+      queryClient.setQueryData(key, {});
 
-    await invalidateActiveWorkspace(queryClient);
-    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+      await invalidateActiveWorkspace(queryClient);
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
 
-    await clearActiveWorkspace(queryClient);
-    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
-  });
+      await clearActiveWorkspace(queryClient);
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+    },
+  );
 });

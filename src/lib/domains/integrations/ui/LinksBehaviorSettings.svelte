@@ -1,29 +1,29 @@
 <script lang="ts">
-  import type { Workspace } from "#domains/workspaces";
-  import { createSetLinksBehaviorsMutation } from "../api/mutations";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import type { Workspace } from "#domains/workspaces";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import { createSetLinksBehaviorsMutation } from "../api/mutations";
 
-  type LinksBehaviorSettingsProps = {
-    workspace: Workspace;
-  };
-  const { workspace }: LinksBehaviorSettingsProps = $props();
+type LinksBehaviorSettingsProps = {
+  workspace: Workspace;
+};
+const { workspace }: LinksBehaviorSettingsProps = $props();
 
-  const legendId = $props.id();
-  const update = createSetLinksBehaviorsMutation();
+const legendId = $props.id();
+const update = createSetLinksBehaviorsMutation();
 
-  // Follow the workspace's settings (once saved, or for another workspace), edited here until then
-  let autoRefresh = $derived(workspace.linksAutoRefresh);
-  let suggestDone = $derived(workspace.linksSuggestDone);
-  let pasteToCreate = $derived(workspace.linksPasteToCreate);
+// Follow the workspace's settings (once saved, or for another workspace), edited here until then
+let autoRefresh = $derived(workspace.linksAutoRefresh);
+let suggestDone = $derived(workspace.linksSuggestDone);
+let pasteToCreate = $derived(workspace.linksPasteToCreate);
 
-  const save = () =>
-    update.mutate({
-      id: workspace.id,
-      linksAutoRefresh: autoRefresh,
-      linksSuggestDone: suggestDone,
-      linksPasteToCreate: pasteToCreate,
-    });
+const save = () =>
+  update.mutate({
+    id: workspace.id,
+    linksAutoRefresh: autoRefresh,
+    linksSuggestDone: suggestDone,
+    linksPasteToCreate: pasteToCreate,
+  });
 </script>
 
 <section class="settings" aria-labelledby={legendId}>

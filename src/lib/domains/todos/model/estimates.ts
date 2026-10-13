@@ -16,7 +16,8 @@ const formatMinutes = (minutes: number): string => {
 };
 
 /** E.g. "1 pt", or "3 pts". */
-const formatPoints = (points: number): string => `${points} ${points === 1 ? "pt" : "pts"}`;
+const formatPoints = (points: number): string =>
+  `${points} ${points === 1 ? "pt" : "pts"}`;
 
 /**
  * E.g. "1h 30m", or "3 pts".
@@ -34,7 +35,9 @@ export const formatEstimate = ({ unit, value }: Estimate): string => {
  *
  * @throws {RangeError} If an estimate's value isn't a positive integer.
  */
-export const formatEstimates = (estimates: Iterable<Estimate | null | undefined>): string | undefined => {
+export const formatEstimates = (
+  estimates: Iterable<Estimate | null | undefined>,
+): string | undefined => {
   let minutes = 0;
   let points = 0;
   for (const estimate of estimates) {
@@ -43,36 +46,37 @@ export const formatEstimates = (estimates: Iterable<Estimate | null | undefined>
     if (estimate.unit === "minutes") minutes += estimate.value;
     else points += estimate.value;
   }
-  const parts = [minutes > 0 && formatMinutes(minutes), points > 0 && formatPoints(points)].filter(
-    (part) => part !== false,
-  );
+  const parts = [
+    minutes > 0 && formatMinutes(minutes),
+    points > 0 && formatPoints(points),
+  ].filter((part) => part !== false);
   return parts.length > 0 ? parts.join(" · ") : undefined;
 };
 
 export const TODO_ESTIMATE_MINUTES_PRESETS: readonly {
   value: number;
 }[] = [
-    { value: 5 },
-    { value: 15 },
-    { value: 30 },
-    { value: 45 },
-    { value: 60 },
-    { value: 120 },
-    { value: 240 },
-    { value: 480 },
-  ];
+  { value: 5 },
+  { value: 15 },
+  { value: 30 },
+  { value: 45 },
+  { value: 60 },
+  { value: 120 },
+  { value: 240 },
+  { value: 480 },
+];
 
 export const TODO_ESTIMATE_POINTS_PRESET: readonly {
   value: number;
 }[] = [
-    { value: 1 },
-    { value: 2 },
-    { value: 3 },
-    { value: 5 },
-    { value: 8 },
-    { value: 13 },
-    { value: 21 },
-    { value: 34 },
-    { value: 55 },
-    { value: 89 },
-  ];
+  { value: 1 },
+  { value: 2 },
+  { value: 3 },
+  { value: 5 },
+  { value: 8 },
+  { value: 13 },
+  { value: 21 },
+  { value: 34 },
+  { value: 55 },
+  { value: 89 },
+];

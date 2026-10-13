@@ -1,27 +1,27 @@
 <script lang="ts">
-  import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
-  import IconXMark from "./icons/IconXMark.svelte";
+import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
+import IconXMark from "./icons/IconXMark.svelte";
 
-  type ErrorBannerProps = {
-    /** What failed, e.g. "Could not import the workspace". */
-    title: string;
-    /** As thrown: the backend rejects commands with its error message, as a string. */
-    error: unknown;
-    /** Shown after the error's message, e.g. what happens next. */
-    hint?: string;
-    /** A button to recover, e.g. "Try again". */
-    action?: { label: string; onClick: () => void; disabled?: boolean };
-    onDismiss?: () => void;
-  };
-  const { title, error, hint, action, onDismiss }: ErrorBannerProps = $props();
+type ErrorBannerProps = {
+  /** What failed, e.g. "Could not import the workspace". */
+  title: string;
+  /** As thrown: the backend rejects commands with its error message, as a string. */
+  error: unknown;
+  /** Shown after the error's message, e.g. what happens next. */
+  hint?: string;
+  /** A button to recover, e.g. "Try again". */
+  action?: { label: string; onClick: () => void; disabled?: boolean };
+  onDismiss?: () => void;
+};
+const { title, error, hint, action, onDismiss }: ErrorBannerProps = $props();
 
-  const message = $derived(
-    typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : undefined,
-  );
+const message = $derived(
+  typeof error === "string"
+    ? error
+    : error instanceof Error
+      ? error.message
+      : undefined,
+);
 </script>
 
 <div class="banner" role="alert">

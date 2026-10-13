@@ -9,14 +9,7 @@
       "#domains/*": ["./src/lib/domains/*/index.ts"],
       "#shell/*": ["./src/lib/shell/*"]
     },
-    "types": [
-      "node",
-      "vite/client",
-      "svelte",
-      "$app/types"
-    ]
+    "types": ["node", "vite/client", "svelte", "$app/types"]
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

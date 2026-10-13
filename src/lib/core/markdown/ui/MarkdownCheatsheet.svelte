@@ -1,20 +1,20 @@
 <script lang="ts">
-  import IconQuestionMarkCircle from "#shared/ui/icons/IconQuestionMarkCircle.svelte";
+import IconQuestionMarkCircle from "#shared/ui/icons/IconQuestionMarkCircle.svelte";
 
-  const popoverId = $props.id();
-  let trigger = $state<HTMLButtonElement>();
-  let popover = $state<HTMLElement>();
-  let open = $state(false);
+const popoverId = $props.id();
+let trigger = $state<HTMLButtonElement>();
+let popover = $state<HTMLElement>();
+let open = $state(false);
 
-  const modifier = navigator.platform.startsWith("Mac") ? "⌘" : "Ctrl+";
+const modifier = navigator.platform.startsWith("Mac") ? "⌘" : "Ctrl+";
 
-  /** Under the button, aligned on its right edge: placed before showing, so it never paints elsewhere. */
-  const place = (event: ToggleEvent) => {
-    if (event.newState !== "open" || !trigger || !popover) return;
-    const { bottom, right } = trigger.getBoundingClientRect();
-    popover.style.top = `${bottom + 6}px`;
-    popover.style.right = `${document.documentElement.clientWidth - right}px`;
-  };
+/** Under the button, aligned on its right edge: placed before showing, so it never paints elsewhere. */
+const place = (event: ToggleEvent) => {
+  if (event.newState !== "open" || !trigger || !popover) return;
+  const { bottom, right } = trigger.getBoundingClientRect();
+  popover.style.top = `${bottom + 6}px`;
+  popover.style.right = `${document.documentElement.clientWidth - right}px`;
+};
 </script>
 
 <!-- Opened and closed (also by clicking outside, or Escape) by the browser, through `popovertarget` -->

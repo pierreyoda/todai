@@ -1,15 +1,14 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import { dateToTodaiDate } from "#core/time";
+import { VerticalCalendar } from "#domains/agenda";
+import type { Tag } from "#domains/tags";
+import { tagsQueryOptions } from "#domains/tags";
+import SidePanel from "#shell/SidePanel.svelte";
 
-  import type { Tag } from "#domains/tags";
-  import { dateToTodaiDate } from "#core/time";
-  import { tagsQueryOptions } from "#domains/tags";
-  import SidePanel from "#shell/SidePanel.svelte";
-  import { VerticalCalendar } from "#domains/agenda";
-
-  const day = dateToTodaiDate(new Date());
-  const tags = createQuery(() => tagsQueryOptions);
-  let selectedTagId = $state<Tag["id"] | null>(null);
+const day = dateToTodaiDate(new Date());
+const tags = createQuery(() => tagsQueryOptions);
+let selectedTagId = $state<Tag["id"] | null>(null);
 </script>
 
 <main>

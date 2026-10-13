@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+import type { Snippet } from "svelte";
 
-  type DropdownSectionProps = {
-    heading?: string;
-    children: Snippet;
-  };
-  const { heading, children }: DropdownSectionProps = $props();
+type DropdownSectionProps = {
+  heading?: string;
+  children: Snippet;
+};
+const { heading, children }: DropdownSectionProps = $props();
 
-  const headingId = $props.id();
+const headingId = $props.id();
 </script>
 
 <div role="group" aria-labelledby={heading ? headingId : undefined}>

@@ -1,87 +1,91 @@
 <script lang="ts">
-  import {
-    Dropdown,
-    DropdownMenu,
-    DropdownSubmenu,
-    DropdownItem,
-    DropdownDivider,
-  } from "#shared/ui/dropdown/index.ts";
-  import type { Todo } from "../model/types";
-  import type { Tag } from "#domains/tags";
-  import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
-  import { TagUpsertModal } from "#domains/tags";
-  import {
-    createDeleteTodoMutation,
-    createMoveTodoMutation,
-    createSetTodoEstimateMutation,
-  } from "../api/mutations";
-  import { createRemoveTodoLinkMutation } from "../links/api/mutations";
-  import {
-    TODO_ESTIMATE_MINUTES_PRESETS,
-    TODO_ESTIMATE_POINTS_PRESET,
-  } from "../model/estimates";
-  import { formatEstimates } from "../model/estimates";
-  import { addDays, dateToTodaiDate, formatDay } from "#core/time";
-  import { DatePickerModal } from "#core/time";
-  import IconArrowRight from "#shared/ui/icons/IconArrowRight.svelte";
-  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
-  import IconClock from "#shared/ui/icons/IconClock.svelte";
-  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
-  import IconSun from "#shared/ui/icons/IconSun.svelte";
-  import IconLink from "#shared/ui/icons/IconLink.svelte";
-  import IconTag from "#shared/ui/icons/IconTag.svelte";
-  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
-  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
-  import AddLinkModal from "../links/ui/AddLinkModal.svelte";
-  import LinkKindIcon from "../links/ui/LinkKindIcon.svelte";
+import {
+  addDays,
+  DatePickerModal,
+  dateToTodaiDate,
+  formatDay,
+} from "#core/time";
+import type { Tag } from "#domains/tags";
+import { TagUpsertModal } from "#domains/tags";
+import {
+  Dropdown,
+  DropdownDivider,
+  DropdownItem,
+  DropdownMenu,
+  DropdownSubmenu,
+} from "#shared/ui/dropdown/index.ts";
+import IconArrowRight from "#shared/ui/icons/IconArrowRight.svelte";
+import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+import IconClock from "#shared/ui/icons/IconClock.svelte";
+import IconLink from "#shared/ui/icons/IconLink.svelte";
+import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+import IconSun from "#shared/ui/icons/IconSun.svelte";
+import IconTag from "#shared/ui/icons/IconTag.svelte";
+import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+import {
+  createDeleteTodoMutation,
+  createMoveTodoMutation,
+  createSetTodoEstimateMutation,
+} from "../api/mutations";
+import { createRemoveTodoLinkMutation } from "../links/api/mutations";
+import AddLinkModal from "../links/ui/AddLinkModal.svelte";
+import LinkKindIcon from "../links/ui/LinkKindIcon.svelte";
+import {
+  formatEstimates,
+  TODO_ESTIMATE_MINUTES_PRESETS,
+  TODO_ESTIMATE_POINTS_PRESET,
+} from "../model/estimates";
+import type { Todo } from "../model/types";
+import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
 
-  type TodoDropdownMenuProps = {
-    anchor?: HTMLElement;
-    /** Bindable value. */
-    open?: boolean;
-    item: Todo;
-    tags: readonly Tag[];
-    inCalendar?: boolean;
-    /** Opens its edit modal, which its line has: also opened otherwise, e.g. from its description. */
-    onEdit: () => void;
-  };
-  let {
-    anchor,
-    open = $bindable(false),
-    item,
-    tags,
-    inCalendar = false,
-    onEdit,
-  }: TodoDropdownMenuProps = $props();
+type TodoDropdownMenuProps = {
+  anchor?: HTMLElement;
+  /** Bindable value. */
+  open?: boolean;
+  item: Todo;
+  tags: readonly Tag[];
+  inCalendar?: boolean;
+  /** Opens its edit modal, which its line has: also opened otherwise, e.g. from its description. */
+  onEdit: () => void;
+};
+let {
+  anchor,
+  open = $bindable(false),
+  item,
+  tags,
+  inCalendar = false,
+  onEdit,
+}: TodoDropdownMenuProps = $props();
 
-  let showTagCreationModal = $state(false);
-  let showAddLinkModal = $state(false);
-  let showDatePicker = $state(false);
+let showTagCreationModal = $state(false);
+let showAddLinkModal = $state(false);
+let showDatePicker = $state(false);
 
-  /** Updated when opened, so that a menu opened after midnight offers the right days. */
-  let today = $state(dateToTodaiDate(new Date()));
-  $effect(() => {
-    if (open) today = dateToTodaiDate(new Date());
-  });
-  const tomorrow = $derived(addDays(today, 1));
-  /** Today and the next few days, but its own. */
-  const moveTargets = $derived(
-    [0, 1, 2, 3, 4]
-      .map((count) => addDays(today, count))
-      .filter((day) => day !== item.day),
-  );
-  // Leaves the list it's moved from: tells where it went, with an undo
-  const moveTodo = createMoveTodoMutation(() => item, { undoable: true });
+/** Updated when opened, so that a menu opened after midnight offers the right days. */
+let today = $state(dateToTodaiDate(new Date()));
+$effect(() => {
+  if (open) today = dateToTodaiDate(new Date());
+});
+const tomorrow = $derived(addDays(today, 1));
+/** Today and the next few days, but its own. */
+const moveTargets = $derived(
+  [0, 1, 2, 3, 4]
+    .map((count) => addDays(today, count))
+    .filter((day) => day !== item.day),
+);
+// Leaves the list it's moved from: tells where it went, with an undo
+const moveTodo = createMoveTodoMutation(() => item, { undoable: true });
 
-  const setTodoEstimate = createSetTodoEstimateMutation(() => item);
-  const removeLink = createRemoveTodoLinkMutation(() => item);
+const setTodoEstimate = createSetTodoEstimateMutation(() => item);
+const removeLink = createRemoveTodoLinkMutation(() => item);
 
-  // Created during initialization, as it reads the query client from the context
-  const deleteTodo = createDeleteTodoMutation(() => item);
-  let confirmItemDeletion = $state(false);
-  $effect(() => {
-    if (!open) confirmItemDeletion = false;
-  });
+// Created during initialization, as it reads the query client from the context
+const deleteTodo = createDeleteTodoMutation(() => item);
+let confirmItemDeletion = $state(false);
+$effect(() => {
+  if (!open) confirmItemDeletion = false;
+});
 </script>
 
 <Dropdown bind:open {anchor}>

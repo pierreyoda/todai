@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconArrowTopRightOnSquareProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconArrowTopRightOnSquareProps = $props();
+type IconArrowTopRightOnSquareProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconArrowTopRightOnSquareProps = $props();
 </script>
 
 <svg

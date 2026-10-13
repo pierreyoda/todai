@@ -7,7 +7,11 @@ import type { UUID } from "node:crypto";
  * - `pre_migration`: made before migrating its database to a newer version of todai;
  * - `pre_restore`: its state before restoring another backup, so that restoring can be undone.
  */
-export type WorkspaceBackupKind = "manual" | "automatic" | "pre_migration" | "pre_restore";
+export type WorkspaceBackupKind =
+  | "manual"
+  | "automatic"
+  | "pre_migration"
+  | "pre_restore";
 
 /** A backup of a workspace's database, kept in the app's data directory. */
 export interface WorkspaceBackup {

@@ -1,41 +1,43 @@
 <script lang="ts">
-  import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import Button from "#shared/ui/Button.svelte";
+import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
+import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";
+import IconDocumentDuplicate from "#shared/ui/icons/IconDocumentDuplicate.svelte";
+import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+import Table from "#shared/ui/table/Table.svelte";
+import { formatFileSize } from "#shared/utils/files.ts";
+import { basename } from "#shared/utils/paths.ts";
+import { SHOW_IN_FILE_MANAGER } from "#shared/utils/platform.ts";
+import {
+  formatDateTime,
+  formatFullDateTime,
+} from "#shared/utils/timestamps.ts";
+import type { WorkspaceBackup } from "../model/types";
+import BackupKindBadge from "./BackupKindBadge.svelte";
 
-  import type { WorkspaceBackup } from "../model/types";
-  import { formatDateTime, formatFullDateTime } from "#shared/utils/timestamps.ts";
-  import { formatFileSize } from "#shared/utils/files.ts";
-  import { basename } from "#shared/utils/paths.ts";
-  import { SHOW_IN_FILE_MANAGER } from "#shared/utils/platform.ts";
-  import Button from "#shared/ui/Button.svelte";
-  import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
-  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
-  import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";
-  import IconDocumentDuplicate from "#shared/ui/icons/IconDocumentDuplicate.svelte";
-  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
-  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
-  import Table from "#shared/ui/table/Table.svelte";
-  import BackupKindBadge from "./BackupKindBadge.svelte";
-
-  type BackupsTableProps = {
-    /** Most recent first. */
-    backups: readonly WorkspaceBackup[];
-    /** Of the workspace they're the backups of. */
-    workspaceName: string;
-    /** Whether that workspace is backed up daily. */
-    autoBackup: boolean;
-    /** Into its workspace's database. */
-    onRestore: (backup: WorkspaceBackup) => void;
-    onRestoreAsNew: (backup: WorkspaceBackup) => void;
-    onDelete: (backup: WorkspaceBackup) => void;
-  };
-  const {
-    backups,
-    workspaceName,
-    autoBackup,
-    onRestore,
-    onRestoreAsNew,
-    onDelete,
-  }: BackupsTableProps = $props();
+type BackupsTableProps = {
+  /** Most recent first. */
+  backups: readonly WorkspaceBackup[];
+  /** Of the workspace they're the backups of. */
+  workspaceName: string;
+  /** Whether that workspace is backed up daily. */
+  autoBackup: boolean;
+  /** Into its workspace's database. */
+  onRestore: (backup: WorkspaceBackup) => void;
+  onRestoreAsNew: (backup: WorkspaceBackup) => void;
+  onDelete: (backup: WorkspaceBackup) => void;
+};
+const {
+  backups,
+  workspaceName,
+  autoBackup,
+  onRestore,
+  onRestoreAsNew,
+  onDelete,
+}: BackupsTableProps = $props();
 </script>
 
 {#snippet createdAtCell({ createdAt, path }: WorkspaceBackup)}

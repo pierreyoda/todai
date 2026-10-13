@@ -1,22 +1,21 @@
 <script lang="ts">
-  import type { UUID } from "node:crypto";
+import type { UUID } from "node:crypto";
+import type { Day } from "#core/time";
+import type { Tag } from "#domains/tags";
+import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+import { createSetTodoTagsMutation } from "../api/mutations";
 
-  import { createSetTodoTagsMutation } from "../api/mutations";
-  import type { Day } from "#core/time";
-  import type { Tag } from "#domains/tags";
-  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+type TodoLineItemTagToggleProps = {
+  todoId: UUID;
+  todoDay: Day;
+  todoTagsIds: readonly UUID[];
+  tag: Tag;
+};
+const { todoId, todoDay, todoTagsIds, tag }: TodoLineItemTagToggleProps =
+  $props();
 
-  type TodoLineItemTagToggleProps = {
-    todoId: UUID;
-    todoDay: Day;
-    todoTagsIds: readonly UUID[];
-    tag: Tag;
-  };
-  const { todoId, todoDay, todoTagsIds, tag }: TodoLineItemTagToggleProps =
-    $props();
-
-  let assigned = $derived(!!todoTagsIds.find((id) => id === tag.id));
-  const toggleTodoTag = createSetTodoTagsMutation();
+let assigned = $derived(!!todoTagsIds.find((id) => id === tag.id));
+const toggleTodoTag = createSetTodoTagsMutation();
 </script>
 
 <div class="container">

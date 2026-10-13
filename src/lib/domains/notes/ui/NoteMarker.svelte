@@ -1,28 +1,28 @@
 <script lang="ts">
-  import type { Day } from "#core/time";
-  import type { Note } from "../model/types";
-  import { formatDateTime } from "#shared/utils/timestamps.ts";
-  import { formatFullDay } from "#core/time";
-  import { notePath } from "../model/paths";
-  import Button from "#shared/ui/Button.svelte";
-  import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
-  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
-  import { MarkdownContent } from "#core/markdown";
+import { MarkdownContent } from "#core/markdown";
+import type { Day } from "#core/time";
+import { formatFullDay } from "#core/time";
+import Button from "#shared/ui/Button.svelte";
+import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
+import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
+import { formatDateTime } from "#shared/utils/timestamps.ts";
+import { notePath } from "../model/paths";
+import type { Note } from "../model/types";
 
-  /** A day's note, in little: an icon after the day, then the note on hover or click, to read it or open it. */
-  type NoteMarkerProps = {
-    note: Note;
-    /** Its note opens as Today's sub-page, the others' as the calendar's. */
-    today: Day;
-  };
-  const { note, today }: NoteMarkerProps = $props();
+/** A day's note, in little: an icon after the day, then the note on hover or click, to read it or open it. */
+type NoteMarkerProps = {
+  note: Note;
+  /** Its note opens as Today's sub-page, the others' as the calendar's. */
+  today: Day;
+};
+const { note, today }: NoteMarkerProps = $props();
 
-  const panelId = $props.id();
-  const dayName = $derived(formatFullDay(note.day));
-  const href = $derived(notePath(note.day, today));
+const panelId = $props.id();
+const dayName = $derived(formatFullDay(note.day));
+const href = $derived(notePath(note.day, today));
 
-  const popover = new HoverPopover();
-  let body = $state<HTMLDivElement>();
+const popover = new HoverPopover();
+let body = $state<HTMLDivElement>();
 </script>
 
 <span

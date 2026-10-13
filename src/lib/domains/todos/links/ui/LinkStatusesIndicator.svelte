@@ -1,27 +1,22 @@
 <script lang="ts">
-  import type { GitHubProblem } from "#core/github";
-  import type { TodoLink } from "../model/types";
-  import {
-    describeProblem,
-    statusesFetchedAt,
-  } from "../model/statuses";
-  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import type { GitHubProblem } from "#core/github";
+import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import { describeProblem, statusesFetchedAt } from "../model/statuses";
+import type { TodoLink } from "../model/types";
 
-  type LinkStatusesIndicatorProps = {
-    /** Why GitHub couldn't be asked about the links' statuses. */
-    problem: GitHubProblem;
-    /** The links shown, for when their statuses are from. */
-    links: readonly TodoLink[];
-  };
-  const { problem, links }: LinkStatusesIndicatorProps = $props();
+type LinkStatusesIndicatorProps = {
+  /** Why GitHub couldn't be asked about the links' statuses. */
+  problem: GitHubProblem;
+  /** The links shown, for when their statuses are from. */
+  links: readonly TodoLink[];
+};
+const { problem, links }: LinkStatusesIndicatorProps = $props();
 
-  const described = $derived(
-    describeProblem(problem, statusesFetchedAt(links)),
-  );
-  /** Fixed from the integrations settings, rather than by waiting. */
-  const fixable = $derived(
-    problem.kind === "signed_out" || problem.kind === "gh_missing",
-  );
+const described = $derived(describeProblem(problem, statusesFetchedAt(links)));
+/** Fixed from the integrations settings, rather than by waiting. */
+const fixable = $derived(
+  problem.kind === "signed_out" || problem.kind === "gh_missing",
+);
 </script>
 
 <span class="indicator" role="status">

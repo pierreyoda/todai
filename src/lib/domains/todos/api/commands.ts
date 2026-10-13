@@ -7,7 +7,7 @@ import type { Estimate, Placement, Todo, TodoMonth } from "../model/types";
 type TodoCommands = {
   list_todos: {
     args: {
-      day: Day,
+      day: Day;
     };
     returns: Todo[];
   };

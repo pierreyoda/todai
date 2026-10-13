@@ -1,34 +1,34 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import type { HTMLInputAttributes } from "svelte/elements";
+import type { Snippet } from "svelte";
+import type { HTMLInputAttributes } from "svelte/elements";
 
-  type FieldTextProps = Omit<HTMLInputAttributes, "type" | "value"> & {
-    label: string;
-    /** Keeps the label for screen readers only. */
-    hideLabel?: boolean;
-    type?: "text" | "search";
-    value?: string;
-    class?: string;
-    /** Bindable: the inner `<input>` element. */
-    ref?: HTMLInputElement;
-    /** Decorative content at the start of the input, e.g. an icon: clicks go through to the input. */
-    leading?: Snippet;
-    /** Content at the end of the input, e.g. a button. Replaces the native clear button of search inputs. */
-    trailing?: Snippet;
-  };
+type FieldTextProps = Omit<HTMLInputAttributes, "type" | "value"> & {
+  label: string;
+  /** Keeps the label for screen readers only. */
+  hideLabel?: boolean;
+  type?: "text" | "search";
+  value?: string;
+  class?: string;
+  /** Bindable: the inner `<input>` element. */
+  ref?: HTMLInputElement;
+  /** Decorative content at the start of the input, e.g. an icon: clicks go through to the input. */
+  leading?: Snippet;
+  /** Content at the end of the input, e.g. a button. Replaces the native clear button of search inputs. */
+  trailing?: Snippet;
+};
 
-  const inputId = $props.id();
-  let {
-    label,
-    hideLabel = false,
-    type = "text",
-    value = $bindable(""),
-    class: extraFieldClass = "",
-    ref = $bindable(),
-    leading,
-    trailing,
-    ...inputProps
-  }: FieldTextProps = $props();
+const inputId = $props.id();
+let {
+  label,
+  hideLabel = false,
+  type = "text",
+  value = $bindable(""),
+  class: extraFieldClass = "",
+  ref = $bindable(),
+  leading,
+  trailing,
+  ...inputProps
+}: FieldTextProps = $props();
 </script>
 
 <!-- The label only wraps its text: the trailing content (e.g. a button) would otherwise be part of the input's name -->

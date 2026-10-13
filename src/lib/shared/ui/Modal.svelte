@@ -1,80 +1,82 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import Button from "./Button.svelte";
+import type { Snippet } from "svelte";
+import Button from "./Button.svelte";
 
-  type ModalProps = {
-    show: boolean;
-    /**
-     * `md` (by default) fits a form or a message. `lg` takes most of the window, up to 64rem × 52rem, for its content
-     * to fill: e.g. an editor. Its body is then a flex column of bounded height.
-     */
-    size?: "md" | "lg";
-    header?: Snippet;
-    children: Snippet;
-    /** Footer buttons, right-aligned (stacked on small screens). */
-    actions?: Snippet;
-    /**
-     * Asked before closing it from its close button, its backdrop or Escape: it closes only once this resolves to `true`,
-     * e.g. once what's edited in it is saved. Closing it otherwise, by setting `show`, isn't asked.
-     */
-    onCloseRequest?: () => boolean | Promise<boolean>;
-  };
-  let {
-    show = $bindable(),
-    size = "md",
-    header,
-    children,
-    actions,
-    onCloseRequest,
-  }: ModalProps = $props();
+type ModalProps = {
+  show: boolean;
+  /**
+   * `md` (by default) fits a form or a message. `lg` takes most of the window, up to 64rem × 52rem, for its content
+   * to fill: e.g. an editor. Its body is then a flex column of bounded height.
+   */
+  size?: "md" | "lg";
+  header?: Snippet;
+  children: Snippet;
+  /** Footer buttons, right-aligned (stacked on small screens). */
+  actions?: Snippet;
+  /**
+   * Asked before closing it from its close button, its backdrop or Escape: it closes only once this resolves to `true`,
+   * e.g. once what's edited in it is saved. Closing it otherwise, by setting `show`, isn't asked.
+   */
+  onCloseRequest?: () => boolean | Promise<boolean>;
+};
+let {
+  show = $bindable(),
+  size = "md",
+  header,
+  children,
+  actions,
+  onCloseRequest,
+}: ModalProps = $props();
 
-  const titleId = $props.id();
+const titleId = $props.id();
 
-  let dialog = $state<HTMLDialogElement>();
-  $effect(() => {
-    if (show) dialog?.showModal();
-    else dialog?.close();
-  });
+let dialog = $state<HTMLDialogElement>();
+$effect(() => {
+  if (show) dialog?.showModal();
+  else dialog?.close();
+});
 
-  /** While `onCloseRequest` is answering: asked to close again meanwhile, it isn't asked twice. */
-  let requesting = false;
+/** While `onCloseRequest` is answering: asked to close again meanwhile, it isn't asked twice. */
+let requesting = false;
 
-  /** Closes it as asked from it (close button, backdrop, Escape), if `onCloseRequest` agrees. */
-  const requestClose = async () => {
-    if (!onCloseRequest) {
-      dialog?.close();
+/** Closes it as asked from it (close button, backdrop, Escape), if `onCloseRequest` agrees. */
+const requestClose = async () => {
+  if (!onCloseRequest) {
+    dialog?.close();
+    return;
+  }
+  if (requesting) return;
+  requesting = true;
+  try {
+    if (await onCloseRequest()) dialog?.close();
+  } catch (error) {
+    console.error("Could not tell whether to close the modal:", error);
+  } finally {
+    requesting = false;
+  }
+};
+
+/** Escape is left to a popover shown in it (e.g. a menu), which it closes first. */
+const hasPopoverOpen = () => !!dialog?.querySelector(":popover-open");
+
+// Asked rather than closed by the browser: from the document, as Escape may also be pressed with nothing focused
+// (e.g. once it left an editor), and handled before the browser, whose own close request can't always be cancelled
+// (Chromium closes the dialog anyway when asked again without the user interacting with the page in between).
+$effect(() => {
+  if (!show || !onCloseRequest) return;
+  const onkeydown = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing)
       return;
-    }
-    if (requesting) return;
-    requesting = true;
-    try {
-      if (await onCloseRequest()) dialog?.close();
-    } catch (error) {
-      console.error("Could not tell whether to close the modal:", error);
-    } finally {
-      requesting = false;
-    }
+    // Pressed in another modal, shown over it
+    const target =
+      event.target instanceof Element ? event.target.closest("dialog") : null;
+    if ((target && target !== dialog) || hasPopoverOpen()) return;
+    event.preventDefault();
+    void requestClose();
   };
-
-  /** Escape is left to a popover shown in it (e.g. a menu), which it closes first. */
-  const hasPopoverOpen = () => !!dialog?.querySelector(":popover-open");
-
-  // Asked rather than closed by the browser: from the document, as Escape may also be pressed with nothing focused
-  // (e.g. once it left an editor), and handled before the browser, whose own close request can't always be cancelled
-  // (Chromium closes the dialog anyway when asked again without the user interacting with the page in between).
-  $effect(() => {
-    if (!show || !onCloseRequest) return;
-    const onkeydown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
-      // Pressed in another modal, shown over it
-      const target = event.target instanceof Element ? event.target.closest("dialog") : null;
-      if ((target && target !== dialog) || hasPopoverOpen()) return;
-      event.preventDefault();
-      void requestClose();
-    };
-    document.addEventListener("keydown", onkeydown);
-    return () => document.removeEventListener("keydown", onkeydown);
-  });
+  document.addEventListener("keydown", onkeydown);
+  return () => document.removeEventListener("keydown", onkeydown);
+});
 </script>
 
 <dialog

@@ -1,34 +1,44 @@
 <script lang="ts">
-  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
-  import MarkdownContent from "./MarkdownContent.svelte";
+import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+import MarkdownContent from "./MarkdownContent.svelte";
 
-  type MarkdownPreviewProps = {
-    /** The Markdown, as being written. */
-    content: string;
-    /**
-     * Checks or unchecks the task shown `index`-th, `checked` before, with `text` as its text. Returns whether it did:
-     * not if its line can't be found in `content`.
-     */
-    onToggleTask: (task: { index: number; checked: boolean; text: string }) => boolean;
-    /** Shown while `content` is blank, e.g. "A blank page for today". */
-    emptyTitle: string;
-    /** Under `emptyTitle`, e.g. where to write. */
-    emptyHint: string;
-    /** Keeps its "Preview" title for screen readers only, e.g. while tabs name it. */
-    hideTitle?: boolean;
-  };
-  const { content, onToggleTask, emptyTitle, emptyHint, hideTitle = false }: MarkdownPreviewProps = $props();
+type MarkdownPreviewProps = {
+  /** The Markdown, as being written. */
+  content: string;
+  /**
+   * Checks or unchecks the task shown `index`-th, `checked` before, with `text` as its text. Returns whether it did:
+   * not if its line can't be found in `content`.
+   */
+  onToggleTask: (task: {
+    index: number;
+    checked: boolean;
+    text: string;
+  }) => boolean;
+  /** Shown while `content` is blank, e.g. "A blank page for today". */
+  emptyTitle: string;
+  /** Under `emptyTitle`, e.g. where to write. */
+  emptyHint: string;
+  /** Keeps its "Preview" title for screen readers only, e.g. while tabs name it. */
+  hideTitle?: boolean;
+};
+const {
+  content,
+  onToggleTask,
+  emptyTitle,
+  emptyHint,
+  hideTitle = false,
+}: MarkdownPreviewProps = $props();
 
-  const titleId = $props.id();
-  const blank = $derived(content.trim() === "");
+const titleId = $props.id();
+const blank = $derived(content.trim() === "");
 
-  let surface = $state<HTMLElement>();
+let surface = $state<HTMLElement>();
 
-  /** Scrolls to `ratio` of its content, from 0 (its top shown) to 1 (its bottom shown). */
-  export const scrollToRatio = (ratio: number) => {
-    if (!surface) return;
-    surface.scrollTop = ratio * (surface.scrollHeight - surface.clientHeight);
-  };
+/** Scrolls to `ratio` of its content, from 0 (its top shown) to 1 (its bottom shown). */
+export const scrollToRatio = (ratio: number) => {
+  if (!surface) return;
+  surface.scrollTop = ratio * (surface.scrollHeight - surface.clientHeight);
+};
 </script>
 
 <section class="preview" aria-labelledby={titleId}>

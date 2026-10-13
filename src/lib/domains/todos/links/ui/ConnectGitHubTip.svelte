@@ -1,55 +1,55 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
 
-  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import type { Todo } from "../../model/types";
-  import Button from "#shared/ui/Button.svelte";
-  import IconLink from "#shared/ui/icons/IconLink.svelte";
-  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import Button from "#shared/ui/Button.svelte";
+import IconLink from "#shared/ui/icons/IconLink.svelte";
+import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+import type { Todo } from "../../model/types";
 
-  type ConnectGitHubTipProps = {
-    /** The todos shown: the tip is only for GitHub links. */
-    todos: readonly Todo[];
-  };
-  const { todos }: ConnectGitHubTipProps = $props();
+type ConnectGitHubTipProps = {
+  /** The todos shown: the tip is only for GitHub links. */
+  todos: readonly Todo[];
+};
+const { todos }: ConnectGitHubTipProps = $props();
 
-  const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-  const workspace = $derived(activeWorkspace.data);
+const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const workspace = $derived(activeWorkspace.data);
 
-  /** Dismissed once per workspace, on this machine only. */
-  const storageKey = (workspaceId: string) =>
-    `todai:connect-github-tip-dismissed:${workspaceId}`;
-  const readDismissed = (workspaceId: string) => {
-    try {
-      return localStorage.getItem(storageKey(workspaceId)) === "1";
-    } catch {
-      return false;
-    }
-  };
-  /** The workspaces it was dismissed for since the page was opened. */
-  let dismissedNow = $state<string[]>([]);
-  const dismissed = $derived(
-    !workspace ||
-      dismissedNow.includes(workspace.id) ||
-      readDismissed(workspace.id),
-  );
+/** Dismissed once per workspace, on this machine only. */
+const storageKey = (workspaceId: string) =>
+  `todai:connect-github-tip-dismissed:${workspaceId}`;
+const readDismissed = (workspaceId: string) => {
+  try {
+    return localStorage.getItem(storageKey(workspaceId)) === "1";
+  } catch {
+    return false;
+  }
+};
+/** The workspaces it was dismissed for since the page was opened. */
+let dismissedNow = $state<string[]>([]);
+const dismissed = $derived(
+  !workspace ||
+    dismissedNow.includes(workspace.id) ||
+    readDismissed(workspace.id),
+);
 
-  const shown = $derived(
-    !!workspace &&
-      !workspace.githubLogin &&
-      !dismissed &&
-      todos.some((todo) => todo.links.some((link) => link.github)),
-  );
+const shown = $derived(
+  !!workspace &&
+    !workspace.githubLogin &&
+    !dismissed &&
+    todos.some((todo) => todo.links.some((link) => link.github)),
+);
 
-  const dismiss = () => {
-    if (!workspace) return;
-    dismissedNow = [...dismissedNow, workspace.id];
-    try {
-      localStorage.setItem(storageKey(workspace.id), "1");
-    } catch {
-      // Only for this time, then
-    }
-  };
+const dismiss = () => {
+  if (!workspace) return;
+  dismissedNow = [...dismissedNow, workspace.id];
+  try {
+    localStorage.setItem(storageKey(workspace.id), "1");
+  } catch {
+    // Only for this time, then
+  }
+};
 </script>
 
 {#if shown}

@@ -24,7 +24,10 @@ export const workspaceKeys = {
 export const refreshGitHubAttention = (queryClient: QueryClient) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true }),
-    queryClient.invalidateQueries({ queryKey: workspaceKeys.active(), exact: true }),
+    queryClient.invalidateQueries({
+      queryKey: workspaceKeys.active(),
+      exact: true,
+    }),
   ]);
 
 /**

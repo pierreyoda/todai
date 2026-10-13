@@ -1,36 +1,37 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+import { untrack } from "svelte";
+import Button from "#shared/ui/Button.svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";
+import IconShieldCheck from "#shared/ui/icons/IconShieldCheck.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import { formatDateTime } from "#shared/utils/timestamps.ts";
+import type { Workspace } from "../../model/types";
+import { createRestoreBackupMutation } from "../api/mutations";
+import type { WorkspaceBackup } from "../model/types";
 
-  import type { Workspace } from "../../model/types";
-  import type { WorkspaceBackup } from "../model/types";
-  import { createRestoreBackupMutation } from "../api/mutations";
-  import { formatDateTime } from "#shared/utils/timestamps.ts";
-  import Button from "#shared/ui/Button.svelte";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";
-  import IconShieldCheck from "#shared/ui/icons/IconShieldCheck.svelte";
-  import Modal from "#shared/ui/Modal.svelte";
+/** Confirms restoring a backup into its workspace's database. */
+type BackupRestoreModalProps = {
+  /** Bindable. */
+  show: boolean;
+  workspace: Workspace;
+  /** One of `workspace`'s. */
+  backup: WorkspaceBackup;
+};
+let {
+  show = $bindable(),
+  workspace,
+  backup,
+}: BackupRestoreModalProps = $props();
 
-  /** Confirms restoring a backup into its workspace's database. */
-  type BackupRestoreModalProps = {
-    /** Bindable. */
-    show: boolean;
-    workspace: Workspace;
-    /** One of `workspace`'s. */
-    backup: WorkspaceBackup;
-  };
-  let {
-    show = $bindable(),
-    workspace,
-    backup,
-  }: BackupRestoreModalProps = $props();
-
-  // Also refreshes the todos and tags, in case it's the active workspace's
-  const restore = createRestoreBackupMutation({ onSuccess: () => (show = false) });
-  // A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
-  $effect(() => {
-    if (!show) untrack(() => restore.reset());
-  });
+// Also refreshes the todos and tags, in case it's the active workspace's
+const restore = createRestoreBackupMutation({
+  onSuccess: () => (show = false),
+});
+// A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
+$effect(() => {
+  if (!show) untrack(() => restore.reset());
+});
 </script>
 
 <Modal bind:show>

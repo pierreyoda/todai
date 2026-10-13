@@ -1,8 +1,8 @@
 import Fuse, { type IFuseOptions, type RangeTuple } from "fuse.js";
 
 import type { Tag } from "#domains/tags";
-import type { Todo } from "./types";
 import { isDefined } from "#shared/utils/isDefined.ts";
+import type { Todo } from "./types";
 
 /** What a todo is searched by: its own fields, and the names of its tags. */
 type TodoSearchDocument = {

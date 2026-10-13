@@ -1,35 +1,35 @@
 <script lang="ts">
-  import { RGB_TAG_COLOR_PRESETS } from "../model/colors";
-  import Button from "#shared/ui/Button.svelte";
-  import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
-  import FieldText from "#shared/ui/FieldText.svelte";
-  import PickableColor from "#shared/ui/PickableColor.svelte";
+import Button from "#shared/ui/Button.svelte";
+import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
+import FieldText from "#shared/ui/FieldText.svelte";
+import PickableColor from "#shared/ui/PickableColor.svelte";
+import { RGB_TAG_COLOR_PRESETS } from "../model/colors";
 
-  type TagFormProps = (
-    | {
-        /** Editing an existing tag, possibly only its color. */
-        data: {
-          name: string;
-          color: string;
-        };
-        mode: "all" | "color";
-        onDelete: () => void;
-      }
-    | {
-        /** Creating a tag: needs its name too. */
-        data?: never;
-        mode: "all";
-        onDelete?: never;
-      }
-  ) & {
-    onSubmit: (name: string, color: string) => void;
-  };
-  const { data, mode, onSubmit, onDelete }: TagFormProps = $props();
+type TagFormProps = (
+  | {
+      /** Editing an existing tag, possibly only its color. */
+      data: {
+        name: string;
+        color: string;
+      };
+      mode: "all" | "color";
+      onDelete: () => void;
+    }
+  | {
+      /** Creating a tag: needs its name too. */
+      data?: never;
+      mode: "all";
+      onDelete?: never;
+    }
+) & {
+  onSubmit: (name: string, color: string) => void;
+};
+const { data, mode, onSubmit, onDelete }: TagFormProps = $props();
 
-  // Follow the tag (once saved, e.g. renamed from the side panel while this form stays mounted), edited here until then
-  let editedName = $derived(data?.name ?? "");
-  let editedColor = $derived(data?.color ?? null);
-  const valid = $derived(editedName.trim().length > 0 && !!editedColor);
+// Follow the tag (once saved, e.g. renamed from the side panel while this form stays mounted), edited here until then
+let editedName = $derived(data?.name ?? "");
+let editedColor = $derived(data?.color ?? null);
+const valid = $derived(editedName.trim().length > 0 && !!editedColor);
 </script>
 
 <div class="container">

@@ -1,36 +1,36 @@
 <script lang="ts" generics="Row extends object">
-  import type { Snippet } from "svelte";
+import type { Snippet } from "svelte";
 
-  type TableColumn = {
-    label: string;
-    /** Keeps the label for screen readers only. */
-    hideLabel?: boolean;
-    align?: "start" | "end";
-  } & (
-    | {
-        /** Displays `row[key]`, or `cell` if given. */
-        key: keyof Row;
-        cell?: Snippet<[row: Row]>;
-      }
-    | {
-        /** Not tied to a property of the row (e.g. actions), so `cell` is required. */
-        id: string;
-        cell: Snippet<[row: Row]>;
-      }
-  );
+type TableColumn = {
+  label: string;
+  /** Keeps the label for screen readers only. */
+  hideLabel?: boolean;
+  align?: "start" | "end";
+} & (
+  | {
+      /** Displays `row[key]`, or `cell` if given. */
+      key: keyof Row;
+      cell?: Snippet<[row: Row]>;
+    }
+  | {
+      /** Not tied to a property of the row (e.g. actions), so `cell` is required. */
+      id: string;
+      cell: Snippet<[row: Row]>;
+    }
+);
 
-  type TableProps = {
-    columns: readonly TableColumn[];
-    rows: readonly Row[];
-    /** The property identifying a row, used as the `#each` key. */
-    rowKey: keyof Row;
-    /** Content of the single cell shown without rows. "Nothing to show." by default. */
-    empty?: Snippet;
-  };
-  const { columns, rows, rowKey, empty }: TableProps = $props();
+type TableProps = {
+  columns: readonly TableColumn[];
+  rows: readonly Row[];
+  /** The property identifying a row, used as the `#each` key. */
+  rowKey: keyof Row;
+  /** Content of the single cell shown without rows. "Nothing to show." by default. */
+  empty?: Snippet;
+};
+const { columns, rows, rowKey, empty }: TableProps = $props();
 
-  const columnId = (column: TableColumn): string =>
-    "key" in column ? String(column.key) : column.id;
+const columnId = (column: TableColumn): string =>
+  "key" in column ? String(column.key) : column.id;
 </script>
 
 <table>

@@ -1,83 +1,82 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
-  import { save } from "@tauri-apps/plugin-dialog";
-  import { untrack } from "svelte";
+import { createQuery } from "@tanstack/svelte-query";
+import { save } from "@tauri-apps/plugin-dialog";
+import { untrack } from "svelte";
+import { dateToTodaiDate } from "#core/time";
+import Button from "#shared/ui/Button.svelte";
+import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+import IconArrowDownTray from "#shared/ui/icons/IconArrowDownTray.svelte";
+import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
+import { formatFileSize } from "#shared/utils/files.ts";
+import { basename } from "#shared/utils/paths.ts";
+import { SHOW_IN_FILE_MANAGER } from "#shared/utils/platform.ts";
+import { goto } from "$app/navigation";
+import type { Workspace } from "../../model/types";
+import WorkspacePicker from "../../ui/WorkspacePicker.svelte";
+import {
+  createBackUpWorkspaceMutation,
+  createDeleteBackupMutation,
+  createExportWorkspaceMutation,
+  createShowBackupsFolderMutation,
+} from "../api/mutations";
+import { workspaceBackupsQueryOptions } from "../api/queries";
+import type { WorkspaceBackup } from "../model/types";
+import AutoBackupSettings from "./AutoBackupSettings.svelte";
+import BackupRestoreAsNewModal from "./BackupRestoreAsNewModal.svelte";
+import BackupRestoreModal from "./BackupRestoreModal.svelte";
+import BackupsTable from "./BackupsTable.svelte";
 
-  import { goto } from "$app/navigation";
-  import type { Workspace } from "../../model/types";
-  import type { WorkspaceBackup } from "../model/types";
-  import {
-    createBackUpWorkspaceMutation,
-    createDeleteBackupMutation,
-    createExportWorkspaceMutation,
-    createShowBackupsFolderMutation,
-  } from "../api/mutations";
-  import { workspaceBackupsQueryOptions } from "../api/queries";
-  import { dateToTodaiDate } from "#core/time";
-  import { formatFileSize } from "#shared/utils/files.ts";
-  import { basename } from "#shared/utils/paths.ts";
-  import { SHOW_IN_FILE_MANAGER } from "#shared/utils/platform.ts";
-  import Button from "#shared/ui/Button.svelte";
-  import BackupsTable from "./BackupsTable.svelte";
-  import BackupRestoreModal from "./BackupRestoreModal.svelte";
-  import BackupRestoreAsNewModal from "./BackupRestoreAsNewModal.svelte";
-  import AutoBackupSettings from "./AutoBackupSettings.svelte";
-  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
-  import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
-  import WorkspacePicker from "../../ui/WorkspacePicker.svelte";
-  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
-  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
-  import IconArrowDownTray from "#shared/ui/icons/IconArrowDownTray.svelte";
+type BackupsSettingsProps = {
+  workspaces: readonly Workspace[];
+  /** The one whose backups are shown, among `workspaces`. */
+  workspace: Workspace;
+};
+const { workspaces, workspace }: BackupsSettingsProps = $props();
 
-  type BackupsSettingsProps = {
-    workspaces: readonly Workspace[];
-    /** The one whose backups are shown, among `workspaces`. */
-    workspace: Workspace;
-  };
-  const { workspaces, workspace }: BackupsSettingsProps = $props();
+const backups = createQuery(() => workspaceBackupsQueryOptions(workspace.id));
+const totalSize = $derived(
+  (backups.data ?? []).reduce((total, { size }) => total + (size ?? 0), 0),
+);
 
-  const backups = createQuery(() => workspaceBackupsQueryOptions(workspace.id));
-  const totalSize = $derived(
-    (backups.data ?? []).reduce((total, { size }) => total + (size ?? 0), 0),
-  );
+const createBackup = createBackUpWorkspaceMutation();
+const deleteBackup = createDeleteBackupMutation();
+const exportWorkspace = createExportWorkspaceMutation();
+const showBackups = createShowBackupsFolderMutation();
 
-  const createBackup = createBackUpWorkspaceMutation();
-  const deleteBackup = createDeleteBackupMutation();
-  const exportWorkspace = createExportWorkspaceMutation();
-  const showBackups = createShowBackupsFolderMutation();
+const mutations = [
+  { mutation: createBackup, failure: "Could not back up the workspace" },
+  { mutation: exportWorkspace, failure: "Could not export the workspace" },
+  { mutation: deleteBackup, failure: "Could not delete the backup" },
+  { mutation: showBackups, failure: "Could not open its backups folder" },
+];
+// Outcomes are about the workspace they were for: dropped when picking another one. Untracked, so that resetting
+// doesn't rerun the effect.
+$effect(() => {
+  void workspace.id;
+  untrack(() => mutations.forEach(({ mutation }) => mutation.reset()));
+});
 
-  const mutations = [
-    { mutation: createBackup, failure: "Could not back up the workspace" },
-    { mutation: exportWorkspace, failure: "Could not export the workspace" },
-    { mutation: deleteBackup, failure: "Could not delete the backup" },
-    { mutation: showBackups, failure: "Could not open its backups folder" },
-  ];
-  // Outcomes are about the workspace they were for: dropped when picking another one. Untracked, so that resetting
-  // doesn't rerun the effect.
-  $effect(() => {
-    void workspace.id;
-    untrack(() => mutations.forEach(({ mutation }) => mutation.reset()));
+let pickingExportPath = $state(false);
+const exportCopy = async () => {
+  if (pickingExportPath || exportWorkspace.isPending) return;
+  pickingExportPath = true;
+  const path = await save({
+    defaultPath: `${workspace.name} ${dateToTodaiDate(new Date())}.sqlite3`,
+    filters: [{ name: "Todai Workspace", extensions: ["sqlite3"] }],
+    canCreateDirectories: true,
   });
+  pickingExportPath = false;
+  if (!path) return;
+  exportWorkspace.mutate({ workspace, path });
+};
 
-  let pickingExportPath = $state(false);
-  const exportCopy = async () => {
-    if (pickingExportPath || exportWorkspace.isPending) return;
-    pickingExportPath = true;
-    const path = await save({
-      defaultPath: `${workspace.name} ${dateToTodaiDate(new Date())}.sqlite3`,
-      filters: [{ name: "Todai Workspace", extensions: ["sqlite3"] }],
-      canCreateDirectories: true,
-    });
-    pickingExportPath = false;
-    if (!path) return;
-    exportWorkspace.mutate({ workspace, path });
-  };
-
-  // Kept once closed, so that the modals don't lose their content while closing
-  let showRestoreDialog = $state(false);
-  let restoredBackup = $state<WorkspaceBackup | null>(null);
-  let showRestoreAsNewDialog = $state(false);
-  let restoredAsNewBackup = $state<WorkspaceBackup | null>(null);
+// Kept once closed, so that the modals don't lose their content while closing
+let showRestoreDialog = $state(false);
+let restoredBackup = $state<WorkspaceBackup | null>(null);
+let showRestoreAsNewDialog = $state(false);
+let restoredAsNewBackup = $state<WorkspaceBackup | null>(null);
 </script>
 
 <SettingsContainer>

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ClassValue } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 
-  type IconQuestionMarkCircleProps = {
-    class?: ClassValue;
-  };
-  const { class: extraClass }: IconQuestionMarkCircleProps = $props();
+type IconQuestionMarkCircleProps = {
+  class?: ClassValue;
+};
+const { class: extraClass }: IconQuestionMarkCircleProps = $props();
 </script>
 
 <svg

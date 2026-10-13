@@ -1,36 +1,36 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import type { ClassValue } from "svelte/elements";
+import type { Snippet } from "svelte";
+import type { ClassValue } from "svelte/elements";
 
-  type CollapseProps = {
-    /** Bindable. */
-    open?: boolean;
-    /** Content of the toggle button. */
-    summary: Snippet;
-    /** Wraps the toggle button in a heading of this level, so the section is listed in the outline. */
-    headingLevel?: 2 | 3 | 4 | 5 | 6;
-    class?: ClassValue;
-    /**
-     * Only created once the section is first opened (so e.g. its queries only run then), and kept afterwards
-     * so that collapsing it again doesn't lose its state.
-     */
-    children: Snippet;
-  };
+type CollapseProps = {
+  /** Bindable. */
+  open?: boolean;
+  /** Content of the toggle button. */
+  summary: Snippet;
+  /** Wraps the toggle button in a heading of this level, so the section is listed in the outline. */
+  headingLevel?: 2 | 3 | 4 | 5 | 6;
+  class?: ClassValue;
+  /**
+   * Only created once the section is first opened (so e.g. its queries only run then), and kept afterwards
+   * so that collapsing it again doesn't lose its state.
+   */
+  children: Snippet;
+};
 
-  let {
-    open = $bindable(false),
-    summary,
-    headingLevel,
-    class: extraClass,
-    children,
-  }: CollapseProps = $props();
+let {
+  open = $bindable(false),
+  summary,
+  headingLevel,
+  class: extraClass,
+  children,
+}: CollapseProps = $props();
 
-  const id = $props.id();
-  const contentId = `${id}-content`;
+const id = $props.id();
+const contentId = `${id}-content`;
 
-  let hasBeenOpened = false;
-  // Sticky: becomes true with `open`, then stays so
-  const rendered = $derived((hasBeenOpened ||= open));
+let hasBeenOpened = false;
+// Sticky: becomes true with `open`, then stays so
+const rendered = $derived((hasBeenOpened ||= open));
 </script>
 
 {#snippet toggle()}

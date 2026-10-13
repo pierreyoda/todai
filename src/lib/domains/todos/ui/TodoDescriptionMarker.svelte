@@ -1,39 +1,42 @@
 <script lang="ts">
-  import { createSetTodoDescriptionMutation } from "../api/mutations";
-  import type { Todo } from "../model/types";
-  import { taskProgress, toggleTask } from "#core/markdown";
-  import Button from "#shared/ui/Button.svelte";
-  import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
-  import IconBars3BottomLeft from "#shared/ui/icons/IconBars3BottomLeft.svelte";
-  import { MarkdownContent } from "#core/markdown";
+import { MarkdownContent, taskProgress, toggleTask } from "#core/markdown";
+import Button from "#shared/ui/Button.svelte";
+import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
+import IconBars3BottomLeft from "#shared/ui/icons/IconBars3BottomLeft.svelte";
+import { createSetTodoDescriptionMutation } from "../api/mutations";
+import type { Todo } from "../model/types";
 
-  /**
-   * A todo's description, in little: an icon after its title, then the description on hover or click, to read it, check
-   * its tasks, or edit it.
-   */
-  type TodoDescriptionMarkerProps = {
-    /** With a description. */
-    todo: Todo;
-    /** Opens its edit modal, to edit the description. */
-    onEdit: () => void;
-  };
-  const { todo, onEdit }: TodoDescriptionMarkerProps = $props();
+/**
+ * A todo's description, in little: an icon after its title, then the description on hover or click, to read it, check
+ * its tasks, or edit it.
+ */
+type TodoDescriptionMarkerProps = {
+  /** With a description. */
+  todo: Todo;
+  /** Opens its edit modal, to edit the description. */
+  onEdit: () => void;
+};
+const { todo, onEdit }: TodoDescriptionMarkerProps = $props();
 
-  const panelId = $props.id();
-  const description = $derived(todo.description ?? "");
-  const progress = $derived(taskProgress(description));
+const panelId = $props.id();
+const description = $derived(todo.description ?? "");
+const progress = $derived(taskProgress(description));
 
-  const popover = new HoverPopover();
-  let body = $state<HTMLDivElement>();
+const popover = new HoverPopover();
+let body = $state<HTMLDivElement>();
 
-  // Shown checked right away: tells if saving fails, then shows the saved description back
-  const setDescription = createSetTodoDescriptionMutation(() => todo, { optimistic: true });
-  const onToggleTask = (task: Parameters<typeof toggleTask>[1]) => {
-    const edit = toggleTask(description, task);
-    if (!edit) return false;
-    setDescription.mutate(description.slice(0, edit.from) + edit.insert + description.slice(edit.to));
-    return true;
-  };
+// Shown checked right away: tells if saving fails, then shows the saved description back
+const setDescription = createSetTodoDescriptionMutation(() => todo, {
+  optimistic: true,
+});
+const onToggleTask = (task: Parameters<typeof toggleTask>[1]) => {
+  const edit = toggleTask(description, task);
+  if (!edit) return false;
+  setDescription.mutate(
+    description.slice(0, edit.from) + edit.insert + description.slice(edit.to),
+  );
+  return true;
+};
 </script>
 
 <span

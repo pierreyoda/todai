@@ -1,39 +1,42 @@
 <script lang="ts">
-  import Modal from "#shared/ui/Modal.svelte";
-  import type { Todo } from "../model/types";
-  import { createAddTodoMutation, createUpdateTodoMutation } from "../api/mutations";
-  import TodoForm from "./TodoForm.svelte";
-  import TodoDescriptionField from "./TodoDescriptionField.svelte";
-  import TodoLinksEditor from "../links/ui/TodoLinksEditor.svelte";
+import Modal from "#shared/ui/Modal.svelte";
+import {
+  createAddTodoMutation,
+  createUpdateTodoMutation,
+} from "../api/mutations";
+import TodoLinksEditor from "../links/ui/TodoLinksEditor.svelte";
+import type { Todo } from "../model/types";
+import TodoDescriptionField from "./TodoDescriptionField.svelte";
+import TodoForm from "./TodoForm.svelte";
 
-  type TodoUpsertModalProps = {
-    /** Bindable. */
-    show: boolean;
-  } & (
-    | {
-        existing: Todo;
-        /** Whether to focus its description's editor once shown, e.g. when opened to edit it. */
-        focusDescription?: boolean;
-      }
-    | {
-        existing?: never;
-        focusDescription?: never;
-      }
-  );
-  let {
-    show = $bindable(),
-    existing,
-    focusDescription = false,
-  }: TodoUpsertModalProps = $props();
+type TodoUpsertModalProps = {
+  /** Bindable. */
+  show: boolean;
+} & (
+  | {
+      existing: Todo;
+      /** Whether to focus its description's editor once shown, e.g. when opened to edit it. */
+      focusDescription?: boolean;
+    }
+  | {
+      existing?: never;
+      focusDescription?: never;
+    }
+);
+let {
+  show = $bindable(),
+  existing,
+  focusDescription = false,
+}: TodoUpsertModalProps = $props();
 
-  let descriptionField = $state<ReturnType<typeof TodoDescriptionField>>();
-  /** Whether to close it, once its todo's description is saved. */
-  const saveBeforeClosing = () =>
-    descriptionField ? descriptionField.saveBeforeLeaving() : true;
+let descriptionField = $state<ReturnType<typeof TodoDescriptionField>>();
+/** Whether to close it, once its todo's description is saved. */
+const saveBeforeClosing = () =>
+  descriptionField ? descriptionField.saveBeforeLeaving() : true;
 
-  const close = () => (show = false);
-  const createTodo = createAddTodoMutation({ onSuccess: close });
-  const updateTodo = createUpdateTodoMutation({ onSuccess: close });
+const close = () => (show = false);
+const createTodo = createAddTodoMutation({ onSuccess: close });
+const updateTodo = createUpdateTodoMutation({ onSuccess: close });
 </script>
 
 <!-- An existing todo's: large, for its description, saved before closing -->

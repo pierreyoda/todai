@@ -1,8 +1,7 @@
 import type { UUID } from "node:crypto";
 import { queryOptions } from "@tanstack/svelte-query";
-
-import { queryClient } from "#shared/ipc/queryClient.ts";
 import { refreshGitHubAttention, workspaceKeys } from "#domains/workspaces";
+import { queryClient } from "#shared/ipc/queryClient.ts";
 import { invokeIntegrations } from "./commands";
 
 /**
@@ -32,7 +31,10 @@ export const githubApiStatusQueryOptions = (workspaceId: UUID) =>
   queryOptions({
     queryKey: workspaceKeys.github(workspaceId),
     queryFn: async () => {
-      const status = await invokeIntegrations({ name: "get_github_api_status", args: { workspaceId } });
+      const status = await invokeIntegrations({
+        name: "get_github_api_status",
+        args: { workspaceId },
+      });
       refreshGitHubAttention(queryClient);
       return status;
     },

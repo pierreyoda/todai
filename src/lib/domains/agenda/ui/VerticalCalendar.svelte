@@ -1,57 +1,56 @@
 <script lang="ts">
-  import { createQuery } from "@tanstack/svelte-query";
+import { createQuery } from "@tanstack/svelte-query";
+import type { Day } from "#core/time";
+import {
+  addMonths,
+  dateToTodaiDate,
+  formatMonth,
+  monthOf,
+  monthsBetween,
+} from "#core/time";
+import { noteMonthsQueryOptions } from "#domains/notes";
+import type { Tag } from "#domains/tags";
+import { todoMonthsQueryOptions } from "#domains/todos";
+import Collapse from "#shared/ui/Collapse.svelte";
+import { formatTodoCounts } from "../model/counts";
+import CalendarMonth from "./CalendarMonth.svelte";
 
-  import { noteMonthsQueryOptions } from "#domains/notes";
-  import { todoMonthsQueryOptions } from "#domains/todos";
-  import type { Day } from "#core/time";
-  import type { Tag } from "#domains/tags";
-  import {
-    addMonths,
-    dateToTodaiDate,
-    formatMonth,
-    monthOf,
-    monthsBetween,
-  } from "#core/time";
-  import Collapse from "#shared/ui/Collapse.svelte";
-  import CalendarMonth from "./CalendarMonth.svelte";
-  import { formatTodoCounts } from "../model/counts";
+/**
+ * History of the todos and notes, month by month, most recent first: from the current month back to the one of the
+ * earliest todo or note. The current and previous months are initially expanded (unless they have neither), which
+ * loads their todos and notes; the others load theirs when first expanded.
+ */
+type VerticalCalendarProps = {
+  tags: readonly Tag[];
+  selectedTagId: Tag["id"] | null;
+  /** Fixed once mounted, like the day of the todos panel. */
+  today?: Day;
+};
+const {
+  tags,
+  selectedTagId,
+  today = dateToTodaiDate(new Date()),
+}: VerticalCalendarProps = $props();
 
-  /**
-   * History of the todos and notes, month by month, most recent first: from the current month back to the one of the
-   * earliest todo or note. The current and previous months are initially expanded (unless they have neither), which
-   * loads their todos and notes; the others load theirs when first expanded.
-   */
-  type VerticalCalendarProps = {
-    tags: readonly Tag[];
-    selectedTagId: Tag["id"] | null;
-    /** Fixed once mounted, like the day of the todos panel. */
-    today?: Day;
-  };
-  const {
-    tags,
-    selectedTagId,
-    today = dateToTodaiDate(new Date()),
-  }: VerticalCalendarProps = $props();
+// svelte-ignore state_referenced_locally: fixed once mounted
+const currentMonth = monthOf(today);
+const previousMonth = addMonths(currentMonth, -1);
 
-  // svelte-ignore state_referenced_locally: fixed once mounted
-  const currentMonth = monthOf(today);
-  const previousMonth = addMonths(currentMonth, -1);
+const todoMonths = createQuery(() => todoMonthsQueryOptions);
+const noteMonths = createQuery(() => noteMonthsQueryOptions);
 
-  const todoMonths = createQuery(() => todoMonthsQueryOptions);
-  const noteMonths = createQuery(() => noteMonthsQueryOptions);
-
-  const statsByMonth = $derived(
-    new Map((todoMonths.data ?? []).map((stats) => [stats.month, stats])),
-  );
-  const monthsWithNotes = $derived(new Set(noteMonths.data ?? []));
-  /** Future months are left out; the current one is always listed, even without todos or notes. */
-  const months = $derived.by(() => {
-    const earliest = [todoMonths.data?.at(-1)?.month, noteMonths.data?.at(-1)]
-      .filter((month) => month !== undefined)
-      .sort()[0];
-    const oldest = earliest && earliest < currentMonth ? earliest : currentMonth;
-    return monthsBetween(currentMonth, oldest);
-  });
+const statsByMonth = $derived(
+  new Map((todoMonths.data ?? []).map((stats) => [stats.month, stats])),
+);
+const monthsWithNotes = $derived(new Set(noteMonths.data ?? []));
+/** Future months are left out; the current one is always listed, even without todos or notes. */
+const months = $derived.by(() => {
+  const earliest = [todoMonths.data?.at(-1)?.month, noteMonths.data?.at(-1)]
+    .filter((month) => month !== undefined)
+    .sort()[0];
+  const oldest = earliest && earliest < currentMonth ? earliest : currentMonth;
+  return monthsBetween(currentMonth, oldest);
+});
 </script>
 
 {#if todoMonths.isPending || noteMonths.isPending}

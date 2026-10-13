@@ -10,7 +10,11 @@ const parseValue = (value: unknown, key?: string): unknown => {
       Object.entries(value).map(([key, item]) => [key, parseValue(item, key)]),
     );
   }
-  if (typeof value === "string" && key !== undefined && TIMESTAMP_KEY.test(key)) {
+  if (
+    typeof value === "string" &&
+    key !== undefined &&
+    TIMESTAMP_KEY.test(key)
+  ) {
     return new Date(value);
   }
   return value;
@@ -20,4 +24,5 @@ const parseValue = (value: unknown, key?: string): unknown => {
  * `response`, from the Rust backend, as typed in the frontend: timestamps (keys ending with "At") become `Date`s,
  * at any depth.
  */
-export const parseResponse = <T>(response: unknown): T => parseValue(response) as T;
+export const parseResponse = <T>(response: unknown): T =>
+  parseValue(response) as T;

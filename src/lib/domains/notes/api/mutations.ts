@@ -19,7 +19,10 @@ export const createSaveNoteMutation = () => {
     // notes are only marked stale: refetched once shown, rather than at each autosave.
     onSuccess: (note, { day }) => {
       queryClient.setQueryData(noteKeys.day(day), note);
-      void queryClient.invalidateQueries({ queryKey: noteKeys.months(), refetchType: "none" });
+      void queryClient.invalidateQueries({
+        queryKey: noteKeys.months(),
+        refetchType: "none",
+      });
     },
   }));
 };

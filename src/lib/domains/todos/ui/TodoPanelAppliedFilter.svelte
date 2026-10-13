@@ -1,20 +1,20 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import type { ClassValue } from "svelte/elements";
+import type { Snippet } from "svelte";
+import type { ClassValue } from "svelte/elements";
 
-  import Button from "#shared/ui/Button.svelte";
-  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
+import Button from "#shared/ui/Button.svelte";
+import IconXMark from "#shared/ui/icons/IconXMark.svelte";
 
-  type TodoPanelAppliedFilterProps = {
-    children: Snippet;
-    onDismiss: () => void;
-    class?: ClassValue;
-  };
-  const {
-    children,
-    onDismiss,
-    class: extraClass,
-  }: TodoPanelAppliedFilterProps = $props();
+type TodoPanelAppliedFilterProps = {
+  children: Snippet;
+  onDismiss: () => void;
+  class?: ClassValue;
+};
+const {
+  children,
+  onDismiss,
+  class: extraClass,
+}: TodoPanelAppliedFilterProps = $props();
 </script>
 
 <div class={["container", extraClass]}>

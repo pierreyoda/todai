@@ -1,48 +1,48 @@
 <script lang="ts">
-  import { resolve } from "$app/paths";
-  import { page } from "$app/state";
-  import type { Snippet } from "svelte";
+import type { Snippet } from "svelte";
+import { resolve } from "$app/paths";
+import { page } from "$app/state";
 
-  import type { RouteId } from "$app/types";
+import type { RouteId } from "$app/types";
 
-  /** A page that doesn't need parameters, so it can be linked to as is. */
-  type StaticRouteId = Exclude<RouteId, `${string}[${string}`>;
+/** A page that doesn't need parameters, so it can be linked to as is. */
+type StaticRouteId = Exclude<RouteId, `${string}[${string}`>;
 
-  type SidePanelLinkProps = {
-    label: string;
-    /** Leading icon, colored by the link. */
-    icon: Snippet;
-    routeId: StaticRouteId;
-    /** Short trailing text, e.g. a date. */
-    hint?: string;
-    /** A sub-page of the link above it: slimmer, to sit in its indented list. */
-    nested?: boolean;
-    /** Shown as a dot after the label, e.g. "Today has a note": the text is for screen readers only. */
-    indicator?: string;
-    /** The dot's color: `warning` when something needs the user, e.g. a connection. */
-    indicatorTone?: "accent" | "warning";
-    /** Whether it's also current on its sub-pages, e.g. the calendar's on a day's note opened from it. */
-    currentOnSubPages?: boolean;
-  };
-  const {
-    label,
-    icon,
-    routeId,
-    hint,
-    nested = false,
-    indicator,
-    indicatorTone = "accent",
-    currentOnSubPages = false,
-  }: SidePanelLinkProps = $props();
+type SidePanelLinkProps = {
+  label: string;
+  /** Leading icon, colored by the link. */
+  icon: Snippet;
+  routeId: StaticRouteId;
+  /** Short trailing text, e.g. a date. */
+  hint?: string;
+  /** A sub-page of the link above it: slimmer, to sit in its indented list. */
+  nested?: boolean;
+  /** Shown as a dot after the label, e.g. "Today has a note": the text is for screen readers only. */
+  indicator?: string;
+  /** The dot's color: `warning` when something needs the user, e.g. a connection. */
+  indicatorTone?: "accent" | "warning";
+  /** Whether it's also current on its sub-pages, e.g. the calendar's on a day's note opened from it. */
+  currentOnSubPages?: boolean;
+};
+const {
+  label,
+  icon,
+  routeId,
+  hint,
+  nested = false,
+  indicator,
+  indicatorTone = "accent",
+  currentOnSubPages = false,
+}: SidePanelLinkProps = $props();
 
-  /** Without the groups organizing the routes (e.g. `(workspace)`), as their URLs are. */
-  const withoutGroups = (id: string) => id.replace(/\/\([^/]+\)/g, "") || "/";
+/** Without the groups organizing the routes (e.g. `(workspace)`), as their URLs are. */
+const withoutGroups = (id: string) => id.replace(/\/\([^/]+\)/g, "") || "/";
 
-  const current = $derived.by(() => {
-    const id = withoutGroups(page.route.id ?? "/");
-    const linked = withoutGroups(routeId);
-    return id === linked || (currentOnSubPages && id.startsWith(`${linked}/`));
-  });
+const current = $derived.by(() => {
+  const id = withoutGroups(page.route.id ?? "/");
+  const linked = withoutGroups(routeId);
+  return id === linked || (currentOnSubPages && id.startsWith(`${linked}/`));
+});
 </script>
 
 <a href={resolve(routeId)} class={["link", nested && "nested"]} aria-current={current ? "page" : undefined}>

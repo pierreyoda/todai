@@ -85,7 +85,9 @@ const parseDay = (day: Day): Date => {
  * @throws {RangeError} If `month` isn't formatted as `YYYY-MM`, with a month from 01 to 12.
  */
 const parseMonth = (month: Month): Date => {
-  const date = MONTH_PATTERN.test(month) ? parseISO(`${month}-01`, UTC) : undefined;
+  const date = MONTH_PATTERN.test(month)
+    ? parseISO(`${month}-01`, UTC)
+    : undefined;
   if (!date || !isValid(date)) {
     throw new RangeError(`Invalid month: ${JSON.stringify(month)}`);
   }
@@ -97,7 +99,8 @@ const parseMonth = (month: Month): Date => {
  *
  * @throws {RangeError} If `day` is invalid.
  */
-export const monthOf = (day: Day): Month => format(parseDay(day), MONTH_FORMAT, UTC);
+export const monthOf = (day: Day): Month =>
+  format(parseDay(day), MONTH_FORMAT, UTC);
 
 /**
  * The first and last days of `month`.
@@ -117,7 +120,9 @@ export const monthBounds = (month: Month): [first: Day, last: Day] => {
 export const addDays = (day: Day, count: number): Day => {
   const date = parseDay(day);
   // date-fns would truncate a fractional `count`
-  const result = Number.isInteger(count) ? addDaysToDate(date, count, UTC) : undefined;
+  const result = Number.isInteger(count)
+    ? addDaysToDate(date, count, UTC)
+    : undefined;
   const year = result && getYear(result, UTC);
   if (!result || !(year! >= MIN_YEAR && year! <= MAX_YEAR)) {
     throw new RangeError(`Cannot add ${count} days to ${day}`);
@@ -133,7 +138,9 @@ export const addDays = (day: Day, count: number): Day => {
 export const addMonths = (month: Month, count: number): Month => {
   const first = parseMonth(month);
   // date-fns would truncate a fractional `count`
-  const result = Number.isInteger(count) ? addMonthsToDate(first, count, UTC) : undefined;
+  const result = Number.isInteger(count)
+    ? addMonthsToDate(first, count, UTC)
+    : undefined;
   const year = result && getYear(result, UTC);
   if (!result || !(year! >= MIN_YEAR && year! <= MAX_YEAR)) {
     throw new RangeError(`Cannot add ${count} months to ${month}`);
@@ -166,10 +173,12 @@ export const monthsBetween = (newest: Month, oldest: Month): Month[] => {
 export const weeksOfMonth = (month: Month): Week[] => {
   const first = parseMonth(month);
   const last = endOfMonth(first, UTC);
-  return eachWeekOfInterval({ start: first, end: last }, WEEK).map((monday) => ({
-    start: toDay(max([monday, first], UTC)),
-    end: toDay(min([endOfWeek(monday, WEEK), last], UTC)),
-  }));
+  return eachWeekOfInterval({ start: first, end: last }, WEEK).map(
+    (monday) => ({
+      start: toDay(max([monday, first], UTC)),
+      end: toDay(min([endOfWeek(monday, WEEK), last], UTC)),
+    }),
+  );
 };
 
 /**
@@ -180,7 +189,10 @@ export const weeksOfMonth = (month: Month): Week[] => {
  */
 export const calendarWeeksOfMonth = (month: Month): Day[][] => {
   const first = parseMonth(month);
-  const weeks = eachWeekOfInterval({ start: first, end: endOfMonth(first, UTC) }, WEEK).map((monday) =>
+  const weeks = eachWeekOfInterval(
+    { start: first, end: endOfMonth(first, UTC) },
+    WEEK,
+  ).map((monday) =>
     eachDayOfInterval({ start: monday, end: endOfWeek(monday, WEEK) }, UTC),
   );
   const firstYear = getYear(weeks[0][0], UTC);
@@ -213,7 +225,8 @@ export const weekOf = (day: Day): Week => {
  *
  * @throws {RangeError} If `month` is invalid.
  */
-export const formatMonth = (month: Month): string => format(parseMonth(month), "MMMM y", UTC);
+export const formatMonth = (month: Month): string =>
+  format(parseMonth(month), "MMMM y", UTC);
 
 /**
  * E.g. "Oct 5 – 11", "Sep 28 – Oct 4", or "Oct 31" for a single day.
@@ -225,7 +238,8 @@ export const formatWeek = ({ start, end }: Week): string => {
   const endDate = parseDay(end);
   const formatBoth = (startFormat: string, endFormat: string) =>
     `${format(startDate, startFormat, UTC)} – ${format(endDate, endFormat, UTC)}`;
-  if (isSameDay(startDate, endDate, UTC)) return format(startDate, "MMM d", UTC);
+  if (isSameDay(startDate, endDate, UTC))
+    return format(startDate, "MMM d", UTC);
   if (isSameMonth(startDate, endDate, UTC)) return formatBoth("MMM d", "d");
   if (isSameYear(startDate, endDate, UTC)) return formatBoth("MMM d", "MMM d");
   return formatBoth("MMM d, y", "MMM d, y");
@@ -236,21 +250,24 @@ export const formatWeek = ({ start, end }: Week): string => {
  *
  * @throws {RangeError} If `day` is invalid.
  */
-export const formatDay = (day: Day): string => format(parseDay(day), "EEE d", UTC);
+export const formatDay = (day: Day): string =>
+  format(parseDay(day), "EEE d", UTC);
 
 /**
  * E.g. "Monday, October 5, 2026".
  *
  * @throws {RangeError} If `day` is invalid.
  */
-export const formatFullDay = (day: Day): string => format(parseDay(day), "EEEE, MMMM d, y", UTC);
+export const formatFullDay = (day: Day): string =>
+  format(parseDay(day), "EEEE, MMMM d, y", UTC);
 
 /**
  * E.g. "Mon, Oct 5, 2026": `formatFullDay` with abbreviated names, for a bounded width.
  *
  * @throws {RangeError} If `day` is invalid.
  */
-export const formatShortDay = (day: Day): string => format(parseDay(day), "EEE, MMM d, y", UTC);
+export const formatShortDay = (day: Day): string =>
+  format(parseDay(day), "EEE, MMM d, y", UTC);
 
 /**
  * `day` as said from `today`, e.g. in a sentence: "today", "tomorrow" or "yesterday", "Tue 13" within a week of it, or
@@ -266,6 +283,8 @@ export const formatRelativeDay = (day: Day, today: Day): string => {
   ]);
   const word = near.get(day);
   if (word) return word;
-  const withinWeek = [2, 3, 4, 5, 6].some((count) => day === addDays(today, count) || day === addDays(today, -count));
+  const withinWeek = [2, 3, 4, 5, 6].some(
+    (count) => day === addDays(today, count) || day === addDays(today, -count),
+  );
   return withinWeek ? formatDay(day) : formatShortDay(day);
 };

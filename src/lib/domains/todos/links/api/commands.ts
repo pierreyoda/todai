@@ -3,7 +3,12 @@ import type { UUID } from "node:crypto";
 import type { Day } from "#core/time";
 import { createInvoker } from "#shared/ipc/invoke.ts";
 import type { Todo } from "../../model/types";
-import type { LinkPreview, ParsedLink, RefreshOutcome, TodoLink } from "../model/types";
+import type {
+  LinkPreview,
+  ParsedLink,
+  RefreshOutcome,
+  TodoLink,
+} from "../model/types";
 
 type LinkCommands = {
   /**
