@@ -4,13 +4,13 @@
 
   import { beforeNavigate, goto } from "$app/navigation";
 
-  import { createSaveNoteMutation } from "../../client/mutations";
+  import { createSaveNoteMutation } from "../api/mutations";
   import type { Day } from "#core/time";
-  import type { Note } from "../../client/types";
+  import type { Note } from "../model/types";
   import { Autosave } from "#shared/utils/autosave.svelte.ts";
   import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
   import { dateToTodaiDate, formatFullDay } from "#core/time";
-  import { noteDrafts } from "../../utils/noteDrafts.svelte";
+  import { noteDrafts } from "../state/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "#domains/workspaces";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SaveStatus from "#shared/ui/SaveStatus.svelte";

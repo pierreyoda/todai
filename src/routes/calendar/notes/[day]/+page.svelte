@@ -3,9 +3,9 @@
 
   import { goto } from "$app/navigation";
   import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import { noteQueryOptions } from "../../../../client/queries";
+  import { noteQueryOptions } from "#domains/notes";
   import SidePanel from "../../../../components/SidePanel.svelte";
-  import NotePanel from "../../../../components/notes/NotePanel.svelte";
+  import { NotePanel } from "#domains/notes";
   import LoadingState from "#shared/ui/LoadingState.svelte";
   import type { PageProps } from "./$types";
 

@@ -2,10 +2,10 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import { noteQueryOptions } from "../client/queries";
+  import { noteQueryOptions } from "#domains/notes";
   import type { Tag } from "#domains/tags";
   import { dateToTodaiDate, formatDay } from "#core/time";
-  import { noteDrafts } from "../utils/noteDrafts.svelte";
+  import { noteDrafts } from "#domains/notes";
   import Collapse from "#shared/ui/Collapse.svelte";
   import { SidePanelTag } from "#domains/tags";
   import IconSun from "#shared/ui/icons/IconSun.svelte";

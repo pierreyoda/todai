@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Day } from "#core/time";
-  import type { Note } from "../../client/types";
+  import type { Note } from "../model/types";
   import { formatDateTime } from "#shared/utils/timestamps.ts";
   import { formatFullDay } from "#core/time";
-  import { notePath } from "../../utils/notes";
+  import { notePath } from "../model/paths";
   import Button from "#shared/ui/Button.svelte";
   import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
   import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";

@@ -195,12 +195,3 @@ export interface RefreshOutcome {
   /** Why GitHub couldn't be asked, if so. */
   problem?: GitHubProblem;
 }
-
-/** A day's note, in Markdown. */
-export interface Note {
-  day: Day;
-  /** Never blank: a note emptied is deleted. */
-  content: string;
-  createdAt: Date;
-  updatedAt: Date;
-}

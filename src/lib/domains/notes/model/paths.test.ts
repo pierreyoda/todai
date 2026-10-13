@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { notePath } from "./notes";
+import { notePath } from "./paths";
 
 describe("notePath", () => {
   it("opens today's note as Today's sub-page", () => {
