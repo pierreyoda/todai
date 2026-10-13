@@ -2,10 +2,10 @@
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   import type { WorkspaceBackup } from "../../../client/app";
-  import { formatDateTime, formatFullDateTime } from "#shared/lib/timestamps.ts";
-  import { formatFileSize } from "#shared/lib/files.ts";
-  import { basename } from "#shared/lib/paths.ts";
-  import { SHOW_IN_FILE_MANAGER } from "#shared/lib/platform.ts";
+  import { formatDateTime, formatFullDateTime } from "#shared/utils/timestamps.ts";
+  import { formatFileSize } from "#shared/utils/files.ts";
+  import { basename } from "#shared/utils/paths.ts";
+  import { SHOW_IN_FILE_MANAGER } from "#shared/utils/platform.ts";
   import Button from "#shared/ui/Button.svelte";
   import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
   import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";

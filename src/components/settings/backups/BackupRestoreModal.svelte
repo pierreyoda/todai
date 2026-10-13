@@ -8,7 +8,7 @@
     type WorkspaceBackup,
   } from "../../../client/app";
   import { invalidateActiveWorkspace } from "../../../client/queries";
-  import { formatDateTime } from "#shared/lib/timestamps.ts";
+  import { formatDateTime } from "#shared/utils/timestamps.ts";
   import Button from "#shared/ui/Button.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";

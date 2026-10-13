@@ -8,7 +8,7 @@
     invalidateActiveWorkspace,
     workspaceKeys,
   } from "../../../client/queries";
-  import { basename } from "#shared/lib/paths.ts";
+  import { basename } from "#shared/utils/paths.ts";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
   import IconPlus from "#shared/ui/icons/IconPlus.svelte";

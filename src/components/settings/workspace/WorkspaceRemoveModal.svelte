@@ -3,7 +3,7 @@
 
   import type { Workspace } from "../../../client/app";
   import { workspaceBackupsQueryOptions } from "../../../client/queries";
-  import { formatFileSize } from "#shared/lib/files.ts";
+  import { formatFileSize } from "#shared/utils/files.ts";
   import Button from "#shared/ui/Button.svelte";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
   import FieldText from "#shared/ui/FieldText.svelte";

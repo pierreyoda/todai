@@ -10,7 +10,7 @@
   import UnfinishedTodosBanner from "./UnfinishedTodosBanner.svelte";
   import LinkStatusesIndicator from "../links/LinkStatusesIndicator.svelte";
   import ConnectGitHubTip from "../links/ConnectGitHubTip.svelte";
-  import { isDefined } from "#shared/lib/isDefined.ts";
+  import { isDefined } from "#shared/utils/isDefined.ts";
   import { TodoSearch } from "../../utils/todoSearch.svelte";
 
   type TodoPanelProps = {

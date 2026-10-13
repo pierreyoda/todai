@@ -8,7 +8,7 @@
     createRemoveTodoLinkMutation,
   } from "../../client/mutations";
   import { activeWorkspaceQueryOptions } from "../../client/queries";
-  import { formatRelativeTime } from "#shared/lib/timestamps.ts";
+  import { formatRelativeTime } from "#shared/utils/timestamps.ts";
   import { hasLink } from "../../utils/links";
   import {
     checkName,

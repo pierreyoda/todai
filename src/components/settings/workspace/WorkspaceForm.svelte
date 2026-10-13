@@ -8,7 +8,7 @@
   import Button from "#shared/ui/Button.svelte";
   import type { Workspace } from "../../../client/app";
   import FieldText from "#shared/ui/FieldText.svelte";
-  import { isValidPath } from "#shared/lib/paths.ts";
+  import { isValidPath } from "#shared/utils/paths.ts";
   import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";
 
   type WorkspaceFormProps = (

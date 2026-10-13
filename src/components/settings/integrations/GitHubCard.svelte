@@ -10,7 +10,7 @@
     ghStatusQueryOptions,
     githubApiStatusQueryOptions,
   } from "../../../client/queries";
-  import { formatTime } from "#shared/lib/timestamps.ts";
+  import { formatTime } from "#shared/utils/timestamps.ts";
   import { githubConnectionState } from "../../../utils/github";
   import { describeProblem } from "../../../utils/linkStatuses";
   import Button from "#shared/ui/Button.svelte";

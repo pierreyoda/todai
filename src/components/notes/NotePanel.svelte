@@ -6,8 +6,8 @@
 
   import { createSaveNoteMutation } from "../../client/mutations";
   import type { Day, Note } from "../../client/types";
-  import { Autosave } from "#shared/lib/autosave.svelte.ts";
-  import { Confirmation } from "#shared/lib/confirmation.svelte.ts";
+  import { Autosave } from "#shared/utils/autosave.svelte.ts";
+  import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
   import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";

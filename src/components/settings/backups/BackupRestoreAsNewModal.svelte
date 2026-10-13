@@ -8,7 +8,7 @@
     type WorkspaceBackup,
   } from "../../../client/app";
   import { invalidateActiveWorkspace } from "../../../client/queries";
-  import { formatDateTime, formatShortDate } from "#shared/lib/timestamps.ts";
+  import { formatDateTime, formatShortDate } from "#shared/utils/timestamps.ts";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import Modal from "#shared/ui/Modal.svelte";
   import WorkspaceForm, {

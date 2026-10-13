@@ -4,8 +4,8 @@
 
   import { createSetTodoDescriptionMutation } from "../../client/mutations";
   import type { Todo } from "../../client/types";
-  import { Autosave } from "#shared/lib/autosave.svelte.ts";
-  import { Confirmation } from "#shared/lib/confirmation.svelte.ts";
+  import { Autosave } from "#shared/utils/autosave.svelte.ts";
+  import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SaveStatus from "#shared/ui/SaveStatus.svelte";
