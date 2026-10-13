@@ -6,7 +6,7 @@
   import type { Todo } from "../../client/types";
   import { Autosave } from "#shared/utils/autosave.svelte.ts";
   import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
-  import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
+  import { beforeWorkspaceSwitch } from "#domains/workspaces";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SaveStatus from "#shared/ui/SaveStatus.svelte";
   import UnsavedLeaveModal from "#shared/ui/UnsavedLeaveModal.svelte";

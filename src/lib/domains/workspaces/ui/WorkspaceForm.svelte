@@ -6,7 +6,7 @@
   import { save } from "@tauri-apps/plugin-dialog";
 
   import Button from "#shared/ui/Button.svelte";
-  import type { Workspace } from "../../../client/app";
+  import type { Workspace } from "../model/types";
   import FieldText from "#shared/ui/FieldText.svelte";
   import { isValidPath } from "#shared/utils/paths.ts";
   import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";

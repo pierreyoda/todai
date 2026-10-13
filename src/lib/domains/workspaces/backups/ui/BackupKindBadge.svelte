@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { WorkspaceBackupKind } from "../../../client/app";
+  import type { WorkspaceBackupKind } from "../model/types";
   import IconClock from "#shared/ui/icons/IconClock.svelte";
 
   const LABELS: Record<WorkspaceBackupKind, string> = {

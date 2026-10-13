@@ -7,8 +7,8 @@
 
   import { invokeClient } from "../../client";
   import { createAddTodoFromLinkMutation } from "../../client/mutations";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
   import {
-    activeWorkspaceQueryOptions,
     invalidateTodosOf,
     linkPreviewQueryOptions,
     parseLinkQueryOptions,

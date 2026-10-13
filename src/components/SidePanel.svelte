@@ -1,7 +1,8 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import { activeWorkspaceQueryOptions, noteQueryOptions } from "../client/queries";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+  import { noteQueryOptions } from "../client/queries";
   import type { Tag } from "#domains/tags";
   import { dateToTodaiDate, formatDay } from "#core/time";
   import { noteDrafts } from "../utils/noteDrafts.svelte";
@@ -17,7 +18,7 @@
   import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
   import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
   import IconLink from "#shared/ui/icons/IconLink.svelte";
-  import SidePanelWorkspace from "./layout/SidePanelWorkspace.svelte";
+  import { SidePanelWorkspace } from "#domains/workspaces";
   import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
 
   type SidePanelProps = {

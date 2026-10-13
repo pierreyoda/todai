@@ -9,10 +9,8 @@
   import { invokeClient } from "../../client";
   import type { Placement, Todo } from "../../client/types";
   import type { Tag } from "#domains/tags";
-  import {
-    activeWorkspaceQueryOptions,
-    invalidateTodosOf,
-  } from "../../client/queries";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+  import { invalidateTodosOf } from "../../client/queries";
   import { createToggleTodoMutation } from "../../client/mutations";
   import EditableText from "#shared/ui/EditableText.svelte";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";

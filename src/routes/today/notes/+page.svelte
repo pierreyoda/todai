@@ -2,10 +2,8 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { goto } from "$app/navigation";
-  import {
-    activeWorkspaceQueryOptions,
-    noteQueryOptions,
-  } from "../../../client/queries";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+  import { noteQueryOptions } from "../../../client/queries";
   import { dateToTodaiDate } from "#core/time";
   import SidePanel from "../../../components/SidePanel.svelte";
   import NotePanel from "../../../components/notes/NotePanel.svelte";

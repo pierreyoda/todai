@@ -1,14 +1,11 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { open } from "@tauri-apps/plugin-dialog";
 
-  import { invokeApiClient, type Workspace } from "../../../client/app";
+  import type { Workspace } from "../model/types";
   import {
-    clearActiveWorkspace,
-    invalidateActiveWorkspace,
-    workspaceKeys,
-  } from "../../../client/queries";
-  import { basename } from "#shared/utils/paths.ts";
+    createImportWorkspaceMutation,
+    createRemoveWorkspaceMutation,
+  } from "../api/mutations";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
   import IconPlus from "#shared/ui/icons/IconPlus.svelte";
@@ -24,37 +21,10 @@
   const { activeWorkspace, workspaces }: WorkspaceSettingsProps = $props();
   const onlyNew = $derived(!activeWorkspace || workspaces.length === 0);
 
-  const queryClient = useQueryClient();
-  // Importing a workspace switches to it. Named after its file, without the extension.
-  const importWorkspaceMutation = createMutation(() => ({
-    mutationFn: (path: string) =>
-      invokeApiClient({
-        name: "import_workspace",
-        args: { name: basename(path).replace(/(?<=.)\.[^.]*$/, ""), path },
-      }),
-    onSuccess: () => invalidateActiveWorkspace(queryClient),
-  }));
-  // Unregisters a workspace, keeping its database, and its backups unless asked otherwise. Removing the active one
-  // leaves none active: its todos and tags are dropped, and the user picks or creates another one here.
-  const removeWorkspaceMutation = createMutation(() => ({
-    mutationFn: ({
-      workspace,
-      deleteBackups,
-    }: {
-      workspace: Workspace;
-      deleteBackups: boolean;
-    }) =>
-      invokeApiClient({
-        name: "remove_workspace",
-        args: { id: workspace.id, deleteBackups },
-      }),
-    onSuccess: (_, { workspace: { isActive } }) => {
-      showRemoveDialog = false;
-      return isActive
-        ? clearActiveWorkspace(queryClient)
-        : queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
-    },
-  }));
+  const importWorkspaceMutation = createImportWorkspaceMutation();
+  const removeWorkspaceMutation = createRemoveWorkspaceMutation({
+    onSuccess: () => (showRemoveDialog = false),
+  });
 
   let showUpsertDialog = $state(false);
   /** Created if `null`. */

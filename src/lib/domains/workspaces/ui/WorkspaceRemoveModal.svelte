@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import type { Workspace } from "../../../client/app";
-  import { workspaceBackupsQueryOptions } from "../../../client/queries";
+  import type { Workspace } from "../model/types";
+  import { workspaceBackupsQueryOptions } from "../backups/api/queries";
   import { formatFileSize } from "#shared/utils/files.ts";
   import Button from "#shared/ui/Button.svelte";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";

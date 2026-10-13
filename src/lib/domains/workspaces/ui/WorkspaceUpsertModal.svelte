@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { untrack } from "svelte";
 
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import Modal from "#shared/ui/Modal.svelte";
-  import { invokeApiClient, type Workspace } from "../../../client/app";
-  import { invalidateActiveWorkspace, workspaceKeys } from "../../../client/queries";
-  import WorkspaceForm, { type WorkspaceFormData } from "./WorkspaceForm.svelte";
+  import type { Workspace } from "../model/types";
+  import {
+    createAddWorkspaceMutation,
+    createRenameWorkspaceMutation,
+  } from "../api/mutations";
+  import WorkspaceForm from "./WorkspaceForm.svelte";
 
   type WorkspaceUpsertModalProps = {
     /** Bindable. */
@@ -21,33 +23,10 @@
   );
   let { show = $bindable(), existing }: WorkspaceUpsertModalProps = $props();
 
-  const queryClient = useQueryClient();
-
-  // Creating a workspace switches to it.
-  const createWorkspace = createMutation(() => ({
-    mutationFn: ({ name, path }: WorkspaceFormData) =>
-      invokeApiClient({
-        name: "create_workspace",
-        args: { name, path },
-      }),
-    onSuccess: () => {
-      show = false;
-      return invalidateActiveWorkspace(queryClient);
-    },
-  }));
-  // Only its name can change: there is no command to move its database. Invalidating the list also refreshes the
-  // active workspace.
-  const updateWorkspace = createMutation(() => ({
-    mutationFn: ({ workspace, data }: { workspace: Workspace; data: WorkspaceFormData }) =>
-      invokeApiClient({
-        name: "rename_workspace",
-        args: { id: workspace.id, name: data.name },
-      }),
-    onSuccess: () => {
-      show = false;
-      return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
-    },
-  }));
+  const close = () => (show = false);
+  // Creating a workspace switches to it
+  const createWorkspace = createAddWorkspaceMutation({ onSuccess: close });
+  const updateWorkspace = createRenameWorkspaceMutation({ onSuccess: close });
 
   const failed = $derived(existing ? updateWorkspace : createWorkspace);
   // A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
@@ -83,7 +62,7 @@
   {#if existing}
     <WorkspaceForm
       data={{ name: existing.name, path: existing.path }}
-      onSubmit={(data) => updateWorkspace.mutate({ workspace: existing, data })}
+      onSubmit={(data) => updateWorkspace.mutate({ workspace: existing, name: data.name })}
     />
   {:else}
     <WorkspaceForm onSubmit={(data) => createWorkspace.mutate(data)} />

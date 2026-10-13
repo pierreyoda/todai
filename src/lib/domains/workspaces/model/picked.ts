@@ -1,4 +1,4 @@
-import type { Workspace } from "../client/app";
+import type { Workspace } from "./types";
 
 /**
  * The workspace a settings page is about: the one picked in its URL (`?workspace=<id>`), else the active one, else the

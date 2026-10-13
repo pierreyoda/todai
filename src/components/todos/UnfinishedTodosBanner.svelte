@@ -2,10 +2,8 @@
   import { createQuery } from "@tanstack/svelte-query";
   import { slide } from "svelte/transition";
 
-  import {
-    activeWorkspaceQueryOptions,
-    unfinishedTodosQueryOptions,
-  } from "../../client/queries";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+  import { unfinishedTodosQueryOptions } from "../../client/queries";
   import { createMoveTodosMutation } from "../../client/mutations";
   import type { Day } from "#core/time";
   import type { Todo } from "../../client/types";

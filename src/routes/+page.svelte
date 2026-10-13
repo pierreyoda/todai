@@ -4,8 +4,8 @@
   import { goto } from "$app/navigation";
   import type { Tag } from "#domains/tags";
   import { dateToTodaiDate } from "#core/time";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
   import {
-    activeWorkspaceQueryOptions,
     linkStatusesQueryOptions,
     todosQueryOptions,
   } from "../client/queries";

@@ -2,11 +2,11 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { page } from "$app/state";
-  import { workspacesQueryOptions } from "../../../client/queries";
+  import { workspacesQueryOptions } from "#domains/workspaces";
   import SidePanel from "../../../components/SidePanel.svelte";
   import LoadingState from "#shared/ui/LoadingState.svelte";
   import IntegrationsSettings from "../../../components/settings/integrations/IntegrationsSettings.svelte";
-  import { pickedWorkspace } from "../../../utils/workspaces";
+  import { pickedWorkspace } from "#domains/workspaces";
 
   const workspaces = createQuery(() => workspacesQueryOptions);
   const hasWorkspaces = $derived((workspaces.data?.length ?? 0) > 0);

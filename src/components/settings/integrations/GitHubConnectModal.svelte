@@ -2,7 +2,7 @@
   import { createQuery } from "@tanstack/svelte-query";
   import { untrack } from "svelte";
 
-  import type { Workspace } from "../../../client/app";
+  import type { Workspace } from "#domains/workspaces";
   import {
     createConnectGitHubMutation,
     createRefindGhMutation,

@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-
-  import { invokeApiClient, type Workspace } from "../../../client/app";
-  import { workspaceKeys } from "../../../client/queries";
+  import type { Workspace } from "../../model/types";
+  import { createSetAutoBackupMutation } from "../api/mutations";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
   import FieldText from "#shared/ui/FieldText.svelte";
@@ -15,20 +13,7 @@
   };
   const { workspace }: AutoBackupSettingsProps = $props();
 
-  const queryClient = useQueryClient();
-  const update = createMutation(() => ({
-    mutationFn: ({
-      autoBackup,
-      autoBackupKeep,
-    }: Pick<Workspace, "autoBackup" | "autoBackupKeep">) =>
-      invokeApiClient({
-        name: "set_workspace_auto_backup",
-        args: { workspaceId: workspace.id, autoBackup, autoBackupKeep },
-      }),
-    // Even on failure, so that the fields show the saved settings again. Also refreshes its backups, maybe pruned.
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
-  }));
+  const update = createSetAutoBackupMutation();
 
   // Follow the workspace's settings (once saved, or for another workspace), edited here until then
   let autoBackup = $derived(workspace.autoBackup);
@@ -46,7 +31,7 @@
     ) {
       return;
     }
-    update.mutate({ autoBackup, autoBackupKeep: keep });
+    update.mutate({ id: workspace.id, autoBackup, autoBackupKeep: keep });
   };
 </script>
 

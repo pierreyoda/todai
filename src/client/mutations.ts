@@ -1,27 +1,25 @@
 import { createMutation, useQueryClient, type QueryClient } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
-import { invokeApiClient, type Workspace } from "./app";
+import { invokeApiClient } from "./app";
+import type { Workspace } from "#domains/workspaces";
 import type { Day } from "#core/time";
 import type { Estimate, Placement, Todo, TodoLink } from "./types";
 import {
   cancelTodoListsOf,
   ghKeys,
-  invalidateActiveWorkspace,
   invalidateTodosOf,
   linkStatusKeys,
   noteKeys,
-  refreshGitHubAttention,
   refreshLinksOf,
   setCachedTodoDescription,
   todoKeys,
-  workspaceKeys,
 } from "./queries";
+import { refreshGitHubAttention, workspaceKeys } from "#domains/workspaces";
 import { tagKeys } from "#domains/tags";
 import { playTodoCompletedSound } from "../utils/sounds";
 import { toasts } from "#shared/utils/toasts.svelte.ts";
 import { dateToTodaiDate, formatRelativeDay } from "#core/time";
-import { canSwitchWorkspace } from "../utils/workspaceSwitch";
 import { reorderTodos } from "../utils/todoOrder";
 
 // TODO: migrate other mutations to this file
@@ -367,29 +365,5 @@ export const createRefindGhMutation = () => {
     mutationFn: () => invokeApiClient({ name: "get_gh_status", args: { refind: true } }),
     // Replaces the cached status, rather than refetching it without looking for `gh` again.
     onSuccess: (status) => queryClient.setQueryData(ghKeys.status(), status),
-  }));
-};
-
-/**
- * Switches to another workspace, once what's being edited in the current one is saved (see `beforeWorkspaceSwitch`):
- * resolves to whether it did. Must be called during component initialization.
- */
-export const createSwitchWorkspaceMutation = () => {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: async ({ id }: Workspace) => {
-      if (!(await canSwitchWorkspace())) return false;
-      await invokeApiClient({ name: "switch_to_workspace", args: { id } });
-      return true;
-    },
-    // Returned so the mutation stays pending until everything is refetched from the other workspace's database.
-    onSuccess: (switched) => {
-      if (!switched) return;
-      return Promise.all([
-        // Dropped rather than only refetched: the note's editor is kept while its note is shown, and must start over
-        queryClient.resetQueries({ queryKey: noteKeys.all }),
-        invalidateActiveWorkspace(queryClient),
-      ]);
-    },
   }));
 };

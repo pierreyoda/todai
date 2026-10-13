@@ -1,13 +1,9 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { untrack } from "svelte";
 
-  import {
-    invokeApiClient,
-    type Workspace,
-    type WorkspaceBackup,
-  } from "../../../client/app";
-  import { invalidateActiveWorkspace } from "../../../client/queries";
+  import type { Workspace } from "../../model/types";
+  import type { WorkspaceBackup } from "../model/types";
+  import { createRestoreBackupMutation } from "../api/mutations";
   import { formatDateTime } from "#shared/utils/timestamps.ts";
   import Button from "#shared/ui/Button.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
@@ -29,16 +25,8 @@
     backup,
   }: BackupRestoreModalProps = $props();
 
-  const queryClient = useQueryClient();
   // Also refreshes the todos and tags, in case it's the active workspace's
-  const restore = createMutation(() => ({
-    mutationFn: ({ id }: WorkspaceBackup) =>
-      invokeApiClient({ name: "restore_workspace_backup", args: { id } }),
-    onSuccess: () => {
-      show = false;
-      return invalidateActiveWorkspace(queryClient);
-    },
-  }));
+  const restore = createRestoreBackupMutation({ onSuccess: () => (show = false) });
   // A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
   $effect(() => {
     if (!show) untrack(() => restore.reset());

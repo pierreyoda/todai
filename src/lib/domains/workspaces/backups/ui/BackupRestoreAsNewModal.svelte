@@ -1,19 +1,13 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { untrack } from "svelte";
 
-  import {
-    invokeApiClient,
-    type Workspace,
-    type WorkspaceBackup,
-  } from "../../../client/app";
-  import { invalidateActiveWorkspace } from "../../../client/queries";
+  import type { Workspace } from "../../model/types";
+  import type { WorkspaceBackup } from "../model/types";
+  import { createRestoreBackupAsNewMutation } from "../api/mutations";
   import { formatDateTime, formatShortDate } from "#shared/utils/timestamps.ts";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import Modal from "#shared/ui/Modal.svelte";
-  import WorkspaceForm, {
-    type WorkspaceFormData,
-  } from "../workspace/WorkspaceForm.svelte";
+  import WorkspaceForm from "../../ui/WorkspaceForm.svelte";
 
   /** Creates a workspace from a backup, with a copy of it as its database. Only reads `backup` initially. */
   type BackupRestoreAsNewModalProps = {
@@ -32,20 +26,13 @@
     onRestored,
   }: BackupRestoreAsNewModalProps = $props();
 
-  const queryClient = useQueryClient();
-  // Restoring as a new workspace switches to it.
-  const restoreAsNew = createMutation(() => ({
-    mutationFn: ({ name, path }: WorkspaceFormData) =>
-      invokeApiClient({
-        name: "restore_workspace_backup_as_new",
-        args: { id: backup.id, name, path },
-      }),
+  // Restoring as a new workspace switches to it
+  const restoreAsNew = createRestoreBackupAsNewMutation({
     onSuccess: (restored) => {
       show = false;
       onRestored?.(restored);
-      return invalidateActiveWorkspace(queryClient);
     },
-  }));
+  });
   // A failure is only shown until the modal closes. Untracked, so that resetting doesn't rerun the effect.
   $effect(() => {
     if (!show) untrack(() => restoreAsNew.reset());
@@ -72,7 +59,7 @@
     <WorkspaceForm
       initialName={`${workspace.name} (${formatShortDate(backup.createdAt)})`}
       submitLabel="Restore"
-      onSubmit={(data) => restoreAsNew.mutate(data)}
+      onSubmit={(data) => restoreAsNew.mutate({ backup, ...data })}
     />
   </div>
 </Modal>

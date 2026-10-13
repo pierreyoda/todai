@@ -4,10 +4,10 @@
   import {
     workspacesQueryOptions,
     activeWorkspaceQueryOptions,
-  } from "../../../client/queries";
+  } from "#domains/workspaces";
   import SidePanel from "../../../components/SidePanel.svelte";
   import LoadingState from "#shared/ui/LoadingState.svelte";
-  import WorkspaceSettings from "../../../components/settings/workspace/WorkspaceSettings.svelte";
+  import { WorkspaceSettings } from "#domains/workspaces";
 
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
   const workspaces = createQuery(() => workspacesQueryOptions);

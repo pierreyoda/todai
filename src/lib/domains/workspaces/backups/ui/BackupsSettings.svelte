@@ -1,22 +1,18 @@
 <script lang="ts">
-  import {
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
+  import { createQuery } from "@tanstack/svelte-query";
   import { save } from "@tauri-apps/plugin-dialog";
   import { untrack } from "svelte";
 
   import { goto } from "$app/navigation";
+  import type { Workspace } from "../../model/types";
+  import type { WorkspaceBackup } from "../model/types";
   import {
-    invokeApiClient,
-    type Workspace,
-    type WorkspaceBackup,
-  } from "../../../client/app";
-  import {
-    workspaceBackupsQueryOptions,
-    workspaceKeys,
-  } from "../../../client/queries";
+    createBackUpWorkspaceMutation,
+    createDeleteBackupMutation,
+    createExportWorkspaceMutation,
+    createShowBackupsFolderMutation,
+  } from "../api/mutations";
+  import { workspaceBackupsQueryOptions } from "../api/queries";
   import { dateToTodaiDate } from "#core/time";
   import { formatFileSize } from "#shared/utils/files.ts";
   import { basename } from "#shared/utils/paths.ts";
@@ -28,7 +24,7 @@
   import AutoBackupSettings from "./AutoBackupSettings.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
-  import WorkspacePicker from "../../common/WorkspacePicker.svelte";
+  import WorkspacePicker from "../../ui/WorkspacePicker.svelte";
   import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
   import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
   import IconArrowDownTray from "#shared/ui/icons/IconArrowDownTray.svelte";
@@ -45,38 +41,10 @@
     (backups.data ?? []).reduce((total, { size }) => total + (size ?? 0), 0),
   );
 
-  const queryClient = useQueryClient();
-  // Also refreshes their workspace's last backup, in the list
-  const refreshBackups = () =>
-    queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
-
-  const createBackup = createMutation(() => ({
-    mutationFn: ({ id }: Workspace) =>
-      invokeApiClient({
-        name: "create_workspace_backup",
-        args: { workspaceId: id },
-      }),
-    onSuccess: refreshBackups,
-  }));
-  const deleteBackup = createMutation(() => ({
-    mutationFn: ({ id }: WorkspaceBackup) =>
-      invokeApiClient({ name: "delete_workspace_backup", args: { id } }),
-    onSuccess: refreshBackups,
-  }));
-  const exportWorkspace = createMutation(() => ({
-    mutationFn: ({ workspace, path }: { workspace: Workspace; path: string }) =>
-      invokeApiClient({
-        name: "export_workspace",
-        args: { workspaceId: workspace.id, path },
-      }),
-  }));
-  const showBackups = createMutation(() => ({
-    mutationFn: ({ id }: Workspace) =>
-      invokeApiClient({
-        name: "open_workspace_backups_folder",
-        args: { workspaceId: id },
-      }),
-  }));
+  const createBackup = createBackUpWorkspaceMutation();
+  const deleteBackup = createDeleteBackupMutation();
+  const exportWorkspace = createExportWorkspaceMutation();
+  const showBackups = createShowBackupsFolderMutation();
 
   const mutations = [
     { mutation: createBackup, failure: "Could not back up the workspace" },

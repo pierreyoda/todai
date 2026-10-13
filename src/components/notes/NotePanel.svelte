@@ -11,7 +11,7 @@
   import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
   import { dateToTodaiDate, formatFullDay } from "#core/time";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
-  import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
+  import { beforeWorkspaceSwitch } from "#domains/workspaces";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SaveStatus from "#shared/ui/SaveStatus.svelte";
   import UnsavedLeaveModal from "#shared/ui/UnsavedLeaveModal.svelte";

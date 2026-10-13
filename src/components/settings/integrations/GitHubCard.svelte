@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import type { Workspace } from "../../../client/app";
+  import type { Workspace } from "#domains/workspaces";
   import {
     createDisconnectGitHubMutation,
     createRefindGhMutation,

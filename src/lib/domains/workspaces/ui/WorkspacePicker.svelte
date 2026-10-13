@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ClassValue } from "svelte/elements";
 
-  import type { Workspace } from "../../client/app";
+  import type { Workspace } from "../model/types";
   import {
     Dropdown,
     DropdownItem,

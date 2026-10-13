@@ -2,15 +2,15 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { basename } from "#shared/utils/paths.ts";
-  import type { Workspace } from "../../client/app";
-  import { createSwitchWorkspaceMutation } from "../../client/mutations";
+  import type { Workspace } from "../model/types";
+  import { createSwitchWorkspaceMutation } from "../api/mutations";
   import {
     activeWorkspaceQueryOptions,
     workspacesQueryOptions,
-  } from "../../client/queries";
+  } from "../api/queries";
   import { toasts } from "#shared/utils/toasts.svelte.ts";
-  import WorkspaceAvatar from "../common/WorkspaceAvatar.svelte";
-  import WorkspacePicker from "../common/WorkspacePicker.svelte";
+  import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
+  import WorkspacePicker from "./WorkspacePicker.svelte";
 
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
   const workspace = $derived(activeWorkspace.data ?? null);

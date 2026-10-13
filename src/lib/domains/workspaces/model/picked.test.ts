@@ -1,8 +1,8 @@
 import type { UUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import type { Workspace } from "../client/app";
-import { pickedWorkspace } from "./workspaces";
+import type { Workspace } from "./types";
+import { pickedWorkspace } from "./picked";
 
 const DATE = new Date("2026-10-10T12:00:00Z");
 

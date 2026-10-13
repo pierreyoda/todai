@@ -1,8 +1,9 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
-  import { invokeApiClient, type Workspace } from "../../../client/app";
-  import { workspaceKeys } from "../../../client/queries";
+  import { invokeApiClient } from "../../../client/app";
+  import type { Workspace } from "#domains/workspaces";
+  import { workspaceKeys } from "#domains/workspaces";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
-  import type { WorkspaceBackup } from "../../../client/app";
+  import type { WorkspaceBackup } from "../model/types";
   import { formatDateTime, formatFullDateTime } from "#shared/utils/timestamps.ts";
   import { formatFileSize } from "#shared/utils/files.ts";
   import { basename } from "#shared/utils/paths.ts";

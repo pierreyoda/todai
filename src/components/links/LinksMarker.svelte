@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import { activeWorkspaceQueryOptions } from "../../client/queries";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
   import type { TodoLink } from "../../client/types";
   import { formatLinksCount } from "../../utils/links";
   import { itemState, linkStatus } from "../../utils/linkStatuses";

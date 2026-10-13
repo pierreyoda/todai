@@ -8,8 +8,8 @@
   import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
   import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
   import Table from "#shared/ui/table/Table.svelte";
-  import type { Workspace } from "../../../client/app";
-  import { createSwitchWorkspaceMutation } from "../../../client/mutations";
+  import type { Workspace } from "../model/types";
+  import { createSwitchWorkspaceMutation } from "../api/mutations";
   import IconTrash from "#shared/ui/icons/IconTrash.svelte";
 
   type WorkspacesTableProps = {

@@ -4,8 +4,8 @@
 
   import { goto } from "$app/navigation";
   import { createAddTodoLinksMutation } from "../../client/mutations";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
   import {
-    activeWorkspaceQueryOptions,
     linkPreviewQueryOptions,
     parseLinkQueryOptions,
   } from "../../client/queries";

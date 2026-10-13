@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import { activeWorkspaceQueryOptions } from "../../client/queries";
+  import { activeWorkspaceQueryOptions } from "#domains/workspaces";
   import type { Todo } from "../../client/types";
   import Button from "#shared/ui/Button.svelte";
   import IconLink from "#shared/ui/icons/IconLink.svelte";
