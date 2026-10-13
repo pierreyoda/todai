@@ -1,4 +1,5 @@
-import type { Tag, Todo } from "../client/types";
+import type { Tag } from "#domains/tags";
+import type { Todo } from "../client/types";
 import {
   createTodoSearch,
   filterTodos,

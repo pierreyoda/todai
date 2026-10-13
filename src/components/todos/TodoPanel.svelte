@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { CreateQueryResult } from "@tanstack/svelte-query";
 
-  import type { Day, GitHubProblem, Tag, Todo } from "../../client/types";
+  import type { Day, GitHubProblem, Todo } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import SearchField from "#shared/ui/SearchField.svelte";
   import TodoList from "./TodoList.svelte";
   import TodoCreateSection from "./TodoCreateSection.svelte";

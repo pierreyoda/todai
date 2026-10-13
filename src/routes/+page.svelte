@@ -2,14 +2,14 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { goto } from "$app/navigation";
-  import type { Tag } from "../client/types";
+  import type { Tag } from "#domains/tags";
   import { dateToTodaiDate } from "#core/time";
   import {
     activeWorkspaceQueryOptions,
     linkStatusesQueryOptions,
-    tagsQueryOptions,
     todosQueryOptions,
   } from "../client/queries";
+  import { tagsQueryOptions } from "#domains/tags";
   import LoadingState from "#shared/ui/LoadingState.svelte";
   import SidePanel from "../components/SidePanel.svelte";
   import TodoPanel from "../components/todos/TodoPanel.svelte";

@@ -7,7 +7,6 @@ import type {
   ParsedLink,
   Placement,
   RefreshOutcome,
-  Tag,
   Todo,
   TodoLink,
   TodoMonth,
@@ -126,33 +125,6 @@ type ClientInvocationCommand = {
       description: string;
     };
     returns: string | null;
-  };
-  list_tags: {
-    args?: never;
-    returns: Tag[];
-  };
-  create_tag: {
-    args: {
-      name: string;
-      /** Format: #RRGGBB. */
-      color: string;
-    };
-    returns: Tag;
-  };
-  update_tag: {
-    args: {
-      id: UUID;
-      name?: string;
-      /** Format: #RRGGBB. */
-      color?: string;
-    };
-    returns: Tag;
-  };
-  delete_tag: {
-    args: {
-      id: UUID;
-    };
-    returns: never;
   };
   /** Replaces the todo's tags with `tagIds`. */
   set_todo_tags: {

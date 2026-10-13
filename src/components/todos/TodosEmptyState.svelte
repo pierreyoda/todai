@@ -2,7 +2,7 @@
   import { fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
 
-  import type { Tag } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import Button from "#shared/ui/Button.svelte";
   import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";
   import IconSun from "#shared/ui/icons/IconSun.svelte";

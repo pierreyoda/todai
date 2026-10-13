@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ClassValue } from "svelte/elements";
 
-  import type { Tag } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import TodoPanelAppliedFilter from "./TodoPanelAppliedFilter.svelte";
 
   type TodoPanelFiltersProps = {

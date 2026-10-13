@@ -13,10 +13,10 @@ import {
   refreshGitHubAttention,
   refreshLinksOf,
   setCachedTodoDescription,
-  tagKeys,
   todoKeys,
   workspaceKeys,
 } from "./queries";
+import { tagKeys } from "#domains/tags";
 import { playTodoCompletedSound } from "../utils/sounds";
 import { toasts } from "#shared/utils/toasts.svelte.ts";
 import { dateToTodaiDate, formatRelativeDay } from "#core/time";

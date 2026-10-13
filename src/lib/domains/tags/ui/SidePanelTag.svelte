@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { tick } from "svelte";
 
-  import { invokeClient } from "../client";
-  import type { Tag } from "../client/types";
-  import { tagKeys } from "../client/queries";
+  import type { Tag } from "../model/types";
+  import { createUpdateTagMutation } from "../api/mutations";
   import { contextMenu } from "#shared/ui/contextMenu.ts";
   import EditableText from "#shared/ui/EditableText.svelte";
   import { DropdownTrigger } from "#shared/ui/dropdown/index.ts";
@@ -18,21 +16,10 @@
   };
   const { tag, selected, onSelectedChanged }: SidePanelTagProps = $props();
 
-  const queryClient = useQueryClient();
-  const updateTagName = createMutation(() => ({
-    mutationFn: (newName: string) =>
-      invokeClient({
-        name: "update_tag",
-        args: { id: tag.id, name: newName },
-      }),
-    onSuccess: () => {
-      // Todos reference tags by ID, so the tags list is the only one to refresh
-      return queryClient.invalidateQueries({ queryKey: tagKeys.all });
-    },
-  }));
+  const updateTagName = createUpdateTagMutation();
   const saveName = (name: string) => {
     // Also called when confirming the unchanged name
-    if (name !== tag.name) updateTagName.mutate(name);
+    if (name !== tag.name) updateTagName.mutate({ id: tag.id, name });
   };
 
   let renaming = $state(false);

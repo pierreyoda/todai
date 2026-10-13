@@ -12,10 +12,10 @@ import {
   noteKeys,
   refreshGitHubAttention,
   setCachedTodoDescription,
-  tagKeys,
   todoKeys,
   workspaceKeys,
 } from "./queries";
+import { tagKeys } from "#domains/tags";
 import type { Day, Todo, TodoMonth } from "./types";
 
 describe("invalidateTodosOf", () => {

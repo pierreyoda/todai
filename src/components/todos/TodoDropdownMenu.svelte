@@ -6,9 +6,10 @@
     DropdownItem,
     DropdownDivider,
   } from "#shared/ui/dropdown/index.ts";
-  import type { Todo, Tag } from "../../client/types";
+  import type { Todo } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
-  import TagUpsertModal from "../tags/TagUpsertModal.svelte";
+  import { TagUpsertModal } from "#domains/tags";
   import {
     createDeleteTodoMutation,
     createMoveTodoMutation,

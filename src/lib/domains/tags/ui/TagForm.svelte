@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RGB_TAG_COLOR_PRESETS } from "../../constants";
+  import { RGB_TAG_COLOR_PRESETS } from "../model/colors";
   import Button from "#shared/ui/Button.svelte";
   import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
   import FieldText from "#shared/ui/FieldText.svelte";

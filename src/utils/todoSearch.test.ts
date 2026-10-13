@@ -1,7 +1,8 @@
 import type { UUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import type { Tag, Todo } from "../client/types";
+import type { Tag } from "#domains/tags";
+import type { Todo } from "../client/types";
 import { createTodoSearch, filterTodos } from "./todoSearch";
 
 const DATE = new Date("2026-10-01T00:00:00Z");

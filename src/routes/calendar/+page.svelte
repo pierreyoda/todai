@@ -1,9 +1,9 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import type { Tag } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import { dateToTodaiDate } from "#core/time";
-  import { tagsQueryOptions } from "../../client/queries";
+  import { tagsQueryOptions } from "#domains/tags";
   import SidePanel from "../../components/SidePanel.svelte";
   import VerticalCalendar from "../../components/common/calendar/VerticalCalendar.svelte";
 

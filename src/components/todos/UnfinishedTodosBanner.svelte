@@ -7,7 +7,8 @@
     unfinishedTodosQueryOptions,
   } from "../../client/queries";
   import { createMoveTodosMutation } from "../../client/mutations";
-  import type { Day, Tag, Todo } from "../../client/types";
+  import type { Day, Todo } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../../constants";
   import { addDays, formatDay } from "#core/time";
   import Button from "#shared/ui/Button.svelte";

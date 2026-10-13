@@ -7,7 +7,8 @@
   import { attachDraggable, attachDroppable } from "@thisux/sveltednd";
 
   import { invokeClient } from "../../client";
-  import type { Placement, Tag, Todo } from "../../client/types";
+  import type { Placement, Todo } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import {
     activeWorkspaceQueryOptions,
     invalidateTodosOf,

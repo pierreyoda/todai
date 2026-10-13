@@ -1,11 +1,9 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import type { Snippet } from "svelte";
 
-  import { invokeClient } from "../client";
-  import type { Tag } from "../client/types";
-  import { tagKeys } from "../client/queries";
-  import TagUpsertModal from "./tags/TagUpsertModal.svelte";
+  import type { Tag } from "../model/types";
+  import { createDeleteTagMutation } from "../api/mutations";
+  import TagUpsertModal from "./TagUpsertModal.svelte";
   import IconTrash from "#shared/ui/icons/IconTrash.svelte";
   import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
   import {
@@ -33,18 +31,7 @@
     children,
   }: SidePanelTagDropdownProps = $props();
 
-  const queryClient = useQueryClient();
-  const deleteTag = createMutation(() => ({
-    mutationFn: () =>
-      invokeClient({
-        name: "delete_tag",
-        args: { id: tag.id },
-      }),
-    onSuccess: () => {
-      onDeleted();
-      return queryClient.invalidateQueries({ queryKey: tagKeys.all });
-    },
-  }));
+  const deleteTag = createDeleteTagMutation({ onSuccess: () => onDeleted() });
   let confirmDeletion = $state(false);
   $effect(() => {
     if (!open) confirmDeletion = false;
@@ -73,7 +60,7 @@
     <DropdownDivider />
     <DropdownItem
       onclick={() => {
-        if (confirmDeletion) deleteTag.mutate();
+        if (confirmDeletion) deleteTag.mutate(tag.id);
         else confirmDeletion = true;
       }}
     >

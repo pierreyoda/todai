@@ -2,16 +2,16 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { activeWorkspaceQueryOptions, noteQueryOptions } from "../client/queries";
-  import type { Tag } from "../client/types";
+  import type { Tag } from "#domains/tags";
   import { dateToTodaiDate, formatDay } from "#core/time";
   import { noteDrafts } from "../utils/noteDrafts.svelte";
   import Collapse from "#shared/ui/Collapse.svelte";
-  import SidePanelTag from "./SidePanelTag.svelte";
+  import { SidePanelTag } from "#domains/tags";
   import IconSun from "#shared/ui/icons/IconSun.svelte";
   import IconPlus from "#shared/ui/icons/IconPlus.svelte";
   import SidePanelLink from "./layout/SidePanelLink.svelte";
-  import TagUpsertModal from "./tags/TagUpsertModal.svelte";
-  import TagsEmptyState from "./tags/TagsEmptyState.svelte";
+  import { TagUpsertModal } from "#domains/tags";
+  import { TagsEmptyState } from "#domains/tags";
   import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
   import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
   import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";

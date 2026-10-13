@@ -96,15 +96,6 @@ export const setCachedTodoDescription = (
   }
 };
 
-export const tagKeys = {
-  all: [...workspaceDataKey, "tags"] as const,
-  id: (id: UUID) => [...tagKeys.all, id] as const,
-};
-
-export const tagsQueryOptions = queryOptions({
-  queryKey: tagKeys.all,
-  queryFn: () => invokeClient({ name: "list_tags" }),
-});
 
 /**
  * Days are `YYYY-MM-DD`, so they never collide with `"months"`. The months' notes are nested in the list of months, so

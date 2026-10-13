@@ -3,8 +3,10 @@
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
   import { invokeClient } from "../../client";
-  import { invalidateTodosOf, tagKeys } from "../../client/queries";
-  import type { Day, Tag } from "../../client/types";
+  import { invalidateTodosOf } from "../../client/queries";
+  import { tagKeys } from "#domains/tags";
+  import type { Day } from "../../client/types";
+  import type { Tag } from "#domains/tags";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
 
   type TodoLineItemTagToggleProps = {

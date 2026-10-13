@@ -5,7 +5,8 @@
     monthNotesQueryOptions,
     monthTodosQueryOptions,
   } from "../../../client/queries";
-  import type { Day, Month, Tag } from "../../../client/types";
+  import type { Day, Month } from "../../../client/types";
+  import type { Tag } from "#domains/tags";
   import { weekOf, weeksOfMonth } from "#core/time";
   import CalendarWeek from "./CalendarWeek.svelte";
 
