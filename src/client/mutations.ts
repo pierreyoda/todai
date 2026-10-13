@@ -18,7 +18,7 @@ import {
   workspaceKeys,
 } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
-import { toasts } from "#shared/lib/toasts.svelte.ts";
+import { toasts } from "#shared/utils/toasts.svelte.ts";
 import { dateToTodaiDate, formatRelativeDay } from "../utils/dates";
 import { canSwitchWorkspace } from "../utils/workspaceSwitch";
 import { reorderTodos } from "../utils/todoOrder";

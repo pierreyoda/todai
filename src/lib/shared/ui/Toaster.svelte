@@ -2,7 +2,7 @@
   import { fade, fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
 
-  import { toasts } from "../lib/toasts.svelte";
+  import { toasts } from "../utils/toasts.svelte";
   import Button from "./Button.svelte";
   import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
   import IconXMark from "./icons/IconXMark.svelte";

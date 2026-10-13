@@ -10,7 +10,7 @@ import type {
   Todo,
   TodoLink,
 } from "../client/types";
-import { formatTime } from "#shared/lib/timestamps.ts";
+import { formatTime } from "#shared/utils/timestamps.ts";
 import { hasLink } from "./links";
 
 /**
