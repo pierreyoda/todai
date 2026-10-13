@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Day, Note } from "../../client/types";
+  import type { Day } from "#core/time";
+  import type { Note } from "../../client/types";
   import { formatDateTime } from "#shared/utils/timestamps.ts";
   import { formatFullDay } from "#core/time";
   import { notePath } from "../../utils/notes";

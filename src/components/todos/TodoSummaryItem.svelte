@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Day, Todo } from "../../client/types";
+  import type { Day } from "#core/time";
+  import type { Todo } from "../../client/types";
   import type { Tag } from "#domains/tags";
   import {
     createMoveTodoMutation,

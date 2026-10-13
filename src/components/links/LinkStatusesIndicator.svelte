@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { GitHubProblem, TodoLink } from "../../client/types";
+  import type { GitHubProblem } from "#core/github";
+  import type { TodoLink } from "../../client/types";
   import {
     describeProblem,
     statusesFetchedAt,

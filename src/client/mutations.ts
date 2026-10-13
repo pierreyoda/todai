@@ -2,7 +2,8 @@ import { createMutation, useQueryClient, type QueryClient } from "@tanstack/svel
 
 import { invokeClient } from ".";
 import { invokeApiClient, type Workspace } from "./app";
-import type { Day, Estimate, Placement, Todo, TodoLink } from "./types";
+import type { Day } from "#core/time";
+import type { Estimate, Placement, Todo, TodoLink } from "./types";
 import {
   cancelTodoListsOf,
   ghKeys,

@@ -5,7 +5,7 @@
   import { invokeClient } from "../../client";
   import { invalidateTodosOf } from "../../client/queries";
   import { tagKeys } from "#domains/tags";
-  import type { Day } from "../../client/types";
+  import type { Day } from "#core/time";
   import type { Tag } from "#domains/tags";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
 

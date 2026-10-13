@@ -5,7 +5,7 @@
     noteMonthsQueryOptions,
     todoMonthsQueryOptions,
   } from "../../../client/queries";
-  import type { Day } from "../../../client/types";
+  import type { Day } from "#core/time";
   import type { Tag } from "#domains/tags";
   import {
     addMonths,

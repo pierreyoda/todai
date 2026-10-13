@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Day, Note, Todo } from "../../../client/types";
+  import type { Day } from "#core/time";
+  import type { Note, Todo } from "../../../client/types";
   import type { Tag } from "#domains/tags";
   import { formatDay, formatFullDay, formatWeek, type Week } from "#core/time";
   import { notePath } from "../../../utils/notes";

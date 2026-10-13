@@ -26,8 +26,9 @@
   };
   const { data, mode, onSubmit, onDelete }: TagFormProps = $props();
 
-  let editedName = $state(data?.name ?? "");
-  let editedColor = $state(data?.color ?? null);
+  // Follow the tag (once saved, e.g. renamed from the side panel while this form stays mounted), edited here until then
+  let editedName = $derived(data?.name ?? "");
+  let editedColor = $derived(data?.color ?? null);
   const valid = $derived(editedName.trim().length > 0 && !!editedColor);
 </script>
 

@@ -16,7 +16,8 @@ import {
   workspaceKeys,
 } from "./queries";
 import { tagKeys } from "#domains/tags";
-import type { Day, Todo, TodoMonth } from "./types";
+import type { Day } from "#core/time";
+import type { Todo, TodoMonth } from "./types";
 
 describe("invalidateTodosOf", () => {
   const keys = {

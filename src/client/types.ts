@@ -3,9 +3,6 @@ import type { UUID } from "node:crypto";
 import type { Day, Month } from "#core/time";
 import type { GitHubProblem } from "#core/github";
 
-// Moved: still re-exported for their importers, until they're moved too
-export type { Day, GitHubProblem, Month };
-
 /** A month's statistics about its non-deleted todos. */
 export interface TodoMonth {
   month: Month;

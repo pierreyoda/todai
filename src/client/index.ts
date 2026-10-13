@@ -1,8 +1,7 @@
+import type { Day, Month } from "#core/time";
 import type {
-  Day,
   Estimate,
   LinkPreview,
-  Month,
   Note,
   ParsedLink,
   Placement,

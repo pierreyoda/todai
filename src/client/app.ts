@@ -1,7 +1,7 @@
 import type { UUID } from "node:crypto";
 
 import { createInvoker } from "#shared/ipc/invoke.ts";
-import type { GitHubProblem } from "./types";
+import type { GitHubProblem } from "#core/github";
 
 /** A workspace, with its own database. */
 export interface Workspace {

@@ -5,7 +5,8 @@
   import { beforeNavigate, goto } from "$app/navigation";
 
   import { createSaveNoteMutation } from "../../client/mutations";
-  import type { Day, Note } from "../../client/types";
+  import type { Day } from "#core/time";
+  import type { Note } from "../../client/types";
   import { Autosave } from "#shared/utils/autosave.svelte.ts";
   import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
   import { dateToTodaiDate, formatFullDay } from "#core/time";

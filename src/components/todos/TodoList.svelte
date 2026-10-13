@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createReorderTodoMutation } from "../../client/mutations";
-  import type { Day, Placement, Todo } from "../../client/types";
+  import type { Day } from "#core/time";
+  import type { Placement, Todo } from "../../client/types";
   import type { Tag } from "#domains/tags";
   import { reorderTodos, sameOrder } from "../../utils/todoOrder";
   import TodoLineItem from "./TodoLineItem.svelte";

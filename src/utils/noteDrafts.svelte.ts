@@ -1,6 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
 
-import type { Day } from "../client/types";
+import type { Day } from "#core/time";
 
 /**
  * The notes being written, by day, so that what shows whether a day has a note follows its editor rather than its

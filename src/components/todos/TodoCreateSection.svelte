@@ -13,7 +13,8 @@
     linkPreviewQueryOptions,
     parseLinkQueryOptions,
   } from "../../client/queries";
-  import type { Day, ParsedLink } from "../../client/types";
+  import type { Day } from "#core/time";
+  import type { ParsedLink } from "../../client/types";
   import { mayBeLink } from "../../utils/links";
   import { itemState, linkStatus, stateStatus } from "../../utils/linkStatuses";
   import FieldText from "#shared/ui/FieldText.svelte";

@@ -1,7 +1,6 @@
 import type {
   Check,
   Checks,
-  GitHubProblem,
   GitHubSnapshot,
   ItemState,
   ParsedLink,
@@ -10,6 +9,7 @@ import type {
   Todo,
   TodoLink,
 } from "../client/types";
+import type { GitHubProblem } from "#core/github";
 import { formatTime } from "#shared/utils/timestamps.ts";
 import { hasLink } from "./links";
 
