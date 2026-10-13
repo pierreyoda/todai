@@ -2,8 +2,8 @@
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { untrack } from "svelte";
 
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import Modal from "../../common/Modal.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
   import { invokeApiClient, type Workspace } from "../../../client/app";
   import { invalidateActiveWorkspace, workspaceKeys } from "../../../client/queries";
   import WorkspaceForm, { type WorkspaceFormData } from "./WorkspaceForm.svelte";

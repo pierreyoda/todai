@@ -8,7 +8,7 @@
   } from "../../../../client/queries";
   import SidePanel from "../../../../components/SidePanel.svelte";
   import NotePanel from "../../../../components/notes/NotePanel.svelte";
-  import LoadingState from "../../../../components/common/LoadingState.svelte";
+  import LoadingState from "#shared/ui/LoadingState.svelte";
   import type { PageProps } from "./$types";
 
   const { data }: PageProps = $props();

@@ -9,7 +9,7 @@
   } from "../../utils/markdownEditing";
   import { tick } from "svelte";
 
-  import FieldTextArea from "../common/FieldTextArea.svelte";
+  import FieldTextArea from "#shared/ui/FieldTextArea.svelte";
 
   type MarkdownEditorProps = {
     /** Bindable: the edited Markdown. */

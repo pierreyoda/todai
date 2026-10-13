@@ -10,7 +10,7 @@
     tagsQueryOptions,
     todosQueryOptions,
   } from "../client/queries";
-  import LoadingState from "../components/common/LoadingState.svelte";
+  import LoadingState from "#shared/ui/LoadingState.svelte";
   import SidePanel from "../components/SidePanel.svelte";
   import TodoPanel from "../components/todos/TodoPanel.svelte";
 

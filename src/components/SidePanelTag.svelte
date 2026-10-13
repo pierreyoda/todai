@@ -5,10 +5,10 @@
   import { invokeClient } from "../client";
   import type { Tag } from "../client/types";
   import { tagKeys } from "../client/queries";
-  import { contextMenu } from "../utils/contextMenu";
-  import EditableText from "./common/EditableText.svelte";
-  import { DropdownTrigger } from "./common/dropdown";
-  import IconEllipsisVertical from "./common/icons/IconEllipsisVertical.svelte";
+  import { contextMenu } from "#shared/ui/contextMenu.ts";
+  import EditableText from "#shared/ui/EditableText.svelte";
+  import { DropdownTrigger } from "#shared/ui/dropdown/index.ts";
+  import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
   import SidePanelTagDropdown from "./SidePanelTagDropdown.svelte";
 
   type SidePanelTagProps = {

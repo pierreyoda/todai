@@ -2,8 +2,8 @@
   import type { Snippet } from "svelte";
   import type { ClassValue } from "svelte/elements";
 
-  import Button from "../common/Button.svelte";
-  import IconXMark from "../common/icons/IconXMark.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
 
   type TodoPanelAppliedFilterProps = {
     children: Snippet;

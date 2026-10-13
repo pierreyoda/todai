@@ -1,19 +1,16 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import {
-    basename,
-    dateToTodaiDate,
-    formatFullDateTime,
-    formatRelativeTime,
-  } from "../../../utils";
-  import Button from "../../common/Button.svelte";
-  import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
-  import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
-  import IconPencilSquare from "../../common/icons/IconPencilSquare.svelte";
-  import Table from "../../common/table/Table.svelte";
+  import { formatFullDateTime, formatRelativeTime } from "#shared/lib/timestamps.ts";
+  import { dateToTodaiDate } from "../../../utils/dates";
+  import { basename } from "#shared/lib/paths.ts";
+  import Button from "#shared/ui/Button.svelte";
+  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+  import Table from "#shared/ui/table/Table.svelte";
   import type { Workspace } from "../../../client/app";
   import { createSwitchWorkspaceMutation } from "../../../client/mutations";
-  import IconTrash from "../../common/icons/IconTrash.svelte";
+  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
 
   type WorkspacesTableProps = {
     workspaces: readonly Workspace[];

@@ -8,12 +8,12 @@
     type WorkspaceBackup,
   } from "../../../client/app";
   import { invalidateActiveWorkspace } from "../../../client/queries";
-  import { formatDateTime } from "../../../utils";
-  import Button from "../../common/Button.svelte";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import IconArrowUturnLeft from "../../common/icons/IconArrowUturnLeft.svelte";
-  import IconShieldCheck from "../../common/icons/IconShieldCheck.svelte";
-  import Modal from "../../common/Modal.svelte";
+  import { formatDateTime } from "#shared/lib/timestamps.ts";
+  import Button from "#shared/ui/Button.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";
+  import IconShieldCheck from "#shared/ui/icons/IconShieldCheck.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
 
   /** Confirms restoring a backup into its workspace's database. */
   type BackupRestoreModalProps = {

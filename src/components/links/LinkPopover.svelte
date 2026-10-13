@@ -8,7 +8,7 @@
     createRemoveTodoLinkMutation,
   } from "../../client/mutations";
   import { activeWorkspaceQueryOptions } from "../../client/queries";
-  import { formatRelativeTime } from "../../utils/dates";
+  import { formatRelativeTime } from "#shared/lib/timestamps.ts";
   import { hasLink } from "../../utils/links";
   import {
     checkName,
@@ -21,12 +21,12 @@
     stateStatus,
   } from "../../utils/linkStatuses";
   import { openLink } from "../../utils/openLink";
-  import Button from "../common/Button.svelte";
-  import ErrorBanner from "../common/ErrorBanner.svelte";
-  import IconArrowPath from "../common/icons/IconArrowPath.svelte";
-  import IconArrowTopRightOnSquare from "../common/icons/IconArrowTopRightOnSquare.svelte";
-  import IconExclamationTriangle from "../common/icons/IconExclamationTriangle.svelte";
-  import { computePosition } from "../common/dropdown/positioning";
+  import Button from "#shared/ui/Button.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import IconArrowPath from "#shared/ui/icons/IconArrowPath.svelte";
+  import IconArrowTopRightOnSquare from "#shared/ui/icons/IconArrowTopRightOnSquare.svelte";
+  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+  import { computePosition } from "#shared/ui/dropdown/positioning.ts";
   import LinkChip from "./LinkChip.svelte";
   import LinkKindIcon from "./LinkKindIcon.svelte";
 

@@ -5,11 +5,11 @@
 <script lang="ts">
   import { save } from "@tauri-apps/plugin-dialog";
 
-  import Button from "../../common/Button.svelte";
+  import Button from "#shared/ui/Button.svelte";
   import type { Workspace } from "../../../client/app";
-  import FieldText from "../../common/FieldText.svelte";
-  import { isValidPath } from "../../../utils";
-  import IconMagnifyingGlass from "../../common/icons/IconMagnifyingGlass.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
+  import { isValidPath } from "#shared/lib/paths.ts";
+  import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";
 
   type WorkspaceFormProps = (
     | {

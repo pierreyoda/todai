@@ -4,7 +4,7 @@
   import { page } from "$app/state";
   import { workspacesQueryOptions } from "../../../client/queries";
   import SidePanel from "../../../components/SidePanel.svelte";
-  import LoadingState from "../../../components/common/LoadingState.svelte";
+  import LoadingState from "#shared/ui/LoadingState.svelte";
   import BackupsSettings from "../../../components/settings/backups/BackupsSettings.svelte";
   import { pickedWorkspace } from "../../../utils/workspaces";
 

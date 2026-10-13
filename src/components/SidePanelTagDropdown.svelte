@@ -6,14 +6,14 @@
   import type { Tag } from "../client/types";
   import { tagKeys } from "../client/queries";
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";
-  import IconTrash from "./common/icons/IconTrash.svelte";
-  import IconPencilSquare from "./common/icons/IconPencilSquare.svelte";
+  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
   import {
     Dropdown,
     DropdownDivider,
     DropdownItem,
     DropdownMenu,
-  } from "./common/dropdown";
+  } from "#shared/ui/dropdown/index.ts";
 
   type SidePanelTagDropdownProps = {
     /** Bindable value. */

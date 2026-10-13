@@ -1,8 +1,6 @@
 import type { UUID } from "node:crypto";
 
-import { invoke } from "@tauri-apps/api/core";
-import { parseResponse } from "../utils/client";
-import type { Invocation } from ".";
+import { createInvoker } from "#shared/ipc/invoke.ts";
 import type { GitHubProblem } from "./types";
 
 /** A workspace, with its own database. */
@@ -283,10 +281,4 @@ export type ClientInvocationAppCommand = {
   };
 };
 
-export type ClientAppCommandName = keyof ClientInvocationAppCommand;
-
-export const invokeApiClient = async <N extends ClientAppCommandName, R = ClientInvocationAppCommand[N]["returns"]>(c: Invocation<ClientInvocationAppCommand, N>): Promise<R> =>
-  invoke(c.name, c.args).then(parseResponse<R>).catch((e) => {
-    console.error(`Error invoking app command ${c.name}:`, e);
-    throw e;
-  });
+export const invokeApiClient = createInvoker<ClientInvocationAppCommand>("app command");

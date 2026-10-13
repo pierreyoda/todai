@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { WorkspaceBackupKind } from "../../../client/app";
-  import IconClock from "../../common/icons/IconClock.svelte";
+  import IconClock from "#shared/ui/icons/IconClock.svelte";
 
   const LABELS: Record<WorkspaceBackupKind, string> = {
     manual: "Manual",

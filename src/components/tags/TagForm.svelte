@@ -1,9 +1,9 @@
 <script lang="ts">
   import { RGB_TAG_COLOR_PRESETS } from "../../constants";
-  import Button from "../common/Button.svelte";
-  import ConfirmButton from "../common/ConfirmButton.svelte";
-  import FieldText from "../common/FieldText.svelte";
-  import PickableColor from "../common/PickableColor.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
+  import PickableColor from "#shared/ui/PickableColor.svelte";
 
   type TagFormProps = (
     | {

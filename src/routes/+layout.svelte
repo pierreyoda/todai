@@ -3,8 +3,8 @@
   import { QueryClientProvider } from "@tanstack/svelte-query";
   import type { Snippet } from "svelte";
 
-  import { queryClient } from "../client/queries";
-  import Toaster from "../components/common/Toaster.svelte";
+  import { queryClient } from "#shared/ipc/queryClient.ts";
+  import Toaster from "#shared/ui/Toaster.svelte";
 
   type LayoutProps = {
     children: Snippet;

@@ -5,7 +5,7 @@
     DropdownSubmenu,
     DropdownItem,
     DropdownDivider,
-  } from "../common/dropdown";
+  } from "#shared/ui/dropdown/index.ts";
   import type { Todo, Tag } from "../../client/types";
   import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
   import TagUpsertModal from "../tags/TagUpsertModal.svelte";
@@ -19,18 +19,18 @@
     TODO_ESTIMATE_MINUTES_PRESETS,
     TODO_ESTIMATE_POINTS_PRESET,
   } from "../../constants";
-  import { formatEstimates } from "../../utils";
+  import { formatEstimates } from "../../utils/estimates";
   import { addDays, dateToTodaiDate, formatDay } from "../../utils/dates";
   import DatePickerModal from "../common/DatePickerModal.svelte";
-  import IconArrowRight from "../common/icons/IconArrowRight.svelte";
-  import IconCalendar from "../common/icons/IconCalendar.svelte";
-  import IconClock from "../common/icons/IconClock.svelte";
-  import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
-  import IconSun from "../common/icons/IconSun.svelte";
-  import IconLink from "../common/icons/IconLink.svelte";
-  import IconTag from "../common/icons/IconTag.svelte";
-  import IconTrash from "../common/icons/IconTrash.svelte";
-  import IconXMark from "../common/icons/IconXMark.svelte";
+  import IconArrowRight from "#shared/ui/icons/IconArrowRight.svelte";
+  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+  import IconClock from "#shared/ui/icons/IconClock.svelte";
+  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+  import IconSun from "#shared/ui/icons/IconSun.svelte";
+  import IconLink from "#shared/ui/icons/IconLink.svelte";
+  import IconTag from "#shared/ui/icons/IconTag.svelte";
+  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
   import AddLinkModal from "../links/AddLinkModal.svelte";
   import LinkKindIcon from "../links/LinkKindIcon.svelte";
 

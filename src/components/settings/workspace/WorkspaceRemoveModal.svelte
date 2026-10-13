@@ -3,11 +3,11 @@
 
   import type { Workspace } from "../../../client/app";
   import { workspaceBackupsQueryOptions } from "../../../client/queries";
-  import { formatFileSize } from "../../../utils";
-  import Button from "../../common/Button.svelte";
-  import FieldCheckbox from "../../common/FieldCheckbox.svelte";
-  import FieldText from "../../common/FieldText.svelte";
-  import Modal from "../../common/Modal.svelte";
+  import { formatFileSize } from "#shared/lib/files.ts";
+  import Button from "#shared/ui/Button.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
 
   /** To be typed by the user, to allow the deletion. */
   const CONFIRMATION = "Delete";

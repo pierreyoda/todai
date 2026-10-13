@@ -8,8 +8,8 @@
     DropdownMenu,
     DropdownSection,
     DropdownTrigger,
-  } from "./dropdown";
-  import IconChevronUpDown from "./icons/IconChevronUpDown.svelte";
+  } from "#shared/ui/dropdown/index.ts";
+  import IconChevronUpDown from "#shared/ui/icons/IconChevronUpDown.svelte";
   import WorkspaceAvatar from "./WorkspaceAvatar.svelte";
 
   type WorkspacePickerProps = {

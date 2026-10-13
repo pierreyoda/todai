@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { AutosaveStatus } from "../../utils/autosave.svelte";
-  import { formatFullDateTime, formatTime } from "../../utils/dates";
+  import type { AutosaveStatus } from "../lib/autosave.svelte";
+  import { formatFullDateTime, formatTime } from "../lib/timestamps";
   import IconCheckCircle from "./icons/IconCheckCircle.svelte";
   import IconExclamationTriangle from "./icons/IconExclamationTriangle.svelte";
 

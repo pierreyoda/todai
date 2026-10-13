@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Day } from "../../client/types";
   import { formatShortDay } from "../../utils/dates";
-  import Button from "./Button.svelte";
+  import Button from "#shared/ui/Button.svelte";
   import DatePickerModal from "./DatePickerModal.svelte";
-  import IconCalendar from "./icons/IconCalendar.svelte";
+  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
 
   /** A button showing the selected `day`, which opens a month calendar in a modal to pick another one. */
   type DayPickerProps = {

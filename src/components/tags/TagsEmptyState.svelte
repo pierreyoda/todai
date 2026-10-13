@@ -2,8 +2,8 @@
   import { scale } from "svelte/transition";
   import { backOut } from "svelte/easing";
 
-  import IconTag from "../common/icons/IconTag.svelte";
-  import IconPlus from "../common/icons/IconPlus.svelte";
+  import IconTag from "#shared/ui/icons/IconTag.svelte";
+  import IconPlus from "#shared/ui/icons/IconPlus.svelte";
 
   type TagsEmptyStateProps = {
     onCreate: () => void;

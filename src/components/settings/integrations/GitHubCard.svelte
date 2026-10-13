@@ -10,12 +10,12 @@
     ghStatusQueryOptions,
     githubApiStatusQueryOptions,
   } from "../../../client/queries";
-  import { formatTime } from "../../../utils/dates";
+  import { formatTime } from "#shared/lib/timestamps.ts";
   import { githubConnectionState } from "../../../utils/github";
   import { describeProblem } from "../../../utils/linkStatuses";
-  import Button from "../../common/Button.svelte";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import IconPullRequest from "../../common/icons/IconPullRequest.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import IconPullRequest from "#shared/ui/icons/IconPullRequest.svelte";
   import GitHubConnectModal from "./GitHubConnectModal.svelte";
 
   type GitHubCardProps = {

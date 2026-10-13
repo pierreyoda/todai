@@ -2,21 +2,18 @@
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   import type { WorkspaceBackup } from "../../../client/app";
-  import {
-    basename,
-    formatDateTime,
-    formatFileSize,
-    formatFullDateTime,
-    SHOW_IN_FILE_MANAGER,
-  } from "../../../utils";
-  import Button from "../../common/Button.svelte";
-  import ConfirmButton from "../../common/ConfirmButton.svelte";
-  import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
-  import IconArrowUturnLeft from "../../common/icons/IconArrowUturnLeft.svelte";
-  import IconDocumentDuplicate from "../../common/icons/IconDocumentDuplicate.svelte";
-  import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
-  import IconTrash from "../../common/icons/IconTrash.svelte";
-  import Table from "../../common/table/Table.svelte";
+  import { formatDateTime, formatFullDateTime } from "#shared/lib/timestamps.ts";
+  import { formatFileSize } from "#shared/lib/files.ts";
+  import { basename } from "#shared/lib/paths.ts";
+  import { SHOW_IN_FILE_MANAGER } from "#shared/lib/platform.ts";
+  import Button from "#shared/ui/Button.svelte";
+  import ConfirmButton from "#shared/ui/ConfirmButton.svelte";
+  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+  import IconArrowUturnLeft from "#shared/ui/icons/IconArrowUturnLeft.svelte";
+  import IconDocumentDuplicate from "#shared/ui/icons/IconDocumentDuplicate.svelte";
+  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+  import IconTrash from "#shared/ui/icons/IconTrash.svelte";
+  import Table from "#shared/ui/table/Table.svelte";
   import BackupKindBadge from "./BackupKindBadge.svelte";
 
   type BackupsTableProps = {

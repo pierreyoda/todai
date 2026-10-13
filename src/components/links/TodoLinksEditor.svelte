@@ -6,9 +6,9 @@
   import type { Todo } from "../../client/types";
   import { linkKindName } from "../../utils/links";
   import { openLink } from "../../utils/openLink";
-  import Button from "../common/Button.svelte";
-  import FieldText from "../common/FieldText.svelte";
-  import IconXMark from "../common/icons/IconXMark.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
+  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
   import LinkKindIcon from "./LinkKindIcon.svelte";
 
   /** The links of a todo, added and removed right away: unlike its other fields, they're not submitted. */

@@ -9,7 +9,7 @@
   import { dateToTodaiDate } from "../../../utils/dates";
   import SidePanel from "../../../components/SidePanel.svelte";
   import NotePanel from "../../../components/notes/NotePanel.svelte";
-  import LoadingState from "../../../components/common/LoadingState.svelte";
+  import LoadingState from "#shared/ui/LoadingState.svelte";
 
   // As on the todos' page: without a usable active workspace, the user picks or creates one.
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);

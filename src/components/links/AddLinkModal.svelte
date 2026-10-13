@@ -18,12 +18,12 @@
     linkStatus,
     stateStatus,
   } from "../../utils/linkStatuses";
-  import Button from "../common/Button.svelte";
-  import ErrorBanner from "../common/ErrorBanner.svelte";
-  import FieldCheckbox from "../common/FieldCheckbox.svelte";
-  import FieldText from "../common/FieldText.svelte";
-  import IconExclamationTriangle from "../common/icons/IconExclamationTriangle.svelte";
-  import Modal from "../common/Modal.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
+  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
   import LinkChip from "./LinkChip.svelte";
   import LinkKindIcon from "./LinkKindIcon.svelte";
 

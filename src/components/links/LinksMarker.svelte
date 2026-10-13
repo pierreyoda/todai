@@ -5,9 +5,9 @@
   import type { TodoLink } from "../../client/types";
   import { formatLinksCount } from "../../utils/links";
   import { itemState, linkStatus } from "../../utils/linkStatuses";
-  import Button from "../common/Button.svelte";
-  import { HoverPopover } from "../common/hoverPopover.svelte";
-  import IconLink from "../common/icons/IconLink.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
+  import IconLink from "#shared/ui/icons/IconLink.svelte";
   import LinkChip from "./LinkChip.svelte";
 
   /** A todo's links, in little: their count, then their list on hover or click. */

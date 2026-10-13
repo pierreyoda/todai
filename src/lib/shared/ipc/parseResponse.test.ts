@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseResponse } from "./client";
+import { parseResponse } from "./parseResponse";
 
 describe("parseResponse", () => {
   it("turns timestamps into dates", () => {

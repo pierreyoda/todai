@@ -12,8 +12,8 @@
     monthBounds,
     monthOf,
   } from "../../utils/dates";
-  import Button from "./Button.svelte";
-  import Modal from "./Modal.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
 
   /**
    * A month calendar in a modal, to pick a day: see `DatePicker` for a button opening it.

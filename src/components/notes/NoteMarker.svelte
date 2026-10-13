@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { Day, Note } from "../../client/types";
-  import { formatDateTime, formatFullDay } from "../../utils/dates";
+  import { formatDateTime } from "#shared/lib/timestamps.ts";
+  import { formatFullDay } from "../../utils/dates";
   import { notePath } from "../../utils/notes";
-  import Button from "../common/Button.svelte";
-  import { HoverPopover } from "../common/hoverPopover.svelte";
-  import IconDocumentText from "../common/icons/IconDocumentText.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
+  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
   import MarkdownContent from "../markdown/MarkdownContent.svelte";
 
   /** A day's note, in little: an icon after the day, then the note on hover or click, to read it or open it. */

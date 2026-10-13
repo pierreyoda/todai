@@ -5,20 +5,20 @@
   import type { Tag } from "../client/types";
   import { dateToTodaiDate, formatDay } from "../utils/dates";
   import { noteDrafts } from "../utils/noteDrafts.svelte";
-  import Collapse from "./common/Collapse.svelte";
+  import Collapse from "#shared/ui/Collapse.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";
-  import IconSun from "./common/icons/IconSun.svelte";
-  import IconPlus from "./common/icons/IconPlus.svelte";
+  import IconSun from "#shared/ui/icons/IconSun.svelte";
+  import IconPlus from "#shared/ui/icons/IconPlus.svelte";
   import SidePanelLink from "./layout/SidePanelLink.svelte";
   import TagUpsertModal from "./tags/TagUpsertModal.svelte";
   import TagsEmptyState from "./tags/TagsEmptyState.svelte";
-  import IconCalendar from "./common/icons/IconCalendar.svelte";
-  import IconDocumentText from "./common/icons/IconDocumentText.svelte";
-  import IconFolderOpen from "./common/icons/IconFolderOpen.svelte";
-  import IconArchiveBox from "./common/icons/IconArchiveBox.svelte";
-  import IconLink from "./common/icons/IconLink.svelte";
+  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
+  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+  import IconLink from "#shared/ui/icons/IconLink.svelte";
   import SidePanelWorkspace from "./layout/SidePanelWorkspace.svelte";
-  import IconExclamationTriangle from "./common/icons/IconExclamationTriangle.svelte";
+  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
 
   type SidePanelProps = {
     tags?: readonly Tag[] | "error" | "loading";

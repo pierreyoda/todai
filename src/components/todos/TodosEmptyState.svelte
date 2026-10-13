@@ -3,10 +3,10 @@
   import { cubicOut } from "svelte/easing";
 
   import type { Tag } from "../../client/types";
-  import Button from "../common/Button.svelte";
-  import IconMagnifyingGlass from "../common/icons/IconMagnifyingGlass.svelte";
-  import IconSun from "../common/icons/IconSun.svelte";
-  import IconTag from "../common/icons/IconTag.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import IconMagnifyingGlass from "#shared/ui/icons/IconMagnifyingGlass.svelte";
+  import IconSun from "#shared/ui/icons/IconSun.svelte";
+  import IconTag from "#shared/ui/icons/IconTag.svelte";
 
   type TodosEmptyStateProps = {
     /** Set when the day has todos, but none with this tag. */

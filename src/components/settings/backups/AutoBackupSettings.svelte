@@ -3,9 +3,9 @@
 
   import { invokeApiClient, type Workspace } from "../../../client/app";
   import { workspaceKeys } from "../../../client/queries";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import FieldCheckbox from "../../common/FieldCheckbox.svelte";
-  import FieldText from "../../common/FieldText.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
 
   /** Most automatic backups kept, as enforced by the backend. */
   const KEEP_MAX = 100;

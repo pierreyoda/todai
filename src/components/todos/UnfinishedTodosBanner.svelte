@@ -10,10 +10,10 @@
   import type { Day, Tag, Todo } from "../../client/types";
   import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../../constants";
   import { addDays, formatDay } from "../../utils/dates";
-  import Button from "../common/Button.svelte";
-  import IconCalendar from "../common/icons/IconCalendar.svelte";
-  import IconSun from "../common/icons/IconSun.svelte";
-  import IconXMark from "../common/icons/IconXMark.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+  import IconSun from "#shared/ui/icons/IconSun.svelte";
+  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
 
   /** Offers to move to `day` the todos left unfinished in the days before it: all at once, or picked one by one. */
   type UnfinishedTodosBannerProps = {

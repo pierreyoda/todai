@@ -13,7 +13,7 @@
     monthOf,
     monthsBetween,
   } from "../../../utils/dates";
-  import Collapse from "../Collapse.svelte";
+  import Collapse from "#shared/ui/Collapse.svelte";
   import CalendarMonth from "./CalendarMonth.svelte";
   import { formatTodoCounts } from "./counts";
 

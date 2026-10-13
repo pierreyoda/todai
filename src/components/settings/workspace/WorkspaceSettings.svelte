@@ -8,11 +8,11 @@
     invalidateActiveWorkspace,
     workspaceKeys,
   } from "../../../client/queries";
-  import { basename } from "../../../utils";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
-  import IconPlus from "../../common/icons/IconPlus.svelte";
-  import SettingsContainer from "../SettingsContainer.svelte";
+  import { basename } from "#shared/lib/paths.ts";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+  import IconPlus from "#shared/ui/icons/IconPlus.svelte";
+  import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
   import WorkspacesTable from "./WorkspacesTable.svelte";
   import WorkspaceUpsertModal from "./WorkspaceUpsertModal.svelte";
   import WorkspaceRemoveModal from "./WorkspaceRemoveModal.svelte";

@@ -2,7 +2,7 @@
   import type { CreateQueryResult } from "@tanstack/svelte-query";
 
   import type { Day, GitHubProblem, Tag, Todo } from "../../client/types";
-  import SearchField from "../common/SearchField.svelte";
+  import SearchField from "#shared/ui/SearchField.svelte";
   import TodoList from "./TodoList.svelte";
   import TodoCreateSection from "./TodoCreateSection.svelte";
   import TodoPanelFilters from "./TodoPanelFilters.svelte";
@@ -10,7 +10,7 @@
   import UnfinishedTodosBanner from "./UnfinishedTodosBanner.svelte";
   import LinkStatusesIndicator from "../links/LinkStatusesIndicator.svelte";
   import ConnectGitHubTip from "../links/ConnectGitHubTip.svelte";
-  import { isDefined } from "../../utils";
+  import { isDefined } from "#shared/lib/isDefined.ts";
   import { TodoSearch } from "../../utils/todoSearch.svelte";
 
   type TodoPanelProps = {

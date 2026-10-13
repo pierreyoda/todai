@@ -1,14 +1,14 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
 
-  import { basename } from "../../utils";
+  import { basename } from "#shared/lib/paths.ts";
   import type { Workspace } from "../../client/app";
   import { createSwitchWorkspaceMutation } from "../../client/mutations";
   import {
     activeWorkspaceQueryOptions,
     workspacesQueryOptions,
   } from "../../client/queries";
-  import { toasts } from "../../utils/toasts.svelte";
+  import { toasts } from "#shared/lib/toasts.svelte.ts";
   import WorkspaceAvatar from "../common/WorkspaceAvatar.svelte";
   import WorkspacePicker from "../common/WorkspacePicker.svelte";
 

@@ -6,14 +6,14 @@
 
   import { createSaveNoteMutation } from "../../client/mutations";
   import type { Day, Note } from "../../client/types";
-  import { Autosave } from "../../utils/autosave.svelte";
-  import { Confirmation } from "../../utils/confirmation.svelte";
+  import { Autosave } from "#shared/lib/autosave.svelte.ts";
+  import { Confirmation } from "#shared/lib/confirmation.svelte.ts";
   import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
-  import ErrorBanner from "../common/ErrorBanner.svelte";
-  import SaveStatus from "../common/SaveStatus.svelte";
-  import UnsavedLeaveModal from "../common/UnsavedLeaveModal.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import SaveStatus from "#shared/ui/SaveStatus.svelte";
+  import UnsavedLeaveModal from "#shared/ui/UnsavedLeaveModal.svelte";
   import MarkdownCheatsheet from "../markdown/MarkdownCheatsheet.svelte";
   import MarkdownSplitEditor from "../markdown/MarkdownSplitEditor.svelte";
 

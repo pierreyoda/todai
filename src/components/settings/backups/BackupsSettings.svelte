@@ -17,23 +17,21 @@
     workspaceBackupsQueryOptions,
     workspaceKeys,
   } from "../../../client/queries";
-  import {
-    basename,
-    dateToTodaiDate,
-    formatFileSize,
-    SHOW_IN_FILE_MANAGER,
-  } from "../../../utils";
-  import Button from "../../common/Button.svelte";
+  import { dateToTodaiDate } from "../../../utils/dates";
+  import { formatFileSize } from "#shared/lib/files.ts";
+  import { basename } from "#shared/lib/paths.ts";
+  import { SHOW_IN_FILE_MANAGER } from "#shared/lib/platform.ts";
+  import Button from "#shared/ui/Button.svelte";
   import BackupsTable from "./BackupsTable.svelte";
   import BackupRestoreModal from "./BackupRestoreModal.svelte";
   import BackupRestoreAsNewModal from "./BackupRestoreAsNewModal.svelte";
   import AutoBackupSettings from "./AutoBackupSettings.svelte";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import SettingsContainer from "../SettingsContainer.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
   import WorkspacePicker from "../../common/WorkspacePicker.svelte";
-  import IconArchiveBox from "../../common/icons/IconArchiveBox.svelte";
-  import IconFolderOpen from "../../common/icons/IconFolderOpen.svelte";
-  import IconArrowDownTray from "../../common/icons/IconArrowDownTray.svelte";
+  import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
+  import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
+  import IconArrowDownTray from "#shared/ui/icons/IconArrowDownTray.svelte";
 
   type BackupsSettingsProps = {
     workspaces: readonly Workspace[];

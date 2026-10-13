@@ -5,7 +5,7 @@
   import { invokeClient } from "../../client";
   import { invalidateTodosOf, tagKeys } from "../../client/queries";
   import type { Day, Tag } from "../../client/types";
-  import FieldCheckbox from "../common/FieldCheckbox.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
 
   type TodoLineItemTagToggleProps = {
     todoId: UUID;

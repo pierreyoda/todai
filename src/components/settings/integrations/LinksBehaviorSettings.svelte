@@ -3,8 +3,8 @@
 
   import { invokeApiClient, type Workspace } from "../../../client/app";
   import { workspaceKeys } from "../../../client/queries";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import FieldCheckbox from "../../common/FieldCheckbox.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
 
   type LinksBehaviorSettingsProps = {
     workspace: Workspace;

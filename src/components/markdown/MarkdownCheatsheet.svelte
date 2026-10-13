@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconQuestionMarkCircle from "../common/icons/IconQuestionMarkCircle.svelte";
+  import IconQuestionMarkCircle from "#shared/ui/icons/IconQuestionMarkCircle.svelte";
 
   const popoverId = $props.id();
   let trigger = $state<HTMLButtonElement>();

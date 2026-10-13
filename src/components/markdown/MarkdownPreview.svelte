@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
+  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
   import MarkdownContent from "./MarkdownContent.svelte";
 
   type MarkdownPreviewProps = {

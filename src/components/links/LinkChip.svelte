@@ -3,7 +3,7 @@
   import { describeLink } from "../../utils/links";
   import type { LinkStatus } from "../../utils/linkStatuses";
   import { openLink } from "../../utils/openLink";
-  import IconExclamationTriangle from "../common/icons/IconExclamationTriangle.svelte";
+  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
   import LinkKindIcon from "./LinkKindIcon.svelte";
 
   type LinkChipProps = {

@@ -1,38 +1,19 @@
 import type { UUID } from "node:crypto";
-import { QueryClient, queryOptions } from "@tanstack/svelte-query";
+import { type QueryClient, queryOptions } from "@tanstack/svelte-query";
 
 import { invokeClient } from ".";
 import { invokeApiClient } from "./app";
 import type { Day, Month, Todo } from "./types";
 import { addDays, monthBounds, monthOf } from "../utils/dates";
 import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../constants";
-
-/**
- * Data comes from the local Rust backend through IPC, not over the network:
- * - `networkMode: "always"`, as the default ("online") pauses everything while the OS reports being offline;
- * - Rust is the single writer, so data stays fresh until explicitly invalidated;
- * - a failed invocation is a bug to surface, not a flaky request to retry.
- */
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      networkMode: "always",
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-      retry: false,
-    },
-    mutations: {
-      networkMode: "always",
-    },
-  },
-});
+import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 
 /**
  * Days are nested in their month, so that invalidating a month also refreshes the lists of its days.
  * Month keys are `YYYY-MM`, so they never collide with `"months"`.
  */
 export const todoKeys = {
-  all: ["todos"] as const,
+  all: [...workspaceDataKey, "todos"] as const,
   /** Per-month statistics. */
   months: () => [...todoKeys.all, "months"] as const,
   month: (month: Month) => [...todoKeys.all, month] as const,
@@ -116,7 +97,7 @@ export const setCachedTodoDescription = (
 };
 
 export const tagKeys = {
-  all: ["tags"] as const,
+  all: [...workspaceDataKey, "tags"] as const,
   id: (id: UUID) => [...tagKeys.all, id] as const,
 };
 
@@ -130,7 +111,7 @@ export const tagsQueryOptions = queryOptions({
  * that refreshing it after saving a note also refreshes them.
  */
 export const noteKeys = {
-  all: ["notes"] as const,
+  all: [...workspaceDataKey, "notes"] as const,
   day: (day: Day) => [...noteKeys.all, day] as const,
   months: () => [...noteKeys.all, "months"] as const,
   month: (month: Month) => [...noteKeys.months(), month] as const,
@@ -164,7 +145,7 @@ export const monthNotesQueryOptions = (month: Month) =>
  * active workspace's database: refreshed when switching to another one.
  */
 export const linkStatusKeys = {
-  all: ["linkStatuses"] as const,
+  all: [...workspaceDataKey, "linkStatuses"] as const,
   day: (day: Day) => [...linkStatusKeys.all, day] as const,
   /** Days are `YYYY-MM-DD`, so they never collide with `"preview"`. */
   preview: (url: string) => [...linkStatusKeys.all, "preview", url] as const,
@@ -279,10 +260,7 @@ export const workspaceKeys = {
 export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
-    queryClient.invalidateQueries({ queryKey: todoKeys.all }),
-    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
-    queryClient.invalidateQueries({ queryKey: noteKeys.all }),
-    queryClient.invalidateQueries({ queryKey: linkStatusKeys.all }),
+    queryClient.invalidateQueries({ queryKey: workspaceDataKey }),
   ]);
 
 /**
@@ -291,10 +269,7 @@ export const invalidateActiveWorkspace = (queryClient: QueryClient) =>
  * mutation can stay pending until then.
  */
 export const clearActiveWorkspace = (queryClient: QueryClient) => {
-  queryClient.removeQueries({ queryKey: todoKeys.all });
-  queryClient.removeQueries({ queryKey: tagKeys.all });
-  queryClient.removeQueries({ queryKey: noteKeys.all });
-  queryClient.removeQueries({ queryKey: linkStatusKeys.all });
+  queryClient.removeQueries({ queryKey: workspaceDataKey });
   return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
 };
 

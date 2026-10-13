@@ -4,13 +4,13 @@
     createMoveTodoMutation,
     createToggleTodoMutation,
   } from "../../client/mutations";
-  import FieldCheckbox from "../common/FieldCheckbox.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
-  import { contextMenu } from "../../utils/contextMenu";
-  import IconPencilSquare from "../common/icons/IconPencilSquare.svelte";
-  import IconSun from "../common/icons/IconSun.svelte";
+  import { contextMenu } from "#shared/ui/contextMenu.ts";
+  import IconPencilSquare from "#shared/ui/icons/IconPencilSquare.svelte";
+  import IconSun from "#shared/ui/icons/IconSun.svelte";
   import LinksMarker from "../links/LinksMarker.svelte";
-  import Button from "../common/Button.svelte";
+  import Button from "#shared/ui/Button.svelte";
   import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
   import TodoUpsertModal from "./TodoUpsertModal.svelte";
 

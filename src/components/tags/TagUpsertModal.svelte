@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-  import Modal from "../common/Modal.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
   import { invokeClient } from "../../client";
   import type { Tag } from "../../client/types";
   import TagForm from "./TagForm.svelte";

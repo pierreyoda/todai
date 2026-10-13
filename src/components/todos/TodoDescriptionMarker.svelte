@@ -2,9 +2,9 @@
   import { createSetTodoDescriptionMutation } from "../../client/mutations";
   import type { Todo } from "../../client/types";
   import { taskProgress, toggleTask } from "../../utils/markdownEditing";
-  import Button from "../common/Button.svelte";
-  import { HoverPopover } from "../common/hoverPopover.svelte";
-  import IconBars3BottomLeft from "../common/icons/IconBars3BottomLeft.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
+  import IconBars3BottomLeft from "#shared/ui/icons/IconBars3BottomLeft.svelte";
   import MarkdownContent from "../markdown/MarkdownContent.svelte";
 
   /**

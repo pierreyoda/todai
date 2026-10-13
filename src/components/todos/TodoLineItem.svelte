@@ -13,20 +13,20 @@
     invalidateTodosOf,
   } from "../../client/queries";
   import { createToggleTodoMutation } from "../../client/mutations";
-  import EditableText from "../common/EditableText.svelte";
-  import FieldCheckbox from "../common/FieldCheckbox.svelte";
+  import EditableText from "#shared/ui/EditableText.svelte";
+  import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
   import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
   import TodoUpsertModal from "./TodoUpsertModal.svelte";
-  import Button from "../common/Button.svelte";
-  import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
-  import IconClock from "../common/icons/IconClock.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
+  import IconClock from "#shared/ui/icons/IconClock.svelte";
   import TodoLinkChip from "../links/TodoLinkChip.svelte";
-  import IconCheckCircle from "../common/icons/IconCheckCircle.svelte";
-  import IconGripVertical from "../common/icons/IconGripVertical.svelte";
+  import IconCheckCircle from "#shared/ui/icons/IconCheckCircle.svelte";
+  import IconGripVertical from "#shared/ui/icons/IconGripVertical.svelte";
   import { doneSuggestion } from "../../utils/linkStatuses";
   import { taskProgress } from "../../utils/markdownEditing";
-  import { formatEstimates } from "../../utils";
+  import { formatEstimates } from "../../utils/estimates";
 
   type TodoLineItemProps = {
     item: Todo;

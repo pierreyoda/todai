@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
   import type { Workspace } from "../../../client/app";
   import WorkspacePicker from "../../common/WorkspacePicker.svelte";
-  import SettingsContainer from "../SettingsContainer.svelte";
+  import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
   import GitHubCard from "./GitHubCard.svelte";
   import LinksBehaviorSettings from "./LinksBehaviorSettings.svelte";
 

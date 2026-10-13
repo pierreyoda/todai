@@ -6,7 +6,7 @@
     activeWorkspaceQueryOptions,
   } from "../../../client/queries";
   import SidePanel from "../../../components/SidePanel.svelte";
-  import LoadingState from "../../../components/common/LoadingState.svelte";
+  import LoadingState from "#shared/ui/LoadingState.svelte";
   import WorkspaceSettings from "../../../components/settings/workspace/WorkspaceSettings.svelte";
 
   const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);

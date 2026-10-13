@@ -3,8 +3,8 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { tick } from "svelte";
 
-  import IconArrowTopRightOnSquare from "../common/icons/IconArrowTopRightOnSquare.svelte";
-  import IconPhoto from "../common/icons/IconPhoto.svelte";
+  import IconArrowTopRightOnSquare from "#shared/ui/icons/IconArrowTopRightOnSquare.svelte";
+  import IconPhoto from "#shared/ui/icons/IconPhoto.svelte";
 
   /** Markdown, rendered: e.g. in an editor's preview, or in the calendar's preview of a day's note. */
   type MarkdownContentProps = {

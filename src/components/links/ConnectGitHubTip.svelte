@@ -3,9 +3,9 @@
 
   import { activeWorkspaceQueryOptions } from "../../client/queries";
   import type { Todo } from "../../client/types";
-  import Button from "../common/Button.svelte";
-  import IconLink from "../common/icons/IconLink.svelte";
-  import IconXMark from "../common/icons/IconXMark.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import IconLink from "#shared/ui/icons/IconLink.svelte";
+  import IconXMark from "#shared/ui/icons/IconXMark.svelte";
 
   type ConnectGitHubTipProps = {
     /** The todos shown: the tip is only for GitHub links. */

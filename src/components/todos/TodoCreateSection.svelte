@@ -16,8 +16,8 @@
   import type { Day, ParsedLink } from "../../client/types";
   import { mayBeLink } from "../../utils/links";
   import { itemState, linkStatus, stateStatus } from "../../utils/linkStatuses";
-  import FieldText from "../common/FieldText.svelte";
-  import IconDocumentText from "../common/icons/IconDocumentText.svelte";
+  import FieldText from "#shared/ui/FieldText.svelte";
+  import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
   import LinkKindIcon from "../links/LinkKindIcon.svelte";
 
   type TodoCreateSectionProps = {

@@ -4,7 +4,7 @@
     describeProblem,
     statusesFetchedAt,
   } from "../../utils/linkStatuses";
-  import IconExclamationTriangle from "../common/icons/IconExclamationTriangle.svelte";
+  import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
 
   type LinkStatusesIndicatorProps = {
     /** Why GitHub couldn't be asked about the links' statuses. */

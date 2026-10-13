@@ -2,14 +2,14 @@
   import type { ClassValue } from "svelte/elements";
 
   import type { ItemState, TodoLinkKind } from "../../client/types";
-  import IconIssue from "../common/icons/IconIssue.svelte";
-  import IconIssueCompleted from "../common/icons/IconIssueCompleted.svelte";
-  import IconIssueNotPlanned from "../common/icons/IconIssueNotPlanned.svelte";
-  import IconLink from "../common/icons/IconLink.svelte";
-  import IconPullRequest from "../common/icons/IconPullRequest.svelte";
-  import IconPullRequestClosed from "../common/icons/IconPullRequestClosed.svelte";
-  import IconPullRequestDraft from "../common/icons/IconPullRequestDraft.svelte";
-  import IconPullRequestMerged from "../common/icons/IconPullRequestMerged.svelte";
+  import IconIssue from "#shared/ui/icons/IconIssue.svelte";
+  import IconIssueCompleted from "#shared/ui/icons/IconIssueCompleted.svelte";
+  import IconIssueNotPlanned from "#shared/ui/icons/IconIssueNotPlanned.svelte";
+  import IconLink from "#shared/ui/icons/IconLink.svelte";
+  import IconPullRequest from "#shared/ui/icons/IconPullRequest.svelte";
+  import IconPullRequestClosed from "#shared/ui/icons/IconPullRequestClosed.svelte";
+  import IconPullRequestDraft from "#shared/ui/icons/IconPullRequestDraft.svelte";
+  import IconPullRequestMerged from "#shared/ui/icons/IconPullRequestMerged.svelte";
 
   type LinkKindIconProps = {
     kind: TodoLinkKind;

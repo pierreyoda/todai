@@ -10,9 +10,9 @@
   import { ghStatusQueryOptions } from "../../../client/queries";
   import { preselectedGhAccount } from "../../../utils/github";
   import { openLink } from "../../../utils/openLink";
-  import Button from "../../common/Button.svelte";
-  import ErrorBanner from "../../common/ErrorBanner.svelte";
-  import Modal from "../../common/Modal.svelte";
+  import Button from "#shared/ui/Button.svelte";
+  import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
+  import Modal from "#shared/ui/Modal.svelte";
 
   type GitHubConnectModalProps = {
     /** Bindable. */
