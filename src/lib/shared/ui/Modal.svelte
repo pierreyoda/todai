@@ -5,7 +5,7 @@
   type ModalProps = {
     show: boolean;
     /**
-     * `md` (by default) fits a form or a message. `lg` takes most of the window, up to 64rem × 46rem, for its content
+     * `md` (by default) fits a form or a message. `lg` takes most of the window, up to 64rem × 52rem, for its content
      * to fill: e.g. an editor. Its body is then a flex column of bounded height.
      */
     size?: "md" | "lg";
@@ -136,7 +136,7 @@
     /* Typography */
     @apply text-slate-300;
     &[data-size="lg"] {
-      @apply h-[min(46rem,calc(100dvh-4rem))] w-[min(64rem,calc(100vw-4rem))] max-w-none;
+      @apply h-[min(52rem,calc(100dvh-2rem))] w-[min(64rem,calc(100vw-4rem))] max-w-none;
     }
     /* Literal values: ::backdrop may not inherit the theme variables */
     &::backdrop {

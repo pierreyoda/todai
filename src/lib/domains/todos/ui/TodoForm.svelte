@@ -24,11 +24,14 @@
   ) & {
     onSubmit: (submittedData: TodoFormData) => void;
     /**
-     * Under the title, taking the height left: e.g. the todo's description. Lays the form out in two columns, its other
-     * fields on the side: the form must then be in a flex column of bounded height.
+     * Under the title and `fields`, taking the height left: e.g. the todo's description. Lays the form out in two
+     * columns, its other fields on the side: the form must then be in a flex column of bounded height.
      */
     main?: Snippet;
-    /** Fields saved on their own rather than submitted, e.g. the todo's links: shown before the submit button. */
+    /**
+     * Fields saved on their own rather than submitted, e.g. the todo's links: under the title in two columns, before the
+     * submit button otherwise.
+     */
     fields?: Snippet;
     /** Next to the submit button, in two columns: e.g. what it saves. */
     hint?: string;
@@ -66,15 +69,20 @@
   <div class="columns">
     <div class="main">
       <FieldText bind:value={editedTitle} label="Title" />
+      {@render fields?.()}
       {@render main()}
     </div>
     <div class="side">
-      <FieldCheckbox label="Completed" bind:checked={editedCompleted} />
+      <!-- Raised onto the line of the title's label: its own line is 4px taller -->
+      <FieldCheckbox
+        label="Completed"
+        bind:checked={editedCompleted}
+        class="-mt-0.5"
+      />
       <div class="day">
         <span class="label">Day</span>
         <DatePicker bind:day={editedDay} label="Day" class="self-start" />
       </div>
-      {@render fields?.()}
     </div>
     <div class="footer">
       {#if hint}
@@ -110,7 +118,7 @@
     @apply flex flex-col gap-4 w-full;
   }
 
-  /* What the todo is on the left, taking the height left; its properties on the right, scrolling if they must */
+  /* What the todo is on the left, taking the height left; its properties on the right */
   .columns {
     @apply grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_15.5rem] grid-rows-[minmax(0,1fr)_auto] gap-x-6 gap-y-4;
   }
@@ -119,9 +127,8 @@
     @apply flex min-h-0 flex-col gap-4;
   }
 
-  /* Room on the right for focus rings, which scrolling would otherwise clip */
   .side {
-    @apply -mr-2 flex min-h-0 flex-col gap-5 overflow-y-auto border-l border-white/5 pr-2 pl-6;
+    @apply flex flex-col gap-5 border-l border-white/5 pl-6;
   }
 
   .day {
