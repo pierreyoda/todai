@@ -41,7 +41,9 @@
     "vitest": "5.0.3"
   },
   "imports": {
-    "#lib": "./src/lib/index.js",
-    "#lib/*": "./src/lib/*"
+    "#shared/*": "./src/lib/shared/*",
+    "#core/*": "./src/lib/core/*/index.ts",
+    "#domains/*": "./src/lib/domains/*/index.ts",
+    "#shell/*": "./src/lib/shell/*"
   }
 }
