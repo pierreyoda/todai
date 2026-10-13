@@ -7,6 +7,7 @@
   import { createSaveNoteMutation } from "../../client/mutations";
   import type { Day, Note } from "../../client/types";
   import { Autosave } from "../../utils/autosave.svelte";
+  import { Confirmation } from "../../utils/confirmation.svelte";
   import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
   import { toggleTask } from "../../utils/markdownEditing";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
@@ -66,29 +67,13 @@
     if (autosave.status !== "error") errorDismissed = false;
   });
 
-  let showLeaveModal = $state(false);
-  /** Answers the leave modal shown, if any: `true` to leave anyway. */
-  let answerLeaving: ((leave: boolean) => void) | null = null;
-  /** Asks whether to leave although the draft couldn't be saved. */
-  const confirmLeaving = () =>
-    new Promise<boolean>((resolve) => {
-      answerLeaving = resolve;
-      showLeaveModal = true;
-    });
-  const answer = (leave: boolean) => {
-    answerLeaving?.(leave);
-    answerLeaving = null;
-    showLeaveModal = false;
-  };
-  // Closed otherwise than by leaving (Stay, Escape, its backdrop): staying
-  $effect(() => {
-    if (!showLeaveModal) answer(false);
-  });
+  /** Whether to leave although the draft couldn't be saved. */
+  const leaving = new Confirmation();
   /** Once confirmed, leaving isn't held anymore. */
   let leavingAnyway = false;
 
   /** Saves the draft before leaving, or asks to leave without it if that fails: whether to leave. */
-  const saveBeforeLeaving = async () => (await autosave.flush()) || (await confirmLeaving());
+  const saveBeforeLeaving = async () => (await autosave.flush()) || (await leaving.ask());
 
   /** Once left without it for another workspace: the draft must not be saved in that one's database. */
   let draftDiscarded = false;
@@ -169,10 +154,10 @@
   />
 </section>
 <UnsavedLeaveModal
-  bind:show={showLeaveModal}
+  bind:show={leaving.shown}
   name={noteName}
   error={autosave.error}
-  onLeave={() => answer(true)}
+  onLeave={() => leaving.answer(true)}
 />
 
 <style lang="postcss">

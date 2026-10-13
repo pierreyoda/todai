@@ -16,6 +16,7 @@
   import EditableText from "../common/EditableText.svelte";
   import FieldCheckbox from "../common/FieldCheckbox.svelte";
   import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
+  import TodoUpsertModal from "./TodoUpsertModal.svelte";
   import Button from "../common/Button.svelte";
   import IconEllipsisVertical from "../common/icons/IconEllipsisVertical.svelte";
   import IconClock from "../common/icons/IconClock.svelte";
@@ -105,6 +106,8 @@
 
   let openedDropdownMenu = $state(false);
   let menuButton = $state<HTMLButtonElement>();
+
+  let showEditModal = $state(false);
 </script>
 
 <li
@@ -239,10 +242,15 @@
         anchor={menuButton}
         {item}
         {tags}
+        onEdit={() => (showEditModal = true)}
       />
     </div>
   </div>
 </li>
+<!-- Only while shown. Out of the line, which handles dragging. -->
+{#if showEditModal}
+  <TodoUpsertModal bind:show={showEditModal} existing={item} />
+{/if}
 
 <style lang="postcss">
   @reference "tailwindcss";

@@ -113,8 +113,12 @@
   {item}
   {tags}
   inCalendar
+  onEdit={() => (showUpsertDialog = true)}
 />
-<TodoUpsertModal bind:show={showUpsertDialog} existing={item} />
+<!-- Only while shown: the calendar has many todos. Out of the line, whose right click opens the menu. -->
+{#if showUpsertDialog}
+  <TodoUpsertModal bind:show={showUpsertDialog} existing={item} />
+{/if}
 
 <style lang="postcss">
   @reference "tailwindcss";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import type { ClassValue } from "svelte/elements";
 
   import { toggleTask } from "../../utils/markdownEditing";
@@ -17,6 +17,13 @@
     value: string;
     /** The editor's: what to write about, then a reminder of the syntax. */
     placeholder: string;
+    /** The editor's, "Markdown" by default: what's written, e.g. "Description". */
+    label?: string;
+    /**
+     * Above both panes, in place of their labels: e.g. the field's name, then what's about it. Given the tabs while
+     * they're shown, to put among it.
+     */
+    heading?: Snippet<[tabs: Snippet | undefined]>;
     /** Whether to focus the editor once shown. */
     autofocus?: boolean;
     /** What the preview says while there's nothing to show, e.g. "A blank page for today". */
@@ -31,6 +38,8 @@
   let {
     value = $bindable(),
     placeholder,
+    label,
+    heading,
     autofocus = false,
     emptyTitle,
     emptyHint,
@@ -101,33 +110,40 @@
   };
 </script>
 
-<div class={["split", narrow && "narrow", extraClass]} bind:clientWidth={width}>
-  {#if narrow}
-    <div class="tabs" role="tablist" aria-label="Markdown or its preview">
-      {#each TABS as { pane, label } (pane)}
-        <button
-          type="button"
-          role="tab"
-          id="{id}-{pane}-tab"
-          class="tab"
-          aria-selected={shown === pane}
-          aria-controls="{id}-{pane}"
-          tabindex={shown === pane ? 0 : -1}
-          onclick={() => show(pane)}
-          onkeydown={onTabKeydown}
-        >
-          {label}
-        </button>
-      {/each}
-    </div>
+{#snippet tabs()}
+  <div class="tabs" role="tablist" aria-label="Markdown or its preview">
+    {#each TABS as { pane, label } (pane)}
+      <button
+        type="button"
+        role="tab"
+        id="{id}-{pane}-tab"
+        class="tab"
+        aria-selected={shown === pane}
+        aria-controls="{id}-{pane}"
+        tabindex={shown === pane ? 0 : -1}
+        onclick={() => show(pane)}
+        onkeydown={onTabKeydown}
+      >
+        {label}
+      </button>
+    {/each}
+  </div>
+{/snippet}
+
+<div class={["split", narrow && "narrow", heading && "headed", extraClass]} bind:clientWidth={width}>
+  {#if heading}
+    <div class="heading">{@render heading(narrow ? tabs : undefined)}</div>
+  {:else if narrow}
+    {@render tabs()}
   {/if}
   <div class="pane" id="{id}-editor" hidden={narrow && shown !== "editor"}>
     <MarkdownEditor
       bind:this={editor}
       bind:value
       {placeholder}
+      {label}
       {autofocus}
-      hideLabel={narrow}
+      hideLabel={narrow || !!heading}
       onScroll={syncPreviewScroll}
     />
   </div>
@@ -138,7 +154,7 @@
       {onToggleTask}
       {emptyTitle}
       emptyHint={`${narrow ? "Write in the Markdown tab" : "Write on the left"}: ${emptyHint}`}
-      hideTitle={narrow}
+      hideTitle={narrow || !!heading}
     />
   </div>
 </div>
@@ -150,10 +166,19 @@
   .split {
     @apply grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-4;
 
+    /* Under a heading, closer to it than to each other */
+    &.headed {
+      @apply grid-rows-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5;
+    }
+
     /* One at a time, under the tabs */
     &.narrow {
       @apply grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-1.5;
     }
+  }
+
+  .heading {
+    @apply col-span-full;
   }
 
   /* Its editor or preview takes its whole height */

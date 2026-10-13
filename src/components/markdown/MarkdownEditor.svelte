@@ -7,6 +7,8 @@
     type TextEdit,
     type TextSelection,
   } from "../../utils/markdownEditing";
+  import { tick } from "svelte";
+
   import FieldTextArea from "../common/FieldTextArea.svelte";
 
   type MarkdownEditorProps = {
@@ -14,9 +16,11 @@
     value: string;
     /** What to write about, then a reminder of the syntax. */
     placeholder: string;
+    /** "Markdown" by default: what's written, e.g. "Description". */
+    label?: string;
     /** Whether to focus it once shown, at the end of its text, to resume writing. */
     autofocus?: boolean;
-    /** Keeps its "Markdown" label for screen readers only, e.g. while tabs name it. */
+    /** Keeps its label for screen readers only, e.g. while tabs or a heading name it. */
     hideLabel?: boolean;
     /** When scrolled, e.g. to scroll the preview along: see `scrollRatio`. */
     onScroll?: () => void;
@@ -24,6 +28,7 @@
   let {
     value = $bindable(),
     placeholder,
+    label = "Markdown",
     autofocus = false,
     hideLabel = false,
     onScroll,
@@ -35,8 +40,12 @@
 
   $effect(() => {
     if (!textarea || !autofocus) return;
-    textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    const element = textarea;
+    // Once its container is shown too: e.g. a modal, opened once its content is mounted
+    void tick().then(() => {
+      element.focus();
+      element.setSelectionRange(element.value.length, element.value.length);
+    });
   });
 
   /** Makes `edit` through the browser's editing commands, so that undo (⌘Z) still works after it. */
@@ -166,7 +175,7 @@
 <FieldTextArea
   bind:value
   bind:ref={textarea}
-  label="Markdown"
+  {label}
   {hideLabel}
   mono
   fill
