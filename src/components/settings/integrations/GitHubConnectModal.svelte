@@ -9,7 +9,7 @@
   } from "../../../client/mutations";
   import { ghStatusQueryOptions } from "../../../client/queries";
   import { preselectedGhAccount } from "../../../utils/github";
-  import { openLink } from "../../../utils/openLink";
+  import { openLink } from "#domains/todos";
   import Button from "#shared/ui/Button.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import Modal from "#shared/ui/Modal.svelte";

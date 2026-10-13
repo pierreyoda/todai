@@ -5,14 +5,12 @@
   import type { Tag } from "#domains/tags";
   import { dateToTodaiDate } from "#core/time";
   import { activeWorkspaceQueryOptions } from "#domains/workspaces";
-  import {
-    linkStatusesQueryOptions,
-    todosQueryOptions,
-  } from "../client/queries";
+  import { linkStatusesQueryOptions } from "#domains/todos";
+  import { todosQueryOptions } from "#domains/todos";
   import { tagsQueryOptions } from "#domains/tags";
   import LoadingState from "#shared/ui/LoadingState.svelte";
   import SidePanel from "../components/SidePanel.svelte";
-  import TodoPanel from "../components/todos/TodoPanel.svelte";
+  import { TodoPanel } from "#domains/todos";
 
   // Without a usable active workspace (none yet, removed, or its database could not be opened), the user picks or
   // creates one. Until then, there is no database to query the todos and tags from.

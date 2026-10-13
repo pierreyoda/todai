@@ -12,7 +12,7 @@
   } from "../../../client/queries";
   import { formatTime } from "#shared/utils/timestamps.ts";
   import { githubConnectionState } from "../../../utils/github";
-  import { describeProblem } from "../../../utils/linkStatuses";
+  import { describeProblem } from "#domains/todos";
   import Button from "#shared/ui/Button.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import IconPullRequest from "#shared/ui/icons/IconPullRequest.svelte";

@@ -2,7 +2,7 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import { noteMonthsQueryOptions } from "#domains/notes";
-  import { todoMonthsQueryOptions } from "../../../client/queries";
+  import { todoMonthsQueryOptions } from "#domains/todos";
   import type { Day } from "#core/time";
   import type { Tag } from "#domains/tags";
   import {

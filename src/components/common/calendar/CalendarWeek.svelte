@@ -1,13 +1,13 @@
 <script lang="ts">
   import type { Day } from "#core/time";
   import type { Note } from "#domains/notes";
-  import type { Todo } from "../../../client/types";
+  import type { Todo } from "#domains/todos";
   import type { Tag } from "#domains/tags";
   import { formatDay, formatFullDay, formatWeek, type Week } from "#core/time";
   import { notePath } from "#domains/notes";
   import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
   import Collapse from "#shared/ui/Collapse.svelte";
-  import TodoSummaryItem from "../../todos/TodoSummaryItem.svelte";
+  import { TodoSummaryItem } from "#domains/todos";
   import { NoteMarker } from "#domains/notes";
   import { formatTodoCounts } from "./counts";
 
