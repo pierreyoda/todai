@@ -5,7 +5,7 @@ import { clearActiveWorkspace, invalidateActiveWorkspace, workspaceKeys } from "
 import { linkKeys, linkStatusKeys, todoKeys } from "#domains/todos";
 import { noteKeys } from "#domains/notes";
 import { tagKeys } from "#domains/tags";
-import { ghKeys } from "./queries";
+import { ghKeys } from "#domains/integrations";
 
 describe("active workspace changes", () => {
   /** The queries of the active workspace's database, then the workspaces. */

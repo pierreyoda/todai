@@ -1,9 +1,6 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-
-  import { invokeApiClient } from "../../../client/app";
   import type { Workspace } from "#domains/workspaces";
-  import { workspaceKeys } from "#domains/workspaces";
+  import { createSetLinksBehaviorsMutation } from "../api/mutations";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
 
@@ -12,23 +9,8 @@
   };
   const { workspace }: LinksBehaviorSettingsProps = $props();
 
-  type Behaviors = Pick<
-    Workspace,
-    "linksAutoRefresh" | "linksSuggestDone" | "linksPasteToCreate"
-  >;
-
   const legendId = $props.id();
-  const queryClient = useQueryClient();
-  const update = createMutation(() => ({
-    mutationFn: (behaviors: Behaviors) =>
-      invokeApiClient({
-        name: "set_workspace_links_behaviors",
-        args: { workspaceId: workspace.id, ...behaviors },
-      }),
-    // Even on failure, so that the fields show the saved settings again
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
-  }));
+  const update = createSetLinksBehaviorsMutation();
 
   // Follow the workspace's settings (once saved, or for another workspace), edited here until then
   let autoRefresh = $derived(workspace.linksAutoRefresh);
@@ -37,6 +19,7 @@
 
   const save = () =>
     update.mutate({
+      id: workspace.id,
       linksAutoRefresh: autoRefresh,
       linksSuggestDone: suggestDone,
       linksPasteToCreate: pasteToCreate,

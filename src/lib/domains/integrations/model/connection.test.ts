@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { GhAccount, GhStatus } from "../client/app";
-import { githubConnectionState, preselectedGhAccount } from "./github";
+import type { GhAccount, GhStatus } from "./types";
+import { githubConnectionState, preselectedGhAccount } from "./connection";
 
 const account = (login: string, { active = false, signedIn = true } = {}): GhAccount => ({ login, active, signedIn });
 

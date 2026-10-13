@@ -5,7 +5,7 @@
   import { workspacesQueryOptions } from "#domains/workspaces";
   import SidePanel from "../../../components/SidePanel.svelte";
   import LoadingState from "#shared/ui/LoadingState.svelte";
-  import IntegrationsSettings from "../../../components/settings/integrations/IntegrationsSettings.svelte";
+  import { IntegrationsSettings } from "#domains/integrations";
   import { pickedWorkspace } from "#domains/workspaces";
 
   const workspaces = createQuery(() => workspacesQueryOptions);

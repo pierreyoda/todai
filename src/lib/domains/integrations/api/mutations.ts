@@ -1,10 +1,13 @@
 import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
-import { invokeApiClient } from "./app";
+import type { MutationHooks } from "#shared/ipc/mutations.ts";
 import type { Workspace } from "#domains/workspaces";
 import { workspaceKeys } from "#domains/workspaces";
-import { ghKeys } from "./queries";
 import { linkStatusKeys } from "#domains/todos";
+import { invokeIntegrations } from "./commands";
+import { ghKeys } from "./queries";
+
+type LinksBehaviors = Pick<Workspace, "id" | "linksAutoRefresh" | "linksSuggestDone" | "linksPasteToCreate">;
 
 /**
  * Connects a workspace to GitHub through a GitHub CLI account, instead of any other one. Must be called during
@@ -14,7 +17,7 @@ export const createConnectGitHubMutation = () => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
     mutationFn: ({ workspace, login }: { workspace: Workspace; login: string }) =>
-      invokeApiClient({
+      invokeIntegrations({
         name: "connect_github",
         args: { workspaceId: workspace.id, login },
       }),
@@ -32,7 +35,7 @@ export const createDisconnectGitHubMutation = () => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
     mutationFn: (workspace: Workspace) =>
-      invokeApiClient({
+      invokeIntegrations({
         name: "disconnect_github",
         args: { workspaceId: workspace.id },
       }),
@@ -48,8 +51,24 @@ export const createDisconnectGitHubMutation = () => {
 export const createRefindGhMutation = () => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: () => invokeApiClient({ name: "get_gh_status", args: { refind: true } }),
+    mutationFn: () => invokeIntegrations({ name: "get_gh_status", args: { refind: true } }),
     // Replaces the cached status, rather than refetching it without looking for `gh` again.
     onSuccess: (status) => queryClient.setQueryData(ghKeys.status(), status),
+  }));
+};
+
+/**
+ * Sets how a workspace's links behave: refreshed on their own, suggesting to complete their todo, offering to create a
+ * todo from a pasted one. Must be called during component initialization.
+ */
+export const createSetLinksBehaviorsMutation = (hooks: MutationHooks<LinksBehaviors, Workspace> = {}) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({ id, ...behaviors }: LinksBehaviors) =>
+      invokeIntegrations({ name: "set_workspace_links_behaviors", args: { workspaceId: id, ...behaviors } }),
+    onSuccess: (updated, behaviors) => hooks.onSuccess?.(updated, behaviors),
+    onError: (error, behaviors) => hooks.onError?.(error, behaviors),
+    // Even on failure, so that the fields show the saved settings again
+    onSettled: () => queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
   }));
 };

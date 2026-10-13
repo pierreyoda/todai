@@ -6,9 +6,9 @@
   import {
     createConnectGitHubMutation,
     createRefindGhMutation,
-  } from "../../../client/mutations";
-  import { ghStatusQueryOptions } from "../../../client/queries";
-  import { preselectedGhAccount } from "../../../utils/github";
+  } from "../api/mutations";
+  import { ghStatusQueryOptions } from "../api/queries";
+  import { preselectedGhAccount } from "../model/connection";
   import { openLink } from "#domains/todos";
   import Button from "#shared/ui/Button.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";

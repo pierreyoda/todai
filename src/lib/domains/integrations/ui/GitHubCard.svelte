@@ -5,13 +5,13 @@
   import {
     createDisconnectGitHubMutation,
     createRefindGhMutation,
-  } from "../../../client/mutations";
+  } from "../api/mutations";
   import {
     ghStatusQueryOptions,
     githubApiStatusQueryOptions,
-  } from "../../../client/queries";
+  } from "../api/queries";
   import { formatTime } from "#shared/utils/timestamps.ts";
-  import { githubConnectionState } from "../../../utils/github";
+  import { githubConnectionState } from "../model/connection";
   import { describeProblem } from "#domains/todos";
   import Button from "#shared/ui/Button.svelte";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";

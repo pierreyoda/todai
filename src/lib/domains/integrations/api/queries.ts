@@ -1,9 +1,9 @@
 import type { UUID } from "node:crypto";
 import { queryOptions } from "@tanstack/svelte-query";
 
-import { invokeApiClient } from "./app";
 import { queryClient } from "#shared/ipc/queryClient.ts";
 import { refreshGitHubAttention, workspaceKeys } from "#domains/workspaces";
+import { invokeIntegrations } from "./commands";
 
 /**
  * The GitHub CLI (`gh`) on this machine. Like the recognized links, it doesn't come from the active workspace's
@@ -20,7 +20,7 @@ export const ghKeys = {
  */
 export const ghStatusQueryOptions = queryOptions({
   queryKey: ghKeys.status(),
-  queryFn: () => invokeApiClient({ name: "get_gh_status" }),
+  queryFn: () => invokeIntegrations({ name: "get_gh_status" }),
   staleTime: 0,
 });
 
@@ -32,7 +32,7 @@ export const githubApiStatusQueryOptions = (workspaceId: UUID) =>
   queryOptions({
     queryKey: workspaceKeys.github(workspaceId),
     queryFn: async () => {
-      const status = await invokeApiClient({ name: "get_github_api_status", args: { workspaceId } });
+      const status = await invokeIntegrations({ name: "get_github_api_status", args: { workspaceId } });
       refreshGitHubAttention(queryClient);
       return status;
     },

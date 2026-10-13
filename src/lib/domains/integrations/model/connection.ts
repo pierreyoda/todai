@@ -1,4 +1,4 @@
-import type { GhAccount, GhStatus } from "../client/app";
+import type { GhAccount, GhStatus } from "./types";
 
 /**
  * Where a workspace stands with GitHub:
