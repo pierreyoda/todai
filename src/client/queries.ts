@@ -4,7 +4,7 @@ import { type QueryClient, queryOptions } from "@tanstack/svelte-query";
 import { invokeClient } from ".";
 import { invokeApiClient } from "./app";
 import type { Day, Month, Todo } from "./types";
-import { addDays, monthBounds, monthOf } from "../utils/dates";
+import { addDays, monthBounds, monthOf } from "#core/time";
 import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../constants";
 import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 

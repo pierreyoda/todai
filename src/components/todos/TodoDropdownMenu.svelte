@@ -20,8 +20,8 @@
     TODO_ESTIMATE_POINTS_PRESET,
   } from "../../constants";
   import { formatEstimates } from "../../utils/estimates";
-  import { addDays, dateToTodaiDate, formatDay } from "../../utils/dates";
-  import DatePickerModal from "../common/DatePickerModal.svelte";
+  import { addDays, dateToTodaiDate, formatDay } from "#core/time";
+  import { DatePickerModal } from "#core/time";
   import IconArrowRight from "#shared/ui/icons/IconArrowRight.svelte";
   import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
   import IconClock from "#shared/ui/icons/IconClock.svelte";

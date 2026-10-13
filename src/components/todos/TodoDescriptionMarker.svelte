@@ -1,11 +1,11 @@
 <script lang="ts">
   import { createSetTodoDescriptionMutation } from "../../client/mutations";
   import type { Todo } from "../../client/types";
-  import { taskProgress, toggleTask } from "../../utils/markdownEditing";
+  import { taskProgress, toggleTask } from "#core/markdown";
   import Button from "#shared/ui/Button.svelte";
   import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
   import IconBars3BottomLeft from "#shared/ui/icons/IconBars3BottomLeft.svelte";
-  import MarkdownContent from "../markdown/MarkdownContent.svelte";
+  import { MarkdownContent } from "#core/markdown";
 
   /**
    * A todo's description, in little: an icon after its title, then the description on hover or click, to read it, check

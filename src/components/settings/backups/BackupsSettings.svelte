@@ -17,7 +17,7 @@
     workspaceBackupsQueryOptions,
     workspaceKeys,
   } from "../../../client/queries";
-  import { dateToTodaiDate } from "../../../utils/dates";
+  import { dateToTodaiDate } from "#core/time";
   import { formatFileSize } from "#shared/utils/files.ts";
   import { basename } from "#shared/utils/paths.ts";
   import { SHOW_IN_FILE_MANAGER } from "#shared/utils/platform.ts";

@@ -6,7 +6,7 @@
     toggleWrap,
     type TextEdit,
     type TextSelection,
-  } from "../../utils/markdownEditing";
+  } from "../model/editing";
   import { tick } from "svelte";
 
   import FieldTextArea from "#shared/ui/FieldTextArea.svelte";

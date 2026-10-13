@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { formatFullDateTime, formatRelativeTime } from "#shared/utils/timestamps.ts";
-  import { dateToTodaiDate } from "../../../utils/dates";
+  import { dateToTodaiDate } from "#core/time";
   import { basename } from "#shared/utils/paths.ts";
   import Button from "#shared/ui/Button.svelte";
   import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";

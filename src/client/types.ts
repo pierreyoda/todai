@@ -1,10 +1,10 @@
 import type { UUID } from "node:crypto";
 
-/** Format: YYYY-MM-DD */
-export type Day = string;
+import type { Day, Month } from "#core/time";
+import type { GitHubProblem } from "#core/github";
 
-/** Format: YYYY-MM */
-export type Month = string;
+// Moved: still re-exported for their importers, until they're moved too
+export type { Day, GitHubProblem, Month };
 
 /** A month's statistics about its non-deleted todos. */
 export interface TodoMonth {
@@ -178,21 +178,6 @@ export interface RelatedItem extends ParsedLink {
   title: string;
   state: ItemState;
 }
-
-/**
- * Why GitHub couldn't be asked: links then keep showing their last known status.
- * - `offline`: no connection, or GitHub failed to answer;
- * - `gh_missing`: the GitHub CLI wasn't found;
- * - `signed_out`: the GitHub CLI has no working token for the account anymore;
- * - `rate_limited`: GitHub asks to wait until `resetAt`;
- * - `failed`: anything else.
- */
-export type GitHubProblem =
-  | { kind: "offline" }
-  | { kind: "gh_missing" }
-  | { kind: "signed_out"; login: string }
-  | { kind: "rate_limited"; resetAt: Date }
-  | { kind: "failed"; message: string };
 
 /** What a link would show once added, before adding it (`preview_link`). */
 export interface LinkPreview {

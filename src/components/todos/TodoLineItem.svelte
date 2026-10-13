@@ -25,7 +25,7 @@
   import IconCheckCircle from "#shared/ui/icons/IconCheckCircle.svelte";
   import IconGripVertical from "#shared/ui/icons/IconGripVertical.svelte";
   import { doneSuggestion } from "../../utils/linkStatuses";
-  import { taskProgress } from "../../utils/markdownEditing";
+  import { taskProgress } from "#core/markdown";
   import { formatEstimates } from "../../utils/estimates";
 
   type TodoLineItemProps = {

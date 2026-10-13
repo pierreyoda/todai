@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Day, Note, Tag, Todo } from "../../../client/types";
-  import { formatDay, formatFullDay, formatWeek, type Week } from "../../../utils/dates";
+  import { formatDay, formatFullDay, formatWeek, type Week } from "#core/time";
   import { notePath } from "../../../utils/notes";
   import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
   import Collapse from "#shared/ui/Collapse.svelte";

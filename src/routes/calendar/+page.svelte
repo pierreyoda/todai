@@ -2,7 +2,7 @@
   import { createQuery } from "@tanstack/svelte-query";
 
   import type { Tag } from "../../client/types";
-  import { dateToTodaiDate } from "../../utils/dates";
+  import { dateToTodaiDate } from "#core/time";
   import { tagsQueryOptions } from "../../client/queries";
   import SidePanel from "../../components/SidePanel.svelte";
   import VerticalCalendar from "../../components/common/calendar/VerticalCalendar.svelte";

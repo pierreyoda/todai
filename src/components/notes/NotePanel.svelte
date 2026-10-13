@@ -8,14 +8,14 @@
   import type { Day, Note } from "../../client/types";
   import { Autosave } from "#shared/utils/autosave.svelte.ts";
   import { Confirmation } from "#shared/utils/confirmation.svelte.ts";
-  import { dateToTodaiDate, formatFullDay } from "../../utils/dates";
+  import { dateToTodaiDate, formatFullDay } from "#core/time";
   import { noteDrafts } from "../../utils/noteDrafts.svelte";
   import { beforeWorkspaceSwitch } from "../../utils/workspaceSwitch";
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SaveStatus from "#shared/ui/SaveStatus.svelte";
   import UnsavedLeaveModal from "#shared/ui/UnsavedLeaveModal.svelte";
-  import MarkdownCheatsheet from "../markdown/MarkdownCheatsheet.svelte";
-  import MarkdownSplitEditor from "../markdown/MarkdownSplitEditor.svelte";
+  import { MarkdownCheatsheet } from "#core/markdown";
+  import { MarkdownSplitEditor } from "#core/markdown";
 
   type NotePanelProps = {
     day: Day;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from "svelte";
 
-  import type { Day } from "../../client/types";
+  import type { Day } from "../days";
   import {
     addDays,
     addMonths,
@@ -11,7 +11,7 @@
     formatMonth,
     monthBounds,
     monthOf,
-  } from "../../utils/dates";
+  } from "../days";
   import Button from "#shared/ui/Button.svelte";
   import Modal from "#shared/ui/Modal.svelte";
 

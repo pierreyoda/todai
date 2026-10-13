@@ -6,7 +6,7 @@
     activeWorkspaceQueryOptions,
     noteQueryOptions,
   } from "../../../client/queries";
-  import { dateToTodaiDate } from "../../../utils/dates";
+  import { dateToTodaiDate } from "#core/time";
   import SidePanel from "../../../components/SidePanel.svelte";
   import NotePanel from "../../../components/notes/NotePanel.svelte";
   import LoadingState from "#shared/ui/LoadingState.svelte";

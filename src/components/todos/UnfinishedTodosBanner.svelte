@@ -9,7 +9,7 @@
   import { createMoveTodosMutation } from "../../client/mutations";
   import type { Day, Tag, Todo } from "../../client/types";
   import { UNFINISHED_TODOS_LOOKBACK_DAYS } from "../../constants";
-  import { addDays, formatDay } from "../../utils/dates";
+  import { addDays, formatDay } from "#core/time";
   import Button from "#shared/ui/Button.svelte";
   import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
   import IconSun from "#shared/ui/icons/IconSun.svelte";

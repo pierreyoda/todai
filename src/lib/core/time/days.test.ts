@@ -18,7 +18,7 @@ import {
   weekOf,
   weeksOfMonth,
   type Week,
-} from "./dates";
+} from "./days";
 
 const TODAI_DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 

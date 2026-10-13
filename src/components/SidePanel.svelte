@@ -3,7 +3,7 @@
 
   import { activeWorkspaceQueryOptions, noteQueryOptions } from "../client/queries";
   import type { Tag } from "../client/types";
-  import { dateToTodaiDate, formatDay } from "../utils/dates";
+  import { dateToTodaiDate, formatDay } from "#core/time";
   import { noteDrafts } from "../utils/noteDrafts.svelte";
   import Collapse from "#shared/ui/Collapse.svelte";
   import SidePanelTag from "./SidePanelTag.svelte";

@@ -3,7 +3,7 @@
 
   import { goto } from "$app/navigation";
   import type { Tag } from "../client/types";
-  import { dateToTodaiDate } from "../utils/dates";
+  import { dateToTodaiDate } from "#core/time";
   import {
     activeWorkspaceQueryOptions,
     linkStatusesQueryOptions,

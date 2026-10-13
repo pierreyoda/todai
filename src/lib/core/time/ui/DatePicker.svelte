@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Day } from "../../client/types";
-  import { formatShortDay } from "../../utils/dates";
+  import type { Day } from "../days";
+  import { formatShortDay } from "../days";
   import Button from "#shared/ui/Button.svelte";
   import DatePickerModal from "./DatePickerModal.svelte";
   import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";

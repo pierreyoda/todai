@@ -6,7 +6,7 @@
     monthTodosQueryOptions,
   } from "../../../client/queries";
   import type { Day, Month, Tag } from "../../../client/types";
-  import { weekOf, weeksOfMonth } from "../../../utils/dates";
+  import { weekOf, weeksOfMonth } from "#core/time";
   import CalendarWeek from "./CalendarWeek.svelte";
 
   /** Content of a month: loads its todos and notes when created, i.e. when the month is first expanded. */

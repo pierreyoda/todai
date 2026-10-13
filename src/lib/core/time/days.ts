@@ -20,7 +20,11 @@ import {
   startOfWeek,
 } from "date-fns";
 
-import type { Day, Month } from "../client/types";
+/** Format: YYYY-MM-DD */
+export type Day = string;
+
+/** Format: YYYY-MM */
+export type Month = string;
 
 /** A week of a month: Monday to Sunday, cut at the month's bounds. */
 export type Week = {

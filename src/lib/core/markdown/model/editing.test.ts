@@ -10,7 +10,7 @@ import {
   toggleWrap,
   type TextEdit,
   type TextSelection,
-} from "./markdownEditing";
+} from "./editing";
 
 /*
  * Texts are written with their selection: `|` for a caret, `«` and `»` around a selected range.

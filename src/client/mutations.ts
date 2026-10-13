@@ -19,7 +19,7 @@ import {
 } from "./queries";
 import { playTodoCompletedSound } from "../utils/sounds";
 import { toasts } from "#shared/utils/toasts.svelte.ts";
-import { dateToTodaiDate, formatRelativeDay } from "../utils/dates";
+import { dateToTodaiDate, formatRelativeDay } from "#core/time";
 import { canSwitchWorkspace } from "../utils/workspaceSwitch";
 import { reorderTodos } from "../utils/todoOrder";
 

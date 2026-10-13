@@ -10,8 +10,8 @@
   import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
   import SaveStatus from "#shared/ui/SaveStatus.svelte";
   import UnsavedLeaveModal from "#shared/ui/UnsavedLeaveModal.svelte";
-  import MarkdownCheatsheet from "../markdown/MarkdownCheatsheet.svelte";
-  import MarkdownSplitEditor from "../markdown/MarkdownSplitEditor.svelte";
+  import { MarkdownCheatsheet } from "#core/markdown";
+  import { MarkdownSplitEditor } from "#core/markdown";
 
   /**
    * A todo's description, in Markdown, saved on its own as it's written: e.g. in its edit modal, whose other fields are

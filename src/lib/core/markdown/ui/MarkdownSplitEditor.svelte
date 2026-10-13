@@ -2,7 +2,7 @@
   import { tick, type Snippet } from "svelte";
   import type { ClassValue } from "svelte/elements";
 
-  import { toggleTask } from "../../utils/markdownEditing";
+  import { toggleTask } from "../model/editing";
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
 
