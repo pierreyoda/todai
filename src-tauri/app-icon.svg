@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<clipPath id="sq"><path d="M640.6 100.0C722.2 100.0 763.0 100.0 799.8 112.1L806.9 113.9C854.9 131.3 892.7 169.1 910.1 217.1L911.9 224.2C924.0 261.0 924.0 301.8 924.0 383.4L924.0 640.6C924.0 722.2 924.0 763.0 911.9 799.8L910.1 806.9C892.7 854.9 854.9 892.7 806.9 910.1L799.8 911.9C763.0 924.0 722.2 924.0 640.6 924.0L383.4 924.0C301.8 924.0 261.0 924.0 224.2 911.9L217.1 910.1C169.1 892.7 131.3 854.9 113.9 806.9L112.1 799.8C100.0 763.0 100.0 722.2 100.0 640.6L100.0 383.4C100.0 301.8 100.0 261.0 112.1 224.2L113.9 217.1C131.3 169.1 169.1 131.3 217.1 113.9L224.2 112.1C261.0 100.0 301.8 100.0 383.4 100.0Z"/></clipPath>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#020618"/><stop offset=".75" stop-color="#1d293d"/><stop offset="1" stop-color="#314158"/></linearGradient>
+<radialGradient id="lampGlow" cx="512" cy="318" r="230" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#fb64b6" stop-opacity=".75"/><stop offset=".4" stop-color="#f6339a" stop-opacity=".22"/><stop offset="1" stop-color="#f6339a" stop-opacity="0"/></radialGradient>
+<linearGradient id="beamR" x1="512" y1="0" x2="980" y2="0" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#fda5d5" stop-opacity=".85"/><stop offset="1" stop-color="#f6339a" stop-opacity="0"/></linearGradient>
+<linearGradient id="beamL" x1="512" y1="0" x2="44" y2="0" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#fda5d5" stop-opacity=".4"/><stop offset="1" stop-color="#f6339a" stop-opacity="0"/></linearGradient>
+<clipPath id="tower"><path d="M454 404L570 404L616 806L408 806Z"/></clipPath>
+</defs>
+<g clip-path="url(#sq)">
+<rect width="1024" height="1024" fill="url(#sky)"/>
+<g fill="#fff"><circle cx="232" cy="236" r="7" fill-opacity=".55"/><circle cx="318" cy="168" r="5" fill-opacity=".4"/><circle cx="790" cy="200" r="6" fill-opacity=".45"/><circle cx="722" cy="560" r="5" fill-opacity=".3"/><circle cx="268" cy="520" r="5" fill-opacity=".3"/></g>
+<path d="M512 292L1000 196L1000 452L512 344Z" fill="url(#beamR)"/>
+<path d="M512 296L24 238L24 380L512 340Z" fill="url(#beamL)"/>
+<rect width="1024" height="1024" fill="url(#lampGlow)"/>
+<path d="M454 404L570 404L616 806L408 806Z" fill="#e2e8f0"/>
+<g clip-path="url(#tower)" fill="#f6339a"><rect x="300" y="486" width="424" height="64"/><rect x="300" y="626" width="424" height="64"/></g>
+<rect x="436" y="380" width="152" height="30" rx="10" fill="#cad5e2"/>
+<rect x="470" y="282" width="84" height="100" rx="14" fill="#fccee8"/>
+<rect x="490" y="296" width="44" height="72" rx="10" fill="#fff"/>
+<path d="M458 290Q512 214 566 290Z" fill="#e2e8f0"/>
+<path d="M60 846Q190 790 320 818Q420 792 512 800Q640 786 720 820Q850 796 980 846V1024H60Z" fill="#020618"/>
+<path d="M152 900q46-22 92 0t92 0M622 912q46-22 92 0t92 0" stroke="#45556c" stroke-width="14" stroke-linecap="round" fill="none"/>
+<path d="M640.6 100.0C722.2 100.0 763.0 100.0 799.8 112.1L806.9 113.9C854.9 131.3 892.7 169.1 910.1 217.1L911.9 224.2C924.0 261.0 924.0 301.8 924.0 383.4L924.0 640.6C924.0 722.2 924.0 763.0 911.9 799.8L910.1 806.9C892.7 854.9 854.9 892.7 806.9 910.1L799.8 911.9C763.0 924.0 722.2 924.0 640.6 924.0L383.4 924.0C301.8 924.0 261.0 924.0 224.2 911.9L217.1 910.1C169.1 892.7 131.3 854.9 113.9 806.9L112.1 799.8C100.0 763.0 100.0 722.2 100.0 640.6L100.0 383.4C100.0 301.8 100.0 261.0 112.1 224.2L113.9 217.1C131.3 169.1 169.1 131.3 217.1 113.9L224.2 112.1C261.0 100.0 301.8 100.0 383.4 100.0Z" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="10"/>
+</g>
+</svg>
