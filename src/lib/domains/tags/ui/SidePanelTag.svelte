@@ -71,12 +71,7 @@ let menuOpen = $state(false);
           bind:this={selectButton}
           class="item select"
           aria-pressed={selected}
-          onclick={(event) => {
-            // The second click of a double click, which renames it, would otherwise undo the first
-            if (event.detail > 1) return;
-            onSelectedChanged(!selected);
-          }}
-          ondblclick={startRenaming}
+          onclick={() => onSelectedChanged(!selected)}
         >
           <span class="dot" aria-hidden="true"></span>
           <span class="name" title={tag.name}>{tag.name}</span>
