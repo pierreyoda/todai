@@ -22,6 +22,26 @@ export const reorderTodos = <T extends { id: string }>(
   return others;
 };
 
+/**
+ * How `reorder_todo` moves `todo` first or last among the todos as completed as it, which are listed and reordered apart:
+ * next to which one of `todos` (a day's, in display order), and on which side. `undefined` if it's already there, or
+ * isn't among them.
+ */
+export const reorderToEdge = <T extends { id: string; completed: boolean }>(
+  todos: readonly T[],
+  todo: T,
+  edge: "first" | "last",
+): { targetId: T["id"]; placement: Placement } | undefined => {
+  const group = todos.filter(({ completed }) => completed === todo.completed);
+  if (!group.some(({ id }) => id === todo.id)) return undefined;
+  const target = edge === "first" ? group.at(0) : group.at(-1);
+  if (!target || target.id === todo.id) return undefined;
+  return {
+    targetId: target.id,
+    placement: edge === "first" ? "before" : "after",
+  };
+};
+
 /** Whether `a` and `b` list the same items in the same order. */
 export const sameOrder = <T extends { id: string }>(
   a: readonly T[],

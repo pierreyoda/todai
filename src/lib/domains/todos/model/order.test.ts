@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { reorderTodos, sameOrder } from "./order";
+import { reorderTodos, reorderToEdge, sameOrder } from "./order";
 
 const items = ["a", "b", "c", "d"].map((id) => ({ id }));
 const ids = (list: readonly { id: string }[]) =>
@@ -36,6 +36,41 @@ describe("reorderTodos", () => {
   it("leaves the list it's given unchanged", () => {
     reorderTodos(items, "a", "d", "after");
     expect(ids(items)).toBe("abcd");
+  });
+});
+
+describe("reorderToEdge", () => {
+  // `x` and `y` are completed: in display order, among the others
+  const todo = (id: string) => ({ id, completed: id === "x" || id === "y" });
+  const todos = ["a", "x", "b", "c", "y"].map(todo);
+
+  it.each([
+    ["c", "first", "a", "before"],
+    ["b", "first", "a", "before"],
+    ["a", "last", "c", "after"],
+    ["b", "last", "c", "after"],
+    // Among the completed ones only
+    ["y", "first", "x", "before"],
+    ["x", "last", "y", "after"],
+  ] as const)("moves %s %s: %s (%s)", (id, edge, targetId, placement) => {
+    expect(reorderToEdge(todos, todo(id), edge)).toEqual({
+      targetId,
+      placement,
+    });
+  });
+
+  it.each([
+    ["a", "first"],
+    ["c", "last"],
+    ["x", "first"],
+    ["y", "last"],
+  ] as const)("leaves %s already %s", (id, edge) => {
+    expect(reorderToEdge(todos, todo(id), edge)).toBeUndefined();
+  });
+
+  it("ignores a todo it isn't given", () => {
+    expect(reorderToEdge(todos, todo("z"), "first")).toBeUndefined();
+    expect(reorderToEdge([], todo("a"), "last")).toBeUndefined();
   });
 });
 

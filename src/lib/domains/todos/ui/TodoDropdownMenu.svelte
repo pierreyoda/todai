@@ -1,4 +1,5 @@
 <script lang="ts">
+import { createQuery } from "@tanstack/svelte-query";
 import {
   addDays,
   DatePickerModal,
@@ -15,6 +16,7 @@ import {
   DropdownSubmenu,
 } from "#shared/ui/dropdown/index.ts";
 import IconArrowRight from "#shared/ui/icons/IconArrowRight.svelte";
+import IconBolt from "#shared/ui/icons/IconBolt.svelte";
 import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
 import IconClock from "#shared/ui/icons/IconClock.svelte";
 import IconLink from "#shared/ui/icons/IconLink.svelte";
@@ -26,8 +28,10 @@ import IconXMark from "#shared/ui/icons/IconXMark.svelte";
 import {
   createDeleteTodoMutation,
   createMoveTodoMutation,
+  createReorderTodoMutation,
   createSetTodoEstimateMutation,
 } from "../api/mutations";
+import { todosQueryOptions } from "../api/queries";
 import { createRemoveTodoLinkMutation } from "../links/api/mutations";
 import AddLinkModal from "../links/ui/AddLinkModal.svelte";
 import LinkKindIcon from "../links/ui/LinkKindIcon.svelte";
@@ -36,6 +40,7 @@ import {
   TODO_ESTIMATE_MINUTES_PRESETS,
   TODO_ESTIMATE_POINTS_PRESET,
 } from "../model/estimates";
+import { reorderToEdge } from "../model/order";
 import type { Todo } from "../model/types";
 import TodoLineItemTagToggle from "./TodoLineItemTagToggle.svelte";
 
@@ -77,6 +82,15 @@ const moveTargets = $derived(
 // Leaves the list it's moved from: tells where it went, with an undo
 const moveTodo = createMoveTodoMutation(() => item, { undoable: true });
 
+// The day's whole list, whatever the panel filters. Only while open, and never in the calendar, which hides priorities.
+const dayTodos = createQuery(() => ({
+  ...todosQueryOptions(item.day),
+  enabled: open && !inCalendar,
+}));
+const toFirst = $derived(reorderToEdge(dayTodos.data ?? [], item, "first"));
+const toLast = $derived(reorderToEdge(dayTodos.data ?? [], item, "last"));
+const reorderTodo = createReorderTodoMutation(() => item.day);
+
 const setTodoEstimate = createSetTodoEstimateMutation(() => item);
 const removeLink = createRemoveTodoLinkMutation(() => item);
 
@@ -97,6 +111,27 @@ $effect(() => {
       {/snippet}
       Edit…
     </DropdownItem>
+    {#if !inCalendar}
+      <DropdownSubmenu label="Set priority" keepOpenOnClick={false}>
+        {#snippet icon()}
+          <IconBolt />
+        {/snippet}
+        <DropdownItem
+          disabled={!toFirst || reorderTodo.isPending}
+          onclick={() =>
+            toFirst && reorderTodo.mutate({ todo: item, ...toFirst })}
+        >
+          First
+        </DropdownItem>
+        <DropdownItem
+          disabled={!toLast || reorderTodo.isPending}
+          onclick={() =>
+            toLast && reorderTodo.mutate({ todo: item, ...toLast })}
+        >
+          Last
+        </DropdownItem>
+      </DropdownSubmenu>
+    {/if}
     <DropdownSubmenu label="Move to" keepOpenOnClick={false}>
       {#snippet icon()}
         <IconArrowRight />
