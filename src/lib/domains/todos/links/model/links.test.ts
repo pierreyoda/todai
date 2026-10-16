@@ -4,7 +4,9 @@ import {
   formatLinksCount,
   hasLink,
   isWebUrl,
+  itemWhere,
   linkKindName,
+  linkProvider,
   mayBeLink,
 } from "./links";
 import type { ParsedLink } from "./types";
@@ -45,6 +47,24 @@ describe("describeLink", () => {
 
   it("names other links by their domain", () => {
     expect(describeLink(page)).toBe("Link to docs.rs");
+  });
+});
+
+describe("linkProvider", () => {
+  it("tells where pull requests and issues are fetched from", () => {
+    expect(linkProvider(pull)).toBe("github");
+    expect(linkProvider(issue)).toBe("github");
+  });
+
+  it("has none for other links", () => {
+    expect(linkProvider(page)).toBeUndefined();
+  });
+});
+
+describe("itemWhere", () => {
+  it("tells a pull request's or issue's repository and number", () => {
+    expect(itemWhere(pull)).toBe("pierreyoda/todai #58");
+    expect(itemWhere(page)).toBeUndefined();
   });
 });
 

@@ -1,14 +1,14 @@
 import { type QueryClient, queryOptions } from "@tanstack/svelte-query";
 
 import type { Day } from "#core/time";
-import { refreshGitHubAttention } from "#domains/workspaces";
+import { refreshIntegrationsAttention } from "#domains/workspaces";
 import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 import { invalidateTodosOf } from "../../api/queries";
 import { invokeLinks } from "./commands";
 
 /**
- * The refreshes of the GitHub links' statuses, by day: what the last one ran into. Like the todos, they come from the
- * active workspace's database: refreshed when switching to another one.
+ * The refreshes of the links' statuses, by day: what the last one ran into. Like the todos, they come from the active
+ * workspace's database: refreshed when switching to another one.
  */
 export const linkStatusKeys = {
   all: [...workspaceDataKey, "linkStatuses"] as const,
@@ -17,13 +17,12 @@ export const linkStatusKeys = {
   preview: (url: string) => [...linkStatusKeys.all, "preview", url] as const,
 };
 
-/** How often the GitHub links' statuses are refreshed while shown. Only the ones fetched long enough ago are. */
+/** How often the links' statuses are refreshed while shown. Only the ones fetched long enough ago are. */
 const LINK_STATUSES_INTERVAL = 10 * 60 * 1000;
 
 /**
- * Refreshes the status of the GitHub links of the todos of `day` that were fetched long enough ago, then the todos if
- * any was. Unlike the app's own data, it changes behind its back: each time it's shown, every 10 minutes, and on window
- * focus.
+ * Refreshes the status of the links of the todos of `day` that were fetched long enough ago, then the todos if any was.
+ * Unlike the app's own data, it changes behind its back: each time it's shown, every 10 minutes, and on window focus.
  */
 export const linkStatusesQueryOptions = (day: Day) =>
   queryOptions({
@@ -33,7 +32,7 @@ export const linkStatusesQueryOptions = (day: Day) =>
         name: "refresh_links",
         args: { day },
       });
-      refreshGitHubAttention(queryClient);
+      refreshIntegrationsAttention(queryClient);
       if (outcome.refreshed > 0) await invalidateTodosOf(queryClient, day);
       return outcome;
     },
@@ -43,8 +42,8 @@ export const linkStatusesQueryOptions = (day: Day) =>
   });
 
 /**
- * Refreshes the statuses of the GitHub links of the todos of `day` that are due, whether they're refreshed on their own
- * or not (e.g. once one is added). Resolves once done, even if it fails.
+ * Refreshes the statuses of the links of the todos of `day` that are due, whether they're refreshed on their own or not
+ * (e.g. once one is added). Resolves once done, even if it fails.
  */
 export const refreshLinksOf = (queryClient: QueryClient, day: Day) =>
   queryClient
@@ -52,8 +51,8 @@ export const refreshLinksOf = (queryClient: QueryClient, day: Day) =>
     .catch(() => undefined);
 
 /**
- * What `url` would show once added: what GitHub tells about its pull request or issue, through the active workspace's
- * connection. Kept a minute, as it's asked for while typing.
+ * What `url` would show once added: what its provider tells about its item (e.g. GitHub about a pull request), through
+ * the active workspace's connection. Kept a minute, as it's asked for while typing.
  */
 export const linkPreviewQueryOptions = (url: string) =>
   queryOptions({
@@ -63,7 +62,7 @@ export const linkPreviewQueryOptions = (url: string) =>
         name: "preview_link",
         args: { url },
       });
-      refreshGitHubAttention(queryClient);
+      refreshIntegrationsAttention(queryClient);
       return preview;
     },
     staleTime: 60 * 1000,

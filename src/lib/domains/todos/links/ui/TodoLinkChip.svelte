@@ -3,22 +3,25 @@ import { useIsFetching } from "@tanstack/svelte-query";
 
 import type { Todo } from "../../model/types";
 import { linkStatusKeys } from "../api/queries";
-import { itemState, linkStatus } from "../model/statuses";
+import { itemState } from "../model/github";
+import { linkProvider } from "../model/links";
+import { linkStatus } from "../model/statuses";
 import type { TodoLink } from "../model/types";
+import GitHubLinkPopover from "./GitHubLinkPopover.svelte";
 import LinkChip from "./LinkChip.svelte";
-import LinkPopover from "./LinkPopover.svelte";
 
 type TodoLinkChipProps = {
   link: TodoLink;
   todo: Todo;
-  /** Whether the active workspace is connected to GitHub: its pull requests and issues then show their status. */
+  /** Whether the active workspace is connected to the link's provider, if any: its item then shows its status. */
   connected: boolean;
 };
 const { link, todo, connected }: TodoLinkChipProps = $props();
 
 // Shown as loading while fetched for the first time
 const refreshing = useIsFetching({ queryKey: linkStatusKeys.all });
-const withDetails = $derived(connected && link.github !== undefined);
+const provider = $derived(linkProvider(link));
+const withDetails = $derived(connected && provider !== undefined);
 const status = $derived.by(() => {
   if (!withDetails) return null;
   return linkStatus(link) ?? (refreshing.current > 0 ? "loading" : null);
@@ -40,7 +43,9 @@ let chip = $state<HTMLElement>();
     bind:ref={chip}
     onclick={() => (open = !open)}
   />
-  <LinkPopover bind:open {link} {todo} anchor={chip} />
+  {#if provider === "github"}
+    <GitHubLinkPopover bind:open {link} {todo} anchor={chip} />
+  {/if}
 {:else}
   <LinkChip {link} />
 {/if}

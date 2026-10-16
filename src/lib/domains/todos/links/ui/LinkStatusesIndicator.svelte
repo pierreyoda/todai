@@ -1,45 +1,55 @@
 <script lang="ts">
-import type { GitHubProblem } from "#core/github";
+import {
+  needsUser,
+  type Provider,
+  type ProviderProblems,
+  problemEntries,
+} from "#core/integrations";
 import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
+import { linkProvider } from "../model/links";
 import { describeProblem, statusesFetchedAt } from "../model/statuses";
 import type { TodoLink } from "../model/types";
 
 type LinkStatusesIndicatorProps = {
-  /** Why GitHub couldn't be asked about the links' statuses. */
-  problem: GitHubProblem;
+  /** Why providers couldn't be asked about the links' statuses. */
+  problems: ProviderProblems;
   /** The links shown, for when their statuses are from. */
   links: readonly TodoLink[];
 };
-const { problem, links }: LinkStatusesIndicatorProps = $props();
+const { problems, links }: LinkStatusesIndicatorProps = $props();
 
-const described = $derived(describeProblem(problem, statusesFetchedAt(links)));
-/** Fixed from the integrations settings, rather than by waiting. */
-const fixable = $derived(
-  problem.kind === "signed_out" || problem.kind === "gh_missing",
+const linksOf = (provider: Provider) =>
+  links.filter((link) => linkProvider(link) === provider);
+
+const described = $derived(
+  problemEntries(problems).map(([provider, problem]) => ({
+    provider,
+    problem,
+    ...describeProblem(provider, problem, statusesFetchedAt(linksOf(provider))),
+  })),
 );
 </script>
 
 <span class="indicator" role="status">
-  {#if fixable}
-    <a
-      href="/settings/integrations"
-      class="pill attention"
-      title={described.detail}
-    >
-      <IconExclamationTriangle />
-      {described.label}
-    </a>
-  {:else}
-    <span
-      class={["pill", problem.kind !== "offline" && "attention"]}
-      title={described.detail}
-    >
-      {#if problem.kind !== "offline"}
+  {#each described as { provider, problem, label, detail } (provider)}
+    <!-- Fixed from the integrations settings, rather than by waiting -->
+    {#if needsUser(problem)}
+      <a href="/settings/integrations" class="pill attention" title={detail}>
         <IconExclamationTriangle />
-      {/if}
-      {described.label}
-    </span>
-  {/if}
+        {label}
+      </a>
+    {:else}
+      <span
+        class={["pill", problem.kind !== "offline" && "attention"]}
+        title={detail}
+      >
+        {#if problem.kind !== "offline"}
+          <IconExclamationTriangle />
+        {/if}
+        {label}
+      </span>
+    {/if}
+  {/each}
 </span>
 
 <style lang="postcss">
@@ -47,7 +57,7 @@ const fixable = $derived(
 
   .indicator {
     /* At the end of the toolbar */
-    @apply ml-auto flex shrink-0;
+    @apply ml-auto flex shrink-0 gap-2;
   }
 
   .pill {

@@ -1,7 +1,6 @@
 <script lang="ts">
-import { createQuery } from "@tanstack/svelte-query";
-import { untrack } from "svelte";
-import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import { type Snippet, untrack } from "svelte";
+import { type Provider, providerInfo } from "#core/integrations";
 import Button from "#shared/ui/Button.svelte";
 import { computePosition } from "#shared/ui/dropdown/positioning.ts";
 import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
@@ -15,54 +14,55 @@ import {
   createRemoveTodoLinkMutation,
 } from "../api/mutations";
 import { openLink } from "../api/openLink";
-import { hasLink } from "../model/links";
-import {
-  checkName,
-  describeChecks,
-  describeProblem,
-  describeReview,
-  itemState,
-  linkStatus,
-  notableChecks,
-  stateStatus,
-} from "../model/statuses";
-import type { TodoLink } from "../model/types";
-import LinkChip from "./LinkChip.svelte";
+import { describeProblem, linkStatusWords } from "../model/statuses";
+import type { ItemState, LinkFetchError, TodoLink } from "../model/types";
 import LinkKindIcon from "./LinkKindIcon.svelte";
+import LinkStatusWord from "./LinkStatusWord.svelte";
 
+/** A link's details, whatever its provider: what's particular to the provider comes from its own popover (e.g. `GitHubLinkPopover`). */
 type LinkPopoverProps = {
   /** Bindable. */
   open: boolean;
-  /** A GitHub link of `todo`. */
+  /** A link of `todo`, fetched from `provider`. */
   link: TodoLink;
   todo: Todo;
+  provider: Provider;
   /** What it's shown next to: its chip. */
   anchor: HTMLElement | undefined;
+  /** Where its item stands, once known: picks and colors its icon. */
+  iconState?: ItemState;
+  /** Where its item is, next to its icon: e.g. its repository. */
+  where: Snippet;
+  /** After its status words, e.g. a pull request's branches. */
+  extras?: Snippet;
+  /** Why its provider has nothing to tell about it, in a sentence. */
+  fetchErrorNotice: Snippet<[LinkFetchError]>;
+  /** Its details, once fetched: rows of a `<dl>` (see `LinkDetailsRow`). */
+  details?: Snippet;
 };
-let { open = $bindable(), link, todo, anchor }: LinkPopoverProps = $props();
+let {
+  open = $bindable(),
+  link,
+  todo,
+  provider,
+  anchor,
+  iconState,
+  where,
+  extras,
+  fetchErrorNotice,
+  details,
+}: LinkPopoverProps = $props();
 
 const titleId = $props.id();
-const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
 const refresh = createRefreshTodoLinkMutation(() => todo);
 const remove = createRemoveTodoLinkMutation(() => todo);
 
-const snapshot = $derived(link.snapshot);
-const linkState = $derived(snapshot && itemState(snapshot));
-const status = $derived(linkStatus(link));
-const github = $derived(link.github);
-const isIssue = $derived(
-  snapshot ? snapshot.type === "issue" : link.kind === "github_issue",
-);
-const refreshProblem = $derived(
-  refresh.data?.problem && describeProblem(refresh.data.problem),
-);
-
-const CHECK_OUTCOMES = {
-  passed: "Passed",
-  failed: "Failed",
-  running: "Running",
-  skipped: "Skipped",
-} as const;
+const info = $derived(providerInfo(provider));
+const words = $derived(linkStatusWords(link));
+const refreshProblem = $derived.by(() => {
+  const problem = refresh.data?.problems[provider];
+  return problem && describeProblem(provider, problem);
+});
 
 let popover = $state<HTMLDivElement>();
 
@@ -135,20 +135,16 @@ let hadFocus = false;
 >
   <header class="header">
     <div class="context">
-      <LinkKindIcon kind={link.kind} state={linkState} />
+      <LinkKindIcon kind={link.kind} state={iconState} />
       <span class="where">
-        {isIssue ? "Issue" : "Pull request"}
-        {#if github}
-          · {github.owner}/{github.repo}
-          <span class="number">#{github.number}</span>
-        {/if}
+        {@render where()}
       </span>
       <Button
         style="plain"
         size="xs"
         class="refresh"
-        aria-label="Refresh from GitHub"
-        title="Refresh from GitHub"
+        aria-label={`Refresh from ${info.name}`}
+        title={`Refresh from ${info.name}`}
         disabled={refresh.isPending}
         onclick={() => refresh.mutate(link)}
       >
@@ -157,28 +153,13 @@ let hadFocus = false;
         />
       </Button>
     </div>
-    <h2 id={titleId} class="title">{snapshot?.title ?? link.label}</h2>
-    {#if snapshot && linkState}
-      {@const statePill = stateStatus(linkState)}
+    <h2 id={titleId} class="title">{link.snapshot?.title ?? link.label}</h2>
+    {#if words.length > 0}
       <div class="pills">
-        <span class={["pill", statePill.tone]}>{statePill.word}</span>
-        {#if status && status.word !== statePill.word}
-          <span class={["pill", status.tone]}>{status.word}</span>
-        {/if}
-        {#if snapshot.type === "pull_request"}
-          <span class="branches">{snapshot.headRef} → {snapshot.baseRef}</span>
-        {:else}
-          {#each snapshot.labels as label (label.name)}
-            <span class="label">
-              <span
-                class="dot"
-                style:background-color={label.color}
-                aria-hidden="true"
-              ></span>
-              {label.name}
-            </span>
-          {/each}
-        {/if}
+        {#each words as word (word.word)}
+          <LinkStatusWord status={word} look="pill" />
+        {/each}
+        {@render extras?.()}
       </div>
     {/if}
   </header>
@@ -186,13 +167,7 @@ let hadFocus = false;
   {#if link.fetchError}
     <p class="notice" role="alert">
       <IconExclamationTriangle class="shrink-0" />
-      {#if link.fetchError === "sso_required"}
-        Its organization requires single sign-on: authorize the GitHub CLI's
-        token for it on github.com, then refresh.
-      {:else}
-        GitHub doesn't let {activeWorkspace.data?.githubLogin ?? "this account"}
-        see it: it may be private, deleted, or not approved by its organization.
-      {/if}
+      {@render fetchErrorNotice(link.fetchError)}
     </p>
   {/if}
   {#if refreshProblem}
@@ -220,140 +195,9 @@ let hadFocus = false;
     </div>
   {/if}
 
-  {#if snapshot?.type === "pull_request"}
+  {#if details}
     <dl class="details">
-      {#if snapshot.checks}
-        <div class="row">
-          <dt>Checks</dt>
-          <dd class="checks">
-            <span>{describeChecks(snapshot.checks)}</span>
-            <span class="check-list">
-              {#each notableChecks(snapshot.checks) as check, i (i)}
-                <span class={["check", check.outcome]}>
-                  {#if check.outcome === "passed"}
-                    <svg
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                    </svg>
-                  {:else if check.outcome === "failed"}
-                    <svg
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-                    </svg>
-                  {:else}
-                    <span class="ring" aria-hidden="true"></span>
-                  {/if}
-                  <!-- Told by its glyph, or else in words -->
-                  <span class="sr-only">{CHECK_OUTCOMES[check.outcome]}:</span>
-                  <span class="check-name">
-                    {checkName(
-                      check,
-                    )}{#if check.outcome === "running" && check.startedAt},
-                      started {formatRelativeTime(check.startedAt)}{/if}
-                  </span>
-                </span>
-              {/each}
-            </span>
-          </dd>
-        </div>
-      {/if}
-      <div class="row">
-        <dt>Review</dt>
-        <dd>{describeReview(snapshot)}</dd>
-      </div>
-      {#if snapshot.closes.length > 0}
-        <div class="row">
-          <dt>Closes</dt>
-          <dd class="related">
-            {#each snapshot.closes as item (item.url)}
-              <span class="related-item">
-                <LinkChip
-                  link={item}
-                  state={item.state}
-                  status={stateStatus(item.state)}
-                />
-                {#if hasLink(todo.links, item.url)}
-                  <span class="hint">Already on this todo</span>
-                {/if}
-              </span>
-            {/each}
-          </dd>
-        </div>
-      {/if}
-      <div class="row">
-        <dt>Changes</dt>
-        <dd class="tabular-nums">
-          <span class="text-green-300">
-            +{snapshot.additions}<span class="sr-only"> lines added,</span>
-          </span>
-          <span class="text-red-300">
-            −{snapshot.deletions}<span class="sr-only"> removed,</span>
-          </span>
-          · {snapshot.changedFiles}
-          {snapshot.changedFiles === 1 ? "file" : "files"}
-        </dd>
-      </div>
-      <div class="row">
-        <dt>Updated</dt>
-        <dd>
-          {formatRelativeTime(snapshot.updatedAt)}
-          {#if snapshot.author}by {snapshot.author}{/if}
-        </dd>
-      </div>
-    </dl>
-  {:else if snapshot?.type === "issue"}
-    <dl class="details">
-      {#if snapshot.closedBy.length > 0}
-        <div class="row">
-          <dt>Closed by</dt>
-          <dd class="related">
-            {#each snapshot.closedBy as item (item.url)}
-              <span class="related-item">
-                <LinkChip
-                  link={item}
-                  state={item.state}
-                  status={stateStatus(item.state)}
-                />
-                {#if hasLink(todo.links, item.url)}
-                  <span class="hint">Already on this todo</span>
-                {/if}
-              </span>
-            {/each}
-          </dd>
-        </div>
-      {/if}
-      <div class="row">
-        <dt>{snapshot.assignees.length > 1 ? "Assignees" : "Assignee"}</dt>
-        <dd>{snapshot.assignees.join(", ") || "Nobody"}</dd>
-      </div>
-      {#if snapshot.milestone}
-        <div class="row">
-          <dt>Milestone</dt>
-          <dd>{snapshot.milestone}</dd>
-        </div>
-      {/if}
-      <div class="row">
-        <dt>Updated</dt>
-        <dd>
-          {formatRelativeTime(snapshot.updatedAt)}
-          {#if snapshot.author}· opened by {snapshot.author}{/if}
-          · {snapshot.comments}
-          {snapshot.comments === 1 ? "comment" : "comments"}
-        </dd>
-      </div>
+      {@render details()}
     </dl>
   {/if}
 
@@ -385,7 +229,7 @@ let hadFocus = false;
         openLink(link.url);
       }}
     >
-      Open on GitHub
+      Open {info.where}
       <IconArrowTopRightOnSquare class="size-3.5" />
     </a>
   </footer>
@@ -420,10 +264,6 @@ let hadFocus = false;
     @apply min-w-0 flex-1 truncate text-xs/4;
   }
 
-  .number {
-    @apply tabular-nums;
-  }
-
   /* A `Button`, restyled through its container as it's another component's element: more specific than its own rules */
   .context :global(.refresh) {
     @apply grid size-7 shrink-0 place-items-center rounded-md border-0 p-0 text-slate-400 transition-colors;
@@ -446,37 +286,6 @@ let hadFocus = false;
     @apply flex flex-wrap items-center gap-1.5;
   }
 
-  .pill {
-    @apply inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-xs/4 font-semibold text-slate-300 ring-1 ring-white/15 ring-inset;
-
-    &.open,
-    &.good {
-      @apply bg-green-500/15 text-green-300 ring-green-500/35;
-    }
-    &.bad {
-      @apply bg-red-500/15 text-red-300 ring-red-500/35;
-    }
-    &.pending,
-    &.warn {
-      @apply bg-amber-400/12 text-amber-300 ring-amber-400/30;
-    }
-    &.merged {
-      @apply bg-purple-500/15 text-purple-300 ring-purple-500/35;
-    }
-  }
-
-  .branches {
-    @apply min-w-0 truncate text-xs/4 text-slate-400;
-  }
-
-  .label {
-    @apply inline-flex items-center gap-1 text-xs/4 text-slate-300;
-  }
-
-  .dot {
-    @apply size-2 shrink-0 rounded-full;
-  }
-
   .notice {
     @apply mx-3 mb-2 flex items-start gap-2 rounded-lg bg-amber-400/10 px-2.5 py-2 text-[13px]/5 text-amber-200;
 
@@ -487,64 +296,11 @@ let hadFocus = false;
 
   .details {
     @apply flex flex-col border-t border-white/6;
-  }
 
-  .row {
-    @apply grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 px-3 py-2;
-
-    & + & {
+    /* `LinkDetailsRow`'s */
+    > :global(.row + .row) {
       @apply border-t border-white/4;
     }
-
-    dt {
-      @apply text-xs/5 text-slate-400;
-    }
-
-    dd {
-      @apply text-[13px]/5 text-white;
-    }
-  }
-
-  .checks {
-    @apply flex flex-col gap-0.5;
-  }
-
-  /* Scrolls past about seven checks, the next one cut to show there's more */
-  .check-list {
-    @apply flex max-h-40 flex-col gap-0.5 overflow-y-auto overscroll-contain;
-  }
-
-  .check {
-    @apply flex items-center gap-1.5 text-slate-300;
-
-    > :global(svg) {
-      @apply size-3 shrink-0;
-    }
-    &.passed > :global(svg) {
-      @apply text-green-300;
-    }
-    &.failed > :global(svg) {
-      @apply text-red-300;
-    }
-    .ring {
-      @apply mx-0.5 size-2 shrink-0 rounded-full border-[1.5px] border-amber-300;
-    }
-  }
-
-  .check-name {
-    @apply min-w-0 truncate;
-  }
-
-  .related {
-    @apply flex flex-col items-start gap-1;
-  }
-
-  .related-item {
-    @apply flex items-center gap-2;
-  }
-
-  .hint {
-    @apply text-xs/4 text-slate-400;
   }
 
   .footer {

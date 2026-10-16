@@ -1,7 +1,8 @@
 <script lang="ts">
 import { createQuery } from "@tanstack/svelte-query";
+import { providerInfo } from "#core/integrations";
 import type { Day } from "#core/time";
-import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import { activeWorkspaceQueryOptions, isConnected } from "#domains/workspaces";
 import FieldText from "#shared/ui/FieldText.svelte";
 import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
 import { createAddTodoMutation } from "../api/mutations";
@@ -12,17 +13,19 @@ import {
   linkPreviewQueryOptions,
   parseLinkQueryOptions,
 } from "../links/api/queries";
-import { mayBeLink } from "../links/model/links";
-import { itemState, linkStatus, stateStatus } from "../links/model/statuses";
+import { itemState } from "../links/model/github";
+import { itemWhere, linkProvider, mayBeLink } from "../links/model/links";
+import { linkStatusWords } from "../links/model/statuses";
 import type { ParsedLink } from "../links/model/types";
 import LinkKindIcon from "../links/ui/LinkKindIcon.svelte";
+import LinkStatusWord from "../links/ui/LinkStatusWord.svelte";
 
 type TodoCreateSectionProps = {
   day: Day;
 };
 const { day }: TodoCreateSectionProps = $props();
 
-/** How long creating a todo from a link waits for GitHub's answer, before titling it after the link instead. */
+/** How long creating a todo from a link waits for its provider's answer, before titling it after the link instead. */
 const PREVIEW_WAIT_MS = 2000;
 
 const listboxId = $props.id();
@@ -30,7 +33,8 @@ let title = $state("");
 const createTodo = createAddTodoMutation({ onSuccess: () => (title = "") });
 const addFromLink = createAddTodoFromLinkMutation(() => day);
 
-// A pasted GitHub pull request or issue can become a todo titled after it, with its link, unless turned off
+// A pasted link to an item of a provider (e.g. a GitHub pull request) can become a todo titled after it, with its link,
+// unless turned off
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
 const offered = $derived(!!activeWorkspace.data?.linksPasteToCreate);
 const typed = $derived(title.trim());
@@ -40,9 +44,15 @@ const parsed = createQuery(() => ({
   enabled: linkTyped,
 }));
 const recognized = $derived(
-  linkTyped && parsed.data?.github ? parsed.data : undefined,
+  linkTyped && parsed.data && linkProvider(parsed.data)
+    ? parsed.data
+    : undefined,
 );
-const connected = $derived(!!activeWorkspace.data?.githubLogin);
+const provider = $derived(recognized && linkProvider(recognized));
+const info = $derived(provider && providerInfo(provider));
+const connected = $derived(
+  !!provider && isConnected(activeWorkspace.data, provider),
+);
 const previewed = createQuery(() => ({
   ...linkPreviewQueryOptions(recognized?.url ?? ""),
   enabled: connected && !!recognized,
@@ -52,12 +62,12 @@ const preview = $derived(
 );
 const link = $derived(preview?.link ?? recognized);
 const snapshot = $derived(preview?.snapshot);
-const status = $derived(preview && linkStatus(preview));
+const words = $derived(preview ? linkStatusWords(preview) : []);
 const lookingUp = $derived(connected && !!recognized && previewed.isPending);
 
 /** What was typed when the suggestions were dismissed (Escape), until it changes. */
 let dismissed = $state<string | null>(null);
-/** Waiting for GitHub's answer, once asked to create the todo. */
+/** Waiting for its provider's answer, once asked to create the todo. */
 let waiting = $state(false);
 const suggesting = $derived(!!link && dismissed !== typed);
 /** The suggestion picked by Enter. */
@@ -72,7 +82,7 @@ const createPlain = () => {
   createTodo.mutate({ day, title });
 };
 
-/** Creates a todo with the GitHub link `target`, titled after its pull request or issue if GitHub answers in time. */
+/** Creates a todo with the link `target`, titled after its item (e.g. a pull request) if its provider answers in time. */
 const createFromLink = async (target: ParsedLink) => {
   if (busy) return;
   const known =
@@ -81,8 +91,14 @@ const createFromLink = async (target: ParsedLink) => {
       : undefined;
   let url = known?.link.url ?? target.url;
   let named = known?.snapshot?.title;
-  if (!named && connected && !known) {
-    // A moment for GitHub to answer, rather than titling the todo after the link's number
+  const targetProvider = linkProvider(target);
+  if (
+    !named &&
+    !known &&
+    targetProvider &&
+    isConnected(activeWorkspace.data, targetProvider)
+  ) {
+    // A moment for its provider to answer, rather than titling the todo after the link's number
     waiting = true;
     const answer = await Promise.race([
       fetchLinkPreview(target.url).catch(() => undefined),
@@ -107,7 +123,7 @@ const onsubmit = async (event: SubmitEvent) => {
   // Submitted right after pasting a link, before it's recognized: created from it, as it would have been suggested
   if (linkTyped && dismissed !== typed && !parsed.isFetched) {
     const target = await fetchParsedLink(typed).catch(() => undefined);
-    if (target?.github) {
+    if (target && linkProvider(target)) {
       createFromLink(target);
       return;
     }
@@ -189,36 +205,27 @@ const onkeydown = (event: KeyboardEvent) => {
             <p class="option-title">{snapshot.title}</p>
             <p class="option-detail">
               New todo, linked to <span class="label">{link.label}</span>
-              {#if status}
-                · <span class={["word", stateStatus(itemState(snapshot)).tone]}>
-                  {stateStatus(itemState(snapshot)).word}
-                </span>
-                {#if status.word !== stateStatus(itemState(snapshot)).word}
-                  · <span class={["word", status.tone]}>{status.word}</span>
-                {/if}
-              {/if}
+              <!-- On one line: whitespace would show between the words -->
+              {#each words as word (word.word)}{" · "}<LinkStatusWord status={word} look="word" />{/each}
             </p>
           {:else if lookingUp || waiting}
-            <p class="option-title">
-              Looking up {link.github?.owner}/{link.github?.repo}
-              #{link.github?.number}…
-            </p>
+            <p class="option-title">Looking up {itemWhere(link)}…</p>
             <p class="option-detail">
               Press Enter now if you like: the todo is titled after it if
-              GitHub answers in a moment, or “{link.label}” otherwise.
+              {info?.name} answers in a moment, or “{link.label}” otherwise.
             </p>
           {:else}
             <p class="option-title">{link.label}</p>
             <p class="option-detail">
               New todo, linked to {link.label}.
               {#if !connected}
-                This workspace isn't connected to GitHub, so the title comes
-                from the URL: rename it as you like.
+                This workspace isn't connected to {info?.name}, so the title
+                comes from the URL: rename it as you like.
               {:else if preview?.fetchError}
-                This workspace's GitHub account can't see it, so the title comes
-                from the URL.
+                This workspace's {info?.name} account can't see it, so the title
+                comes from the URL.
               {:else}
-                GitHub couldn't be asked, so the title comes from the URL.
+                {info?.name} couldn't be asked, so the title comes from the URL.
               {/if}
             </p>
           {/if}
@@ -300,25 +307,6 @@ const onkeydown = (event: KeyboardEvent) => {
 
   .label {
     @apply font-medium text-slate-200 tabular-nums;
-  }
-
-  .word {
-    @apply font-medium;
-
-    &.open,
-    &.good {
-      @apply text-green-300;
-    }
-    &.bad {
-      @apply text-red-300;
-    }
-    &.pending,
-    &.warn {
-      @apply text-amber-300;
-    }
-    &.merged {
-      @apply text-purple-300;
-    }
   }
 
   .error {

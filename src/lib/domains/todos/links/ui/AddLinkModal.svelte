@@ -1,7 +1,8 @@
 <script lang="ts">
 import { createQuery } from "@tanstack/svelte-query";
 import { untrack } from "svelte";
-import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import { providerInfo } from "#core/integrations";
+import { activeWorkspaceQueryOptions, isConnected } from "#domains/workspaces";
 import Button from "#shared/ui/Button.svelte";
 import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
 import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
@@ -12,16 +13,12 @@ import { goto } from "$app/navigation";
 import type { Todo } from "../../model/types";
 import { createAddTodoLinksMutation } from "../api/mutations";
 import { linkPreviewQueryOptions, parseLinkQueryOptions } from "../api/queries";
-import { hasLink, linkKindName } from "../model/links";
-import {
-  closingPullRequest,
-  describeProblem,
-  itemState,
-  linkStatus,
-  stateStatus,
-} from "../model/statuses";
+import { closingPullRequest, itemState } from "../model/github";
+import { hasLink, linkKindName, linkProvider } from "../model/links";
+import { describeProblem, linkStatusWords } from "../model/statuses";
 import LinkChip from "./LinkChip.svelte";
 import LinkKindIcon from "./LinkKindIcon.svelte";
+import LinkStatusWord from "./LinkStatusWord.svelte";
 
 type AddLinkModalProps = {
   /** Bindable. */
@@ -45,7 +42,6 @@ let alsoAddClosing = $state(true);
 
 const addLinks = createAddTodoLinksMutation(() => todo);
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-const login = $derived(activeWorkspace.data?.githubLogin);
 
 // Blank each time it's opened, ready to paste into
 $effect(() => {
@@ -73,24 +69,29 @@ const invalid = $derived(
   settled && parsed.isError ? String(parsed.error) : undefined,
 );
 
-// What GitHub tells about it, through the workspace's connection
+// What its provider tells about it, through the workspace's connection
+const provider = $derived(recognized && linkProvider(recognized));
+const connected = $derived(
+  !!provider && isConnected(activeWorkspace.data, provider),
+);
 const previewed = createQuery(() => ({
   ...linkPreviewQueryOptions(recognized?.url ?? ""),
-  enabled: !!login && !!recognized?.github,
+  enabled: connected,
 }));
 const preview = $derived(
-  login && recognized?.github && previewed.data?.link
-    ? previewed.data
-    : undefined,
+  connected && previewed.data?.link ? previewed.data : undefined,
 );
-const lookingUp = $derived(
-  !!login && !!recognized?.github && previewed.isFetching && !preview,
-);
-/** Where GitHub says it is, e.g. a pull request pasted as an issue. */
+const lookingUp = $derived(connected && previewed.isFetching && !preview);
+const info = $derived(provider && providerInfo(provider));
+/** Who GitHub's notices tell the workspace is connected as. */
+const githubLogin = $derived(activeWorkspace.data?.githubLogin);
+/** Where its provider says it is, e.g. a pull request pasted as an issue. */
 const link = $derived(preview?.link ?? recognized);
 const snapshot = $derived(preview?.snapshot);
-const status = $derived(preview && linkStatus(preview));
-const problem = $derived(preview?.problem && describeProblem(preview.problem));
+const words = $derived(preview ? linkStatusWords(preview) : []);
+const problem = $derived(
+  provider && preview?.problem && describeProblem(provider, preview.problem),
+);
 
 const alreadyLinked = $derived(
   !!recognized &&
@@ -147,7 +148,7 @@ const onsubmit = (event: SubmitEvent) => {
           {:else}
             <p class="name">This workspace's GitHub account can't see it</p>
             <p class="note">
-              {activeWorkspace.data?.name} is connected as {login}, who can't
+              {activeWorkspace.data?.name} is connected as {githubLogin}, who can't
               see {link.github?.owner}/{link.github?.repo}: it may be private, or
               belong in another workspace. You can still add it here: it shows as
               {link.label}, without a status.
@@ -162,7 +163,7 @@ const onsubmit = (event: SubmitEvent) => {
               goto("/settings/integrations");
             }}
           >
-            Check {activeWorkspace.data?.name}'s GitHub connection
+            Check {activeWorkspace.data?.name}'s {info?.name} connection
           </a>
         </div>
       </div>
@@ -182,14 +183,8 @@ const onsubmit = (event: SubmitEvent) => {
           {#if snapshot}
             <p class="name">{snapshot.title}</p>
             <p class="facts">
-              {#if status}
-                <span class={["word", stateStatus(itemState(snapshot)).tone]}>
-                  {stateStatus(itemState(snapshot)).word}
-                </span>
-                {#if status.word !== stateStatus(itemState(snapshot)).word}
-                  · <span class={["word", status.tone]}>{status.word}</span>
-                {/if}
-              {/if}
+              <!-- On one line: whitespace would show between the words -->
+              {#each words as word, i (word.word)}{#if i > 0}{" · "}{/if}<LinkStatusWord status={word} look="word" />{/each}
               {#if snapshot.type === "issue"}
                 {#each snapshot.labels as label (label.name)}
                   · {label.name}
@@ -205,7 +200,7 @@ const onsubmit = (event: SubmitEvent) => {
           {#if alreadyLinked}
             <p class="note warning">Already on this todo.</p>
           {:else if lookingUp}
-            <p class="note">Looking it up on GitHub…</p>
+            <p class="note">Looking it up {info?.where}…</p>
           {:else if !snapshot}
             <p class="note">
               {#if !link.github}
@@ -217,7 +212,7 @@ const onsubmit = (event: SubmitEvent) => {
             </p>
             {#if problem}
               <p class="note">
-                Its status will show once GitHub can be asked:
+                Its status will show once {info?.name} can be asked:
                 {problem.label.toLowerCase()}.
               </p>
             {/if}
@@ -303,25 +298,6 @@ const onsubmit = (event: SubmitEvent) => {
 
   .facts {
     @apply text-xs/5 text-slate-400;
-  }
-
-  .word {
-    @apply font-medium;
-
-    &.open,
-    &.good {
-      @apply text-green-300;
-    }
-    &.bad {
-      @apply text-red-300;
-    }
-    &.pending,
-    &.warn {
-      @apply text-amber-300;
-    }
-    &.merged {
-      @apply text-purple-300;
-    }
   }
 
   .note {

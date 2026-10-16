@@ -6,4 +6,4 @@ pub mod snapshot;
 #[cfg(test)]
 pub(crate) mod testing;
 
-pub use client::{GitHub, GitHubError, TokenSource};
+pub use client::{GitHub, TokenSource};

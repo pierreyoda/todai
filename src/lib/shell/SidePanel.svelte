@@ -1,11 +1,13 @@
 <script lang="ts">
 import { createQuery } from "@tanstack/svelte-query";
+import { PROVIDERS } from "#core/integrations";
 import { dateToTodaiDate, formatDay } from "#core/time";
 import { noteDrafts, noteQueryOptions } from "#domains/notes";
 import type { Tag } from "#domains/tags";
 import { SidePanelTag, TagsEmptyState, TagUpsertModal } from "#domains/tags";
 import {
   activeWorkspaceQueryOptions,
+  attentionOf,
   SidePanelWorkspace,
 } from "#domains/workspaces";
 import Collapse from "#shared/ui/Collapse.svelte";
@@ -36,6 +38,9 @@ const today = formatDay(day);
 
 // Only from a usable workspace's database
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
+const integrationsAttention = $derived(
+  PROVIDERS.some((provider) => attentionOf(activeWorkspace.data, provider)),
+);
 const note = createQuery(() => ({
   ...noteQueryOptions(day),
   enabled: activeWorkspace.data?.available === true,
@@ -152,7 +157,7 @@ const todayHasNote = $derived(noteDrafts.hasNote(day, !!note.data));
     <SidePanelLink
       label="Integrations"
       routeId="/settings/integrations"
-      indicator={activeWorkspace.data?.githubAttention
+      indicator={integrationsAttention
         ? "An integration needs your attention"
         : undefined}
       indicatorTone="warning"

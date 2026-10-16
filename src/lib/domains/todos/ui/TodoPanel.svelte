@@ -1,11 +1,11 @@
 <script lang="ts">
 import type { CreateQueryResult } from "@tanstack/svelte-query";
-import type { GitHubProblem } from "#core/github";
+import { type ProviderProblems, problemEntries } from "#core/integrations";
 import type { Day } from "#core/time";
 import type { Tag } from "#domains/tags";
 import SearchField from "#shared/ui/SearchField.svelte";
 import { isDefined } from "#shared/utils/isDefined.ts";
-import ConnectGitHubTip from "../links/ui/ConnectGitHubTip.svelte";
+import ConnectIntegrationTip from "../links/ui/ConnectIntegrationTip.svelte";
 import LinkStatusesIndicator from "../links/ui/LinkStatusesIndicator.svelte";
 import type { Todo } from "../model/types";
 import { TodoSearch } from "../state/todoSearch.svelte";
@@ -22,8 +22,8 @@ type TodoPanelProps = {
   tags: readonly Tag[];
   selectedTagId: Tag["id"] | null;
   onSelectedTagChanged: (id: Tag["id"] | null) => void;
-  /** Why GitHub couldn't be asked about the statuses of the todos' links, if so. */
-  linksProblem?: GitHubProblem;
+  /** Why providers couldn't be asked about the statuses of the todos' links, if so. */
+  linksProblems?: ProviderProblems;
 };
 const {
   day,
@@ -31,7 +31,7 @@ const {
   tags,
   selectedTagId,
   onSelectedTagChanged,
-  linksProblem,
+  linksProblems,
 }: TodoPanelProps = $props();
 
 const search = new TodoSearch(
@@ -74,9 +74,9 @@ const emptySearchQuery = $derived(
         if (id === selectedTagId) onSelectedTagChanged(null);
       }}
     />
-    {#if linksProblem}
+    {#if problemEntries(linksProblems).length > 0}
       <LinkStatusesIndicator
-        problem={linksProblem}
+        problems={linksProblems ?? {}}
         links={todos.data?.flatMap((todo) => todo.links) ?? []}
       />
     {/if}
@@ -96,7 +96,7 @@ const emptySearchQuery = $derived(
         {tags}
         reorderable={!search.active && !selectedTagId}
       />
-      <ConnectGitHubTip todos={todos.data ?? []} />
+      <ConnectIntegrationTip todos={todos.data ?? []} />
     {:else}
       <!-- Keyed by the case, so switching between cases replays the entrance, but typing a search doesn't -->
       {#key `${emptySearchQuery !== null}:${emptyFilterTag?.id}`}

@@ -1,9 +1,9 @@
 import { QueryClient } from "@tanstack/svelte-query";
 import { describe, expect, it } from "vitest";
 
-import { refreshGitHubAttention, workspaceKeys } from "./queries";
+import { refreshIntegrationsAttention, workspaceKeys } from "./queries";
 
-describe("refreshGitHubAttention", () => {
+describe("refreshIntegrationsAttention", () => {
   it("refreshes the workspaces, but not what's nested in their keys", async () => {
     const id = "0199d0c0-0000-7000-8000-000000000001";
     const keys = {
@@ -17,7 +17,7 @@ describe("refreshGitHubAttention", () => {
       queryClient.setQueryData(key, []);
     }
 
-    await refreshGitHubAttention(queryClient);
+    await refreshIntegrationsAttention(queryClient);
 
     const invalidated = Object.fromEntries(
       Object.entries(keys).map(([name, key]) => [

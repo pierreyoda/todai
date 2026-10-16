@@ -1,7 +1,7 @@
 use jiff::Timestamp;
 use serde::Serialize;
 
-use crate::{database::models::DbWorkspace, errors::TodaiError, github::GitHubError};
+use crate::{database::models::DbWorkspace, errors::TodaiError, integrations::IntegrationProblem};
 
 /// A workspace, with its own database.
 #[derive(Serialize, Debug)]
@@ -27,7 +27,7 @@ pub struct Workspace {
     /// Why its GitHub connection needs the user, if it did the last time GitHub was asked: the GitHub CLI is missing, or
     /// signed out of its account.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub github_attention: Option<GitHubError>,
+    pub github_attention: Option<IntegrationProblem>,
     /// Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked.
     pub links_auto_refresh: bool,
     /// Whether a todo whose pull request is merged (or issue completed) offers to be marked as done.

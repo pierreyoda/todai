@@ -1,6 +1,6 @@
 import type { UUID } from "node:crypto";
 
-import type { GitHubProblem } from "#core/github";
+import type { IntegrationProblem, ProviderProblems } from "#core/integrations";
 
 /**
  * What a link points to, recognized from its URL:
@@ -35,22 +35,26 @@ export interface TodoLink extends ParsedLink {
   id: UUID;
   todoId: UUID;
   createdAt: Date;
-  /** What GitHub last told about its pull request or issue, if fetched since it was added. */
-  snapshot?: GitHubSnapshot;
-  /** When GitHub last answered about it. */
+  /** What its provider last told about its item, if fetched since it was added. */
+  snapshot?: LinkSnapshot;
+  /** When its provider last answered about it. */
   fetchedAt?: Date;
-  /** Why GitHub's last answer had nothing about it, if so: `snapshot` is then the one before, if any. */
+  /** Why its provider's last answer had nothing about it, if so: `snapshot` is then the one before, if any. */
   fetchError?: LinkFetchError;
 }
 
 /**
- * Why GitHub's last answer had nothing about a link's pull request or issue:
- * - `no_access`: missing, deleted, or private to others (GitHub can't tell these apart);
- * - `sso_required`: its organization requires single sign-on, which the GitHub CLI's token isn't authorized for.
+ * Why its provider's last answer had nothing about a link's item:
+ * - `no_access`: missing, deleted, or private to others (providers can't tell these apart);
+ * - `sso_required`: GitHub only, its organization requires single sign-on, which the GitHub CLI's token isn't
+ *   authorized for.
  */
 export type LinkFetchError = "no_access" | "sso_required";
 
-/** A pull request or issue, as GitHub last told about it: plain facts, from which its status word is picked. */
+/** A linked item, as its provider last told about it: plain facts, from which its status word is picked. */
+export type LinkSnapshot = GitHubSnapshot;
+
+/** A pull request or issue, as GitHub last told about it. */
 export type GitHubSnapshot = PullRequestSnapshot | IssueSnapshot;
 
 export interface PullRequestSnapshot {
@@ -140,20 +144,20 @@ export interface RelatedItem extends ParsedLink {
 
 /** What a link would show once added, before adding it (`preview_link`). */
 export interface LinkPreview {
-  /** As recognized from its URL, or where GitHub says it is: e.g. a pull request pasted as an issue. */
+  /** As recognized from its URL, or where its provider says it is: e.g. a pull request pasted as an issue. */
   link: ParsedLink;
-  /** What GitHub tells about its pull request or issue, if it could be asked. */
-  snapshot?: GitHubSnapshot;
-  /** Why GitHub had nothing to tell about it, if so. */
+  /** What its provider tells about its item, if it could be asked. */
+  snapshot?: LinkSnapshot;
+  /** Why its provider had nothing to tell about it, if so. */
   fetchError?: LinkFetchError;
-  /** Why GitHub couldn't be asked, if so: e.g. offline. */
-  problem?: GitHubProblem;
+  /** Why its provider couldn't be asked, if so: e.g. offline. */
+  problem?: IntegrationProblem;
 }
 
 /** What refreshing links' statuses did. */
 export interface RefreshOutcome {
   /** Links whose status was fetched: the todos are worth listing again if any. */
   refreshed: number;
-  /** Why GitHub couldn't be asked, if so. */
-  problem?: GitHubProblem;
+  /** Why a provider couldn't be asked, for those that couldn't: their links keep their last known status. */
+  problems: ProviderProblems;
 }

@@ -6,10 +6,14 @@ pub mod database;
 pub mod errors;
 pub mod gh;
 pub mod github;
+pub mod integrations;
 pub mod links;
 pub mod logging;
 pub mod models;
+pub mod process;
 pub mod state;
+#[cfg(test)]
+pub(crate) mod testing;
 pub mod workspaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

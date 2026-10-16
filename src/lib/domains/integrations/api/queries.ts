@@ -1,6 +1,9 @@
 import type { UUID } from "node:crypto";
 import { queryOptions } from "@tanstack/svelte-query";
-import { refreshGitHubAttention, workspaceKeys } from "#domains/workspaces";
+import {
+  refreshIntegrationsAttention,
+  workspaceKeys,
+} from "#domains/workspaces";
 import { queryClient } from "#shared/ipc/queryClient.ts";
 import { invokeIntegrations } from "./commands";
 
@@ -35,7 +38,7 @@ export const githubApiStatusQueryOptions = (workspaceId: UUID) =>
         name: "get_github_api_status",
         args: { workspaceId },
       });
-      refreshGitHubAttention(queryClient);
+      refreshIntegrationsAttention(queryClient);
       return status;
     },
     staleTime: 0,

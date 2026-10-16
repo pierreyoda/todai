@@ -1,4 +1,4 @@
-import type { GitHubProblem } from "#core/github";
+import type { IntegrationProblem } from "#core/integrations";
 
 /** An account the GitHub CLI (`gh`) knows on github.com. */
 export interface GhAccount {
@@ -29,5 +29,5 @@ export interface GitHubApiStatus {
   /** The connected account's rate limit, if GitHub could be asked. */
   rateLimit?: GitHubRateLimit;
   /** Why GitHub couldn't be asked, if so. */
-  problem?: GitHubProblem;
+  problem?: IntegrationProblem;
 }

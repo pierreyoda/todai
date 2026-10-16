@@ -1,7 +1,7 @@
-//! What GitHub tells about the pull requests and issues linked to todos, fetched through the active workspace's GitHub
-//! connection and stored with each link.
+//! What their providers tell about the items linked to todos (GitHub's pull requests and issues), fetched through the
+//! active workspace's connection to each, and stored with each link.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use jiff::Timestamp;
 use rusqlite::{named_params, Connection};
@@ -13,17 +13,23 @@ use crate::{
     database::models::{DbTimestamp, DbTodoLink, DbWorkspace},
     errors::{Result, TodaiError},
     gh::GhFinder,
-    github::{query::ItemResult, snapshot::GitHubSnapshot, GitHub, GitHubError, TokenSource},
-    links::{self, FetchError, GitHubRef, LinkKind, ParsedLink},
+    github::{GitHub, TokenSource},
+    integrations::{IntegrationProblem, Provider},
+    links::{
+        self,
+        snapshot::{ItemResult, LinkSnapshot},
+        FetchError, GitHubRef, LinkRef, ParsedLink,
+    },
     models::{core::Day, integrations::TodoLink},
     state::AppState,
     workspaces,
 };
 
-/// How long an open pull request's or issue's status is shown before being fetched again, in seconds.
+/// How long an open item's status is shown before being fetched again, in seconds.
 const OPEN_TTL: i64 = 5 * 60;
 
-/// The same for a merged or closed one, or one linked to a completed todo: it rarely changes anymore.
+/// The same for a settled one (e.g. a merged or closed pull request), or one linked to a completed todo: it rarely
+/// changes anymore.
 const SETTLED_TTL: i64 = 24 * 60 * 60;
 
 /// What refreshing links did.
@@ -32,13 +38,20 @@ const SETTLED_TTL: i64 = 24 * 60 * 60;
 pub struct RefreshOutcome {
     /// Links whose status was fetched: the todos are worth listing again if any.
     pub refreshed: u32,
-    /// Why GitHub couldn't be asked, if so: the links keep their last known status.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub problem: Option<GitHubError>,
+    /// Why a provider couldn't be asked, by provider: its links keep their last known status.
+    pub problems: BTreeMap<Provider, IntegrationProblem>,
 }
 
-/// Refreshes the status of the pull requests and issues linked to the non-deleted todos of `day`, if fetched long
-/// enough ago (or whenever if `force`), through the active workspace's GitHub connection. Does nothing without one.
+/// The providers linked items are fetched from.
+pub(crate) struct Providers<'a, T> {
+    pub github: &'a GitHub,
+    /// Where GitHub's tokens come from: the GitHub CLI.
+    pub gh_tokens: &'a T,
+}
+
+/// Refreshes the status of the items linked to the non-deleted todos of `day`, if fetched long enough ago (or whenever
+/// if `force`), through the active workspace's connection to their provider. Does nothing for a provider it isn't
+/// connected to.
 #[tauri::command]
 pub async fn refresh_links(
     state: State<'_, AppState>,
@@ -47,11 +60,15 @@ pub async fn refresh_links(
     day: Day,
     force: Option<bool>,
 ) -> Result<RefreshOutcome> {
+    let providers = Providers {
+        github: &github,
+        gh_tokens: &*finder,
+    };
     let target = Target::Day(day);
-    refresh(&state, &*finder, &github, &target, force.unwrap_or(false)).await
+    refresh(&state, &providers, &target, force.unwrap_or(false)).await
 }
 
-/// Refreshes the status of the pull request or issue of the link `id`, however recently fetched, as `refresh_links`.
+/// Refreshes the status of the item of the link `id`, however recently fetched, as `refresh_links`.
 #[tauri::command]
 pub async fn refresh_link(
     state: State<'_, AppState>,
@@ -59,28 +76,33 @@ pub async fn refresh_link(
     github: State<'_, GitHub>,
     id: String,
 ) -> Result<RefreshOutcome> {
-    refresh(&state, &*finder, &github, &Target::Link(id), true).await
+    let providers = Providers {
+        github: &github,
+        gh_tokens: &*finder,
+    };
+    refresh(&state, &providers, &Target::Link(id), true).await
 }
 
 /// What a link would show once added, before adding it.
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LinkPreview {
-    /// As recognized from its URL, or where GitHub says it is: e.g. a pull request pasted as an issue.
+    /// As recognized from its URL, or where its provider says it is: e.g. a pull request pasted as an issue.
     pub link: ParsedLink,
-    /// What GitHub tells about its pull request or issue, if it could be asked.
+    /// What its provider tells about its item, if it could be asked.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub snapshot: Option<GitHubSnapshot>,
-    /// Why GitHub had nothing to tell about it, if so.
+    pub snapshot: Option<LinkSnapshot>,
+    /// Why its provider had nothing to tell about it, if so.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fetch_error: Option<FetchError>,
-    /// Why GitHub couldn't be asked, if so.
+    /// Why its provider couldn't be asked, if so.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub problem: Option<GitHubError>,
+    pub problem: Option<IntegrationProblem>,
 }
 
-/// Recognizes what `url` points to, then, for a GitHub pull request or issue, asks GitHub about it through the active
-/// workspace's connection, if any. Nothing is stored. Fails if it's not an http(s) URL, as `parse_link`.
+/// Recognizes what `url` points to, then, for an item fetched from a provider (e.g. a GitHub pull request or issue),
+/// asks it about it through the active workspace's connection, if any. Nothing is stored. Fails if it's not an http(s)
+/// URL, as `parse_link`.
 #[tauri::command]
 pub async fn preview_link(
     state: State<'_, AppState>,
@@ -88,13 +110,16 @@ pub async fn preview_link(
     github: State<'_, GitHub>,
     url: String,
 ) -> Result<LinkPreview> {
-    preview(&state, &*finder, &github, &url).await
+    let providers = Providers {
+        github: &github,
+        gh_tokens: &*finder,
+    };
+    preview(&state, &providers, &url).await
 }
 
 async fn preview(
     state: &AppState,
-    tokens: &impl TokenSource,
-    github: &GitHub,
+    providers: &Providers<'_, impl TokenSource>,
     url: &str,
 ) -> Result<LinkPreview> {
     let mut preview = LinkPreview {
@@ -103,14 +128,13 @@ async fn preview(
         fetch_error: None,
         problem: None,
     };
-    let Some(github_ref) = preview.link.github.clone() else {
+    let Some(item) = preview.link.item() else {
         return Ok(preview);
     };
-    let Some(login) = active_workspace(&state.app_db())?.github_login else {
+    let workspace = active_workspace(&state.app_db())?;
+    let Some(results) = fetch(state, providers, &workspace, item.provider(), &[item]).await else {
         return Ok(preview);
     };
-    let results = github.fetch_items(tokens, &login, &[github_ref]).await;
-    state.note_github(&login, &results);
     match results {
         Ok(results) => match results.into_iter().next() {
             Some(ItemResult::Found(item)) => {
@@ -126,6 +150,36 @@ async fn preview(
     Ok(preview)
 }
 
+/// The account through which `workspace` is connected to `provider`, if it is.
+fn connection(workspace: &DbWorkspace, provider: Provider) -> Option<&str> {
+    match provider {
+        Provider::GitHub => workspace.github_login.as_deref(),
+    }
+}
+
+/// What `provider` says about `items`, all of its own, in the same order, asked through `workspace`'s connection to
+/// it: `None` without one.
+async fn fetch(
+    state: &AppState,
+    providers: &Providers<'_, impl TokenSource>,
+    workspace: &DbWorkspace,
+    provider: Provider,
+    items: &[LinkRef],
+) -> Option<std::result::Result<Vec<ItemResult>, IntegrationProblem>> {
+    let account = connection(workspace, provider)?;
+    let results = match provider {
+        Provider::GitHub => {
+            let refs: Vec<GitHubRef> = items.iter().filter_map(LinkRef::github).cloned().collect();
+            providers
+                .github
+                .fetch_items(providers.gh_tokens, account, &refs)
+                .await
+        }
+    };
+    state.note(provider, account, &results);
+    Some(results)
+}
+
 /// The links to refresh.
 enum Target {
     /// Those of a day's non-deleted todos.
@@ -138,19 +192,18 @@ enum Target {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DueLink {
     id: String,
-    github: GitHubRef,
+    item: LinkRef,
 }
 
 async fn refresh(
     state: &AppState,
-    tokens: &impl TokenSource,
-    github: &GitHub,
+    providers: &Providers<'_, impl TokenSource>,
     target: &Target,
     force: bool,
 ) -> Result<RefreshOutcome> {
-    let _refreshing = github.refreshing().await;
+    let _refreshing = state.refreshing().await;
 
-    // Locked to read the links, then to write what GitHub said, but not while waiting for it.
+    // Locked to read the links, then to write what the providers said, but not while waiting for them.
     let (workspace, due) = {
         let app_db = state.app_db();
         let workspace = active_workspace(&app_db)?;
@@ -158,46 +211,55 @@ async fn refresh(
         let due = due_links(&db, target, Timestamp::now().as_second(), force)?;
         (workspace, due)
     };
-    let Some(login) = &workspace.github_login else {
-        return Ok(RefreshOutcome::default());
-    };
-    if due.is_empty() {
-        return Ok(RefreshOutcome::default());
-    }
 
-    // Several todos can link to the same pull request or issue.
-    let mut refs: Vec<GitHubRef> = Vec::new();
+    // By provider, each item once: several todos can link to the same pull request or issue.
+    let mut items: BTreeMap<Provider, Vec<LinkRef>> = BTreeMap::new();
     for link in &due {
-        if !refs.contains(&link.github) {
-            refs.push(link.github.clone());
+        let items = items.entry(link.item.provider()).or_default();
+        if !items.contains(&link.item) {
+            items.push(link.item.clone());
         }
     }
-    let results = github.fetch_items(tokens, login, &refs).await;
-    state.note_github(login, &results);
-    let results = match results {
-        Ok(results) => results,
-        Err(problem) => {
-            log::warn!("Could not refresh {} links: {problem}", due.len());
-            return Ok(RefreshOutcome {
-                refreshed: 0,
-                problem: Some(problem),
-            });
+    let mut outcome = RefreshOutcome::default();
+    let mut results: HashMap<LinkRef, ItemResult> = HashMap::new();
+    for (provider, items) in items {
+        match fetch(state, providers, &workspace, provider, &items).await {
+            None => {}
+            Some(Ok(answered)) => results.extend(items.into_iter().zip(answered)),
+            Some(Err(problem)) => {
+                log::warn!(
+                    "Could not refresh {} items from {}: {problem}",
+                    items.len(),
+                    provider.name()
+                );
+                outcome.problems.insert(provider, problem);
+            }
         }
-    };
-    let results: HashMap<&GitHubRef, &ItemResult> = refs.iter().zip(&results).collect();
+    }
+    if results.is_empty() {
+        return Ok(outcome);
+    }
 
     let app_db = state.app_db();
     let current = active_workspace(&app_db)?;
-    if current.id != workspace.id || current.github_login != workspace.github_login {
-        log::info!("Dropped the links refreshed for a workspace or account not in use anymore");
-        return Ok(RefreshOutcome::default());
+    let switched = current.id != workspace.id;
+    results.retain(|item, _| {
+        let provider = item.provider();
+        let kept = !switched && connection(&current, provider) == connection(&workspace, provider);
+        if !kept {
+            log::info!(
+                "Dropped the links refreshed from {} for a workspace or account not in use anymore",
+                provider.name()
+            );
+        }
+        kept
+    });
+    if results.is_empty() {
+        return Ok(outcome);
     }
     let mut db = state.db()?;
-    let refreshed = save_results(&mut db, &due, &results, Timestamp::now().as_second())?;
-    Ok(RefreshOutcome {
-        refreshed,
-        problem: None,
-    })
+    outcome.refreshed = save_results(&mut db, &due, &results, Timestamp::now().as_second())?;
+    Ok(outcome)
 }
 
 fn active_workspace(app_db: &Connection) -> Result<DbWorkspace> {
@@ -205,7 +267,8 @@ fn active_workspace(app_db: &Connection) -> Result<DbWorkspace> {
     workspaces::get(app_db, &id)
 }
 
-/// The GitHub links of `target` whose status is due for a refresh at `now`, in the order they were added.
+/// The links of `target` fetched from a provider whose status is due for a refresh at `now`, in the order they were
+/// added.
 fn due_links(
     db: &Connection,
     target: &Target,
@@ -237,21 +300,17 @@ fn due_links(
         let (link, todo_completed) = row?;
         let link = TodoLink::try_from(link)?;
         if let Target::Link(id) = target {
-            if link.kind == LinkKind::Url {
+            if link.kind.provider().is_none() {
                 return Err(TodaiError::CommandError(format!(
-                    "Link {id} is not a GitHub pull request or issue"
+                    "Link {id} has no status to refresh: it's a plain web link"
                 )));
             }
         }
-        if let Some(github) = link
-            .github
-            .clone()
+        if let Some(item) = link
+            .item()
             .filter(|_| force || is_due(&link, todo_completed, now))
         {
-            due.push(DueLink {
-                id: link.id,
-                github,
-            });
+            due.push(DueLink { id: link.id, item });
         }
     }
     if let (Target::Link(id), true) = (target, due.is_empty()) {
@@ -265,29 +324,25 @@ fn is_due(link: &TodoLink, todo_completed: bool, now: DbTimestamp) -> bool {
     let Some(fetched_at) = link.fetched_at else {
         return true;
     };
-    let settled = todo_completed
-        || link
-            .snapshot
-            .as_ref()
-            .is_some_and(GitHubSnapshot::is_settled);
+    let settled = todo_completed || link.snapshot.as_ref().is_some_and(LinkSnapshot::is_settled);
     let ttl = if settled { SETTLED_TTL } else { OPEN_TTL };
     now - fetched_at.as_second() >= ttl
 }
 
-/// Stores what GitHub said about each of the `due` links, at `now`, returning how many were updated.
+/// Stores what their provider said about each of the `due` links, at `now`, returning how many were updated.
 fn save_results(
     db: &mut Connection,
     due: &[DueLink],
-    results: &HashMap<&GitHubRef, &ItemResult>,
+    results: &HashMap<LinkRef, ItemResult>,
     now: DbTimestamp,
 ) -> Result<u32> {
     let tx = db.transaction()?;
     let mut refreshed = 0;
     for link in due {
-        let error = match results.get(&link.github) {
+        let error = match results.get(&link.item) {
             Some(ItemResult::Found(item)) => {
-                // Where GitHub says it is (e.g. a pull request linked as an issue, or in a renamed repository), unless
-                // its todo already links there too.
+                // Where its provider says it is (e.g. a pull request linked as an issue, or in a renamed repository),
+                // unless its todo already links there too.
                 if let Some(github) = &item.link.github {
                     tx.prepare_cached(
                         "UPDATE OR IGNORE todo_links
@@ -318,7 +373,7 @@ fn save_results(
             }
             Some(ItemResult::NoAccess) => FetchError::NoAccess,
             Some(ItemResult::SsoRequired) => FetchError::SsoRequired,
-            // Kept as it was.
+            // Kept as it was, as are the links of providers that couldn't be asked.
             Some(ItemResult::Unreadable) | None => continue,
         };
         // Its last known status, if any, is kept.
@@ -343,12 +398,22 @@ mod tests {
         database,
         github::{
             snapshot::{IssueSnapshot, IssueState, IssueStateReason, PullRequestState},
-            testing::{ok, FakeGitHub, FakeTokens},
+            testing::FakeTokens,
         },
+        links::LinkKind,
         models::core::Day,
+        testing::{ok, FakeServer},
     };
 
     const NOW: i64 = 1_791_000_000;
+
+    fn providers<'a, T>(github: &'a GitHub, gh_tokens: &'a T) -> Providers<'a, T> {
+        Providers { github, gh_tokens }
+    }
+
+    fn github_problem(problem: IntegrationProblem) -> BTreeMap<Provider, IntegrationProblem> {
+        BTreeMap::from([(Provider::GitHub, problem)])
+    }
 
     struct Setup {
         _dir: tempfile::TempDir,
@@ -392,7 +457,7 @@ mod tests {
         id: &str,
         todo_id: &str,
         url: &str,
-        fetched: Option<(DbTimestamp, &GitHubSnapshot)>,
+        fetched: Option<(DbTimestamp, &LinkSnapshot)>,
     ) {
         let link = links::parse(url).unwrap();
         let github = link.github.as_ref();
@@ -433,8 +498,8 @@ mod tests {
             .expect("link exists")
     }
 
-    fn issue(state: IssueState) -> GitHubSnapshot {
-        GitHubSnapshot::Issue(IssueSnapshot {
+    fn issue(state: IssueState) -> LinkSnapshot {
+        LinkSnapshot::Issue(IssueSnapshot {
             title: "Issue".into(),
             state,
             state_reason: (state == IssueState::Closed).then_some(IssueStateReason::Completed),
@@ -615,35 +680,40 @@ mod tests {
         add_link(&s.state, "c", "t", "https://github.com/o/r/issues/3", None);
         // The same issue as `a`, on another todo: asked for once.
         add_link(&s.state, "d", "u", "https://github.com/o/r/issues/1", None);
-        let server = FakeGitHub::serve(vec![ok(answer(&[
+        let server = FakeServer::serve(vec![ok(answer(&[
             raw_issue("https://github.com/o/r/issues/1", "OPEN"),
             raw_pull("https://github.com/o/r/pull/2", "MERGED"),
             Value::Null,
         ]))]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
 
-        let outcome = refresh(&s.state, &tokens, &github, &Target::Day(day()), false)
-            .await
-            .unwrap();
+        let outcome = refresh(
+            &s.state,
+            &providers(&github, &tokens),
+            &Target::Day(day()),
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(
             outcome,
             RefreshOutcome {
                 refreshed: 4,
-                problem: None
+                problems: BTreeMap::new()
             }
         );
         for id in ["a", "d"] {
             let link = stored(&s.state, id);
             assert!(
-                matches!(&link.snapshot, Some(GitHubSnapshot::Issue(issue)) if issue.state == IssueState::Open)
+                matches!(&link.snapshot, Some(LinkSnapshot::Issue(issue)) if issue.state == IssueState::Open)
             );
             assert!(link.fetched_at.is_some());
             assert_eq!(link.fetch_error, None);
         }
         assert!(matches!(
             stored(&s.state, "b").snapshot,
-            Some(GitHubSnapshot::PullRequest(pull)) if pull.state == PullRequestState::Merged
+            Some(LinkSnapshot::PullRequest(pull)) if pull.state == PullRequestState::Merged
         ));
         let no_access = stored(&s.state, "c");
         assert_eq!(no_access.fetch_error, Some(FetchError::NoAccess));
@@ -654,9 +724,14 @@ mod tests {
         assert!(json["fetchedAt"].is_string());
 
         // Nothing is due anymore: GitHub isn't asked again.
-        let outcome = refresh(&s.state, &tokens, &github, &Target::Day(day()), false)
-            .await
-            .unwrap();
+        let outcome = refresh(
+            &s.state,
+            &providers(&github, &tokens),
+            &Target::Day(day()),
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(outcome, RefreshOutcome::default());
         assert_eq!(server.authorizations(), ["Bearer t1"]);
     }
@@ -669,17 +744,16 @@ mod tests {
         // In a renamed repository, whose new name the todo also links to.
         add_link(&s.state, "b", "t", "https://github.com/o/old/pull/8", None);
         add_link(&s.state, "c", "t", "https://github.com/o/new/pull/8", None);
-        let server = FakeGitHub::serve(vec![ok(answer(&[
+        let server = FakeServer::serve(vec![ok(answer(&[
             raw_pull("https://github.com/o/r/pull/7", "OPEN"),
             raw_pull("https://github.com/o/new/pull/8", "OPEN"),
             raw_pull("https://github.com/o/new/pull/8", "OPEN"),
         ]))]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let github = GitHub::with_endpoint(&server.url).unwrap();
 
         refresh(
             &s.state,
-            &FakeTokens::default(),
-            &github,
+            &providers(&github, &FakeTokens::default()),
             &Target::Day(day()),
             false,
         )
@@ -705,12 +779,11 @@ mod tests {
             "https://github.com/o/r/issues/1",
             Some((NOW, &open)),
         );
-        let github = GitHub::with_endpoint(&FakeGitHub::unreachable_endpoint()).unwrap();
+        let github = GitHub::with_endpoint(&FakeServer::unreachable_url()).unwrap();
 
         let outcome = refresh(
             &s.state,
-            &FakeTokens::default(),
-            &github,
+            &providers(&github, &FakeTokens::default()),
             &Target::Link("a".into()),
             true,
         )
@@ -720,7 +793,7 @@ mod tests {
             outcome,
             RefreshOutcome {
                 refreshed: 0,
-                problem: Some(GitHubError::Offline)
+                problems: github_problem(IntegrationProblem::Offline)
             }
         );
         let link = stored(&s.state, "a");
@@ -728,7 +801,7 @@ mod tests {
         assert_eq!(link.fetched_at.map(|at| at.as_second()), Some(NOW));
         assert_eq!(
             serde_json::to_value(outcome).unwrap(),
-            json!({ "refreshed": 0, "problem": { "kind": "offline" } })
+            json!({ "refreshed": 0, "problems": { "github": { "kind": "offline" } } })
         );
     }
 
@@ -736,13 +809,18 @@ mod tests {
     async fn refresh_does_nothing_without_a_github_connection() {
         let s = setup(false);
         add_link(&s.state, "a", "t", "https://github.com/o/r/issues/1", None);
-        let server = FakeGitHub::serve(Vec::new());
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let server = FakeServer::serve(Vec::new());
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
 
-        let outcome = refresh(&s.state, &tokens, &github, &Target::Day(day()), true)
-            .await
-            .unwrap();
+        let outcome = refresh(
+            &s.state,
+            &providers(&github, &tokens),
+            &Target::Day(day()),
+            true,
+        )
+        .await
+        .unwrap();
         assert_eq!(outcome, RefreshOutcome::default());
         assert_eq!(tokens.asked(), 0);
         assert!(stored(&s.state, "a").fetched_at.is_none());
@@ -751,28 +829,28 @@ mod tests {
     #[tokio::test]
     async fn preview_asks_github_about_pull_requests_and_issues_only() {
         let s = setup(true);
-        let server = FakeGitHub::serve(vec![
+        let server = FakeServer::serve(vec![
             // A pull request pasted as an issue.
             ok(answer(&[raw_pull("https://github.com/o/r/pull/7", "OPEN")])),
             ok(answer(&[Value::Null])),
         ]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
 
-        let found = preview(&s.state, &tokens, &github, "github.com/o/r/issues/7")
-            .await
-            .unwrap();
+        let found = preview(
+            &s.state,
+            &providers(&github, &tokens),
+            "github.com/o/r/issues/7",
+        )
+        .await
+        .unwrap();
         assert_eq!(found.link.url, "https://github.com/o/r/pull/7");
         assert_eq!(found.link.kind, LinkKind::GithubPull);
-        assert!(matches!(
-            found.snapshot,
-            Some(GitHubSnapshot::PullRequest(_))
-        ));
+        assert!(matches!(found.snapshot, Some(LinkSnapshot::PullRequest(_))));
 
         let hidden = preview(
             &s.state,
-            &tokens,
-            &github,
+            &providers(&github, &tokens),
             "https://github.com/acme/infra/pull/311",
         )
         .await
@@ -781,14 +859,22 @@ mod tests {
         assert_eq!(hidden.fetch_error, Some(FetchError::NoAccess));
         assert_eq!(hidden.snapshot, None);
 
-        let page = preview(&s.state, &tokens, &github, "https://docs.rs/jiff")
-            .await
-            .unwrap();
+        let page = preview(
+            &s.state,
+            &providers(&github, &tokens),
+            "https://docs.rs/jiff",
+        )
+        .await
+        .unwrap();
         assert_eq!(page.link.label, "docs.rs");
         assert_eq!(server.authorizations().len(), 2);
-        assert!(preview(&s.state, &tokens, &github, "javascript:alert(1)")
-            .await
-            .is_err());
+        assert!(preview(
+            &s.state,
+            &providers(&github, &tokens),
+            "javascript:alert(1)"
+        )
+        .await
+        .is_err());
         // Nothing was stored.
         let links: i64 = s
             .state
@@ -802,13 +888,12 @@ mod tests {
     #[tokio::test]
     async fn preview_without_a_github_connection_tells_what_the_url_does() {
         let s = setup(false);
-        let server = FakeGitHub::serve(Vec::new());
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let server = FakeServer::serve(Vec::new());
+        let github = GitHub::with_endpoint(&server.url).unwrap();
 
         let preview = preview(
             &s.state,
-            &FakeTokens::default(),
-            &github,
+            &providers(&github, &FakeTokens::default()),
             "https://github.com/o/r/pull/7",
         )
         .await
@@ -824,16 +909,15 @@ mod tests {
     #[tokio::test]
     async fn preview_tells_why_github_could_not_be_asked() {
         let s = setup(true);
-        let github = GitHub::with_endpoint(&FakeGitHub::unreachable_endpoint()).unwrap();
+        let github = GitHub::with_endpoint(&FakeServer::unreachable_url()).unwrap();
         let preview = preview(
             &s.state,
-            &FakeTokens::default(),
-            &github,
+            &providers(&github, &FakeTokens::default()),
             "https://github.com/o/r/pull/7",
         )
         .await
         .unwrap();
-        assert_eq!(preview.problem, Some(GitHubError::Offline));
+        assert_eq!(preview.problem, Some(IntegrationProblem::Offline));
         assert_eq!(
             serde_json::to_value(&preview).unwrap(),
             json!({
@@ -852,41 +936,42 @@ mod tests {
     async fn refresh_remembers_when_the_connection_needs_the_user() {
         let s = setup(true);
         add_link(&s.state, "a", "t", "https://github.com/o/r/issues/1", None);
-        let server = FakeGitHub::serve(vec![
+        let server = FakeServer::serve(vec![
             (401, Vec::new(), r#"{"message":"Bad credentials"}"#.into()),
             ok(answer(&[raw_issue(
                 "https://github.com/o/r/issues/1",
                 "OPEN",
             )])),
         ]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
-        let signed_out = GitHubError::SignedOut {
+        let github = GitHub::with_endpoint(&server.url).unwrap();
+        let signed_out = IntegrationProblem::SignedOut {
             login: "octocat".into(),
         };
 
         let outcome = refresh(
             &s.state,
-            &FakeTokens::default(),
-            &github,
+            &providers(&github, &FakeTokens::default()),
             &Target::Day(day()),
             false,
         )
         .await
         .unwrap();
-        assert_eq!(outcome.problem, Some(signed_out.clone()));
-        assert_eq!(s.state.github_attention("octocat"), Some(signed_out));
+        assert_eq!(outcome.problems, github_problem(signed_out.clone()));
+        assert_eq!(
+            s.state.attention(Provider::GitHub, "octocat"),
+            Some(signed_out)
+        );
 
         // Signed in again since.
         refresh(
             &s.state,
-            &FakeTokens::default(),
-            &github,
+            &providers(&github, &FakeTokens::default()),
             &Target::Day(day()),
             false,
         )
         .await
         .unwrap();
-        assert_eq!(s.state.github_attention("octocat"), None);
+        assert_eq!(s.state.attention(Provider::GitHub, "octocat"), None);
     }
 
     /// Switches to another workspace while giving its token, as if the user did while GitHub was being asked.
@@ -896,7 +981,7 @@ mod tests {
     }
 
     impl TokenSource for SwitchingTokens<'_> {
-        async fn token(&self, _login: &str) -> std::result::Result<String, GitHubError> {
+        async fn token(&self, _login: &str) -> std::result::Result<String, IntegrationProblem> {
             workspaces::set_active(&self.state.app_db(), self.to, NOW).unwrap();
             Ok("t".into())
         }
@@ -906,19 +991,24 @@ mod tests {
     async fn refresh_drops_what_github_said_once_another_workspace_is_active() {
         let s = setup(true);
         add_link(&s.state, "a", "t", "https://github.com/o/r/issues/1", None);
-        let server = FakeGitHub::serve(vec![ok(answer(&[raw_issue(
+        let server = FakeServer::serve(vec![ok(answer(&[raw_issue(
             "https://github.com/o/r/issues/1",
             "OPEN",
         )]))]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = SwitchingTokens {
             state: &s.state,
             to: &s.other.id,
         };
 
-        let outcome = refresh(&s.state, &tokens, &github, &Target::Day(day()), false)
-            .await
-            .unwrap();
+        let outcome = refresh(
+            &s.state,
+            &providers(&github, &tokens),
+            &Target::Day(day()),
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(outcome, RefreshOutcome::default());
         assert_eq!(server.authorizations().len(), 1);
         assert!(stored(&s.state, "a").fetched_at.is_none());

@@ -5,8 +5,7 @@ use url::Url;
 use crate::{
     database::models::DbTodoLink,
     errors::TodaiError,
-    github::snapshot::GitHubSnapshot,
-    links::{domain_label, github_label, FetchError, GitHubRef, LinkKind},
+    links::{self, domain_label, snapshot::LinkSnapshot, FetchError, GitHubRef, LinkKind, LinkRef},
 };
 
 /// A link on a todo: a GitHub pull request or issue, or any other web page.
@@ -24,15 +23,22 @@ pub struct TodoLink {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
     pub created_at: Timestamp,
-    /// What GitHub last told about its pull request or issue, if fetched since it was added.
+    /// What its provider last told about its item, if fetched since it was added.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub snapshot: Option<GitHubSnapshot>,
-    /// When GitHub last answered about it.
+    pub snapshot: Option<LinkSnapshot>,
+    /// When its provider last answered about it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fetched_at: Option<Timestamp>,
-    /// Why GitHub's last answer had nothing about it, if so: `snapshot` is then the one before, if any.
+    /// Why its provider's last answer had nothing about it, if so: `snapshot` is then the one before, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fetch_error: Option<FetchError>,
+}
+
+impl TodoLink {
+    /// The item it points to, if it's fetched from a provider.
+    pub fn item(&self) -> Option<LinkRef> {
+        self.github.clone().map(LinkRef::GitHub)
+    }
 }
 
 impl TryFrom<DbTodoLink> for TodoLink {
@@ -56,7 +62,7 @@ impl TryFrom<DbTodoLink> for TodoLink {
             }
         };
         let label = match &github {
-            Some(github) => github_label(github),
+            Some(github) => links::github::label(github),
             // Normalized when added: always parses, but falls back to the URL itself rather than failing the list.
             None => Url::parse(&link.url)
                 .ok()
@@ -64,7 +70,7 @@ impl TryFrom<DbTodoLink> for TodoLink {
                 .unwrap_or_else(|| link.url.clone()),
         };
         // Ignored if stored in another format: as if never fetched, until fetched again.
-        let snapshot = link.snapshot.as_deref().and_then(GitHubSnapshot::from_db);
+        let snapshot = link.snapshot.as_deref().and_then(LinkSnapshot::from_db);
         Ok(Self {
             id: link.id,
             todo_id: link.todo_id,

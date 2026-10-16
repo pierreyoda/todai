@@ -18,10 +18,11 @@ export const workspaceKeys = {
 };
 
 /**
- * Refreshes the workspaces once GitHub was asked: they tell whether their connection needs the user (`githubAttention`).
- * Only them, not what's nested in their keys (e.g. their GitHub API status, which may have just been asked).
+ * Refreshes the workspaces once a provider was asked: they tell whether their connection to it needs the user (e.g.
+ * `githubAttention`). Only them, not what's nested in their keys (e.g. their GitHub API status, which may have just been
+ * asked).
  */
-export const refreshGitHubAttention = (queryClient: QueryClient) =>
+export const refreshIntegrationsAttention = (queryClient: QueryClient) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true }),
     queryClient.invalidateQueries({

@@ -1,6 +1,6 @@
 import type { UUID } from "node:crypto";
 
-import type { GitHubProblem } from "#core/github";
+import type { IntegrationProblem } from "#core/integrations";
 
 /** A workspace, with its own database. */
 export interface Workspace {
@@ -27,10 +27,10 @@ export interface Workspace {
    * GitHub CLI is missing, or signed out of its account.
    */
   githubAttention?: Extract<
-    GitHubProblem,
+    IntegrationProblem,
     { kind: "gh_missing" | "signed_out" }
   >;
-  /** Whether its links' GitHub statuses are refreshed on their own while todai is open, rather than only when asked. */
+  /** Whether its links' statuses are refreshed on their own while todai is open, rather than only when asked. */
   linksAutoRefresh: boolean;
   /** Whether a todo whose pull request is merged (or issue completed) offers to be marked as done. */
   linksSuggestDone: boolean;

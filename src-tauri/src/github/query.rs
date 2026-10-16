@@ -6,8 +6,8 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
-use super::snapshot::{FetchedItem, RawItem, MAX_CHECKS};
-use crate::links::GitHubRef;
+use super::snapshot::{RawItem, MAX_CHECKS};
+use crate::links::{snapshot::ItemResult, GitHubRef};
 
 /// Pull requests and issues fetched per request: 50 cost 2 of the 5,000 points GitHub allows per hour.
 pub const MAX_ITEMS: usize = 50;
@@ -118,18 +118,6 @@ pub struct RateLimit {
     pub reset_at: Timestamp,
 }
 
-/// What GitHub answered about a pull request or issue.
-#[derive(Debug, Clone, PartialEq)]
-pub enum ItemResult {
-    Found(Box<FetchedItem>),
-    /// Missing, deleted, or private to others: GitHub can't tell these apart.
-    NoAccess,
-    /// Its organization requires single sign-on, which the token isn't authorized for.
-    SsoRequired,
-    /// Not what was expected: kept as it was.
-    Unreadable,
-}
-
 /// The rate limit in `envelope`, if asked for.
 pub fn rate_limit(envelope: &Envelope) -> Option<RateLimit> {
     let value = envelope.data.as_ref()?.get("rateLimit")?;
@@ -177,9 +165,12 @@ pub fn items(envelope: &Envelope, count: usize) -> Vec<ItemResult> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::github::snapshot::{
-        CheckOutcome, ChecksState, GitHubSnapshot, IssueState, IssueStateReason, Label,
-        PullRequestState, RelatedState, ReviewDecision,
+    use crate::{
+        github::snapshot::{
+            CheckOutcome, ChecksState, IssueState, IssueStateReason, Label, PullRequestState,
+            RelatedState, ReviewDecision,
+        },
+        links::snapshot::{FetchedItem, LinkSnapshot},
     };
 
     fn github(owner: &str, repo: &str, number: u32) -> GitHubRef {
@@ -227,7 +218,7 @@ mod tests {
         let open = found(&results[0]);
         assert_eq!(open.link.url, "https://github.com/cli/cli/pull/14640");
         assert_eq!(open.link.label, "cli#14640");
-        let GitHubSnapshot::PullRequest(open) = &open.snapshot else {
+        let LinkSnapshot::PullRequest(open) = &open.snapshot else {
             panic!("expected a pull request");
         };
         assert_eq!(open.state, PullRequestState::Open);
@@ -263,7 +254,7 @@ mod tests {
             ]
         );
 
-        let GitHubSnapshot::PullRequest(merged) = &found(&results[1]).snapshot else {
+        let LinkSnapshot::PullRequest(merged) = &found(&results[1]).snapshot else {
             panic!("expected a pull request");
         };
         assert_eq!(merged.state, PullRequestState::Merged);
@@ -272,7 +263,7 @@ mod tests {
         assert_eq!(merged.closes[0].link.label, "cli#14614");
         assert_eq!(merged.closes[0].state, RelatedState::Completed);
 
-        let GitHubSnapshot::Issue(completed) = &found(&results[2]).snapshot else {
+        let LinkSnapshot::Issue(completed) = &found(&results[2]).snapshot else {
             panic!("expected an issue");
         };
         assert_eq!(completed.state, IssueState::Closed);
@@ -289,7 +280,7 @@ mod tests {
         assert_eq!(completed.closed_by[0].link.label, "cli#14616");
         assert_eq!(completed.closed_by[0].state, RelatedState::Merged);
 
-        let GitHubSnapshot::Issue(open_issue) = &found(&results[3]).snapshot else {
+        let LinkSnapshot::Issue(open_issue) = &found(&results[3]).snapshot else {
             panic!("expected an issue");
         };
         assert_eq!(open_issue.state, IssueState::Open);
@@ -328,11 +319,11 @@ mod tests {
             let snapshot = &found(result).snapshot;
             let stored = snapshot.to_db().unwrap();
             assert!(stored.starts_with(r#"{"v":1,"data":{"type":"#));
-            assert_eq!(GitHubSnapshot::from_db(&stored).as_ref(), Some(snapshot));
+            assert_eq!(LinkSnapshot::from_db(&stored).as_ref(), Some(snapshot));
         }
         let other_format = r#"{"v":2,"data":{"type":"issue"}}"#;
-        assert_eq!(GitHubSnapshot::from_db(other_format), None);
-        assert_eq!(GitHubSnapshot::from_db("not json"), None);
+        assert_eq!(LinkSnapshot::from_db(other_format), None);
+        assert_eq!(LinkSnapshot::from_db("not json"), None);
     }
 
     #[test]
@@ -372,11 +363,11 @@ mod tests {
         let results = items(&envelope, refs.len());
         assert!(matches!(
             &found(&results[0]).snapshot,
-            GitHubSnapshot::PullRequest(pull) if pull.state == PullRequestState::Merged
+            LinkSnapshot::PullRequest(pull) if pull.state == PullRequestState::Merged
         ));
         assert!(matches!(
             &found(&results[1]).snapshot,
-            GitHubSnapshot::Issue(_)
+            LinkSnapshot::Issue(_)
         ));
         assert_eq!(results[2], ItemResult::NoAccess);
         println!("{:?}", rate_limit(&envelope));

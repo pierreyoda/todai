@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use tauri::State;
 
 use crate::{
-    backups, database::models::DbWorkspace, errors::Result, models::app::Workspace,
-    state::AppState, workspaces,
+    backups, database::models::DbWorkspace, errors::Result, integrations::Provider,
+    models::app::Workspace, state::AppState, workspaces,
 };
 
 /// `entry`, as seen by the frontend. `app_db` is `state`'s, already locked.
@@ -27,7 +27,7 @@ pub(crate) fn workspace(
     workspace.github_attention = workspace
         .github_login
         .as_deref()
-        .and_then(|login| state.github_attention(login));
+        .and_then(|login| state.attention(Provider::GitHub, login));
     Ok(workspace)
 }
 

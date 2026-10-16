@@ -1,3 +1,4 @@
+import type { Provider } from "#core/integrations";
 import type { ParsedLink, TodoLinkKind } from "./types";
 
 const KIND_NAMES: Record<TodoLinkKind, string> = {
@@ -8,6 +9,23 @@ const KIND_NAMES: Record<TodoLinkKind, string> = {
 
 /** What a link points to, e.g. "GitHub pull request". */
 export const linkKindName = (kind: TodoLinkKind): string => KIND_NAMES[kind];
+
+const KIND_PROVIDERS: Record<TodoLinkKind, Provider | undefined> = {
+  github_pull: "github",
+  github_issue: "github",
+  url: undefined,
+};
+
+/** Where a link's item is fetched from, to show where it stands: `undefined` for any other web page. */
+export const linkProvider = ({
+  kind,
+}: Pick<ParsedLink, "kind">): Provider | undefined => KIND_PROVIDERS[kind];
+
+/** Where a link's item is, e.g. "pierreyoda/todai #58": `undefined` for a plain web link. */
+export const itemWhere = ({
+  github,
+}: Pick<ParsedLink, "github">): string | undefined =>
+  github ? `${github.owner}/${github.repo} #${github.number}` : undefined;
 
 /** A link in full, e.g. "GitHub pull request pierreyoda/todai#58", or "Link to docs.rs". */
 export const describeLink = ({

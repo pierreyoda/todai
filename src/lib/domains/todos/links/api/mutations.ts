@@ -1,7 +1,7 @@
 import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 
 import type { Day } from "#core/time";
-import { refreshGitHubAttention } from "#domains/workspaces";
+import { refreshIntegrationsAttention } from "#domains/workspaces";
 import { invalidateTodosOf } from "../../api/queries";
 import type { Todo } from "../../model/types";
 import type { TodoLink } from "../model/types";
@@ -21,7 +21,7 @@ export const createAddTodoLinksMutation = (getTodo: () => Todo) => {
         args: { todoId: getTodo().id, urls },
       }),
     onSuccess: () => {
-      // Their status, if they're GitHub ones, even if not refreshed on their own; without waiting for GitHub
+      // Their status, if they have one, even if not refreshed on their own; without waiting for their provider
       refreshLinksOf(queryClient, getTodo().day);
       // Returned so the mutation stays pending until the lists are refetched, with the links.
       return invalidateTodosOf(queryClient, getTodo().day);
@@ -64,10 +64,11 @@ export const createRemoveTodoLinkMutation = (getTodo: () => Todo) => {
 };
 
 /**
- * Fetches again the status of a GitHub link of `getTodo()`, however recently fetched. Must be called during component
+ * Fetches again the status of a link of `getTodo()`, however recently fetched. Must be called during component
  * initialization.
  *
- * Succeeds with the problem GitHub couldn't be asked because of, if any: the link then keeps its last known status.
+ * Succeeds with the problem its provider couldn't be asked because of, if any: the link then keeps its last known
+ * status.
  */
 export const createRefreshTodoLinkMutation = (getTodo: () => Todo) => {
   const queryClient = useQueryClient();
@@ -76,7 +77,7 @@ export const createRefreshTodoLinkMutation = (getTodo: () => Todo) => {
       invokeLinks({ name: "refresh_link", args: { id: link.id } }),
     // Returned so the mutation stays pending until the lists are refetched, with the status.
     onSuccess: (outcome) => {
-      refreshGitHubAttention(queryClient);
+      refreshIntegrationsAttention(queryClient);
       if (outcome.refreshed > 0)
         return invalidateTodosOf(queryClient, getTodo().day);
     },

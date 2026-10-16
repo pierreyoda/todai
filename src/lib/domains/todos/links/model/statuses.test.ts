@@ -3,12 +3,15 @@ import {
   checkName,
   closingPullRequest,
   describeChecks,
-  describeProblem,
   describeReview,
-  doneSuggestion,
   itemState,
-  linkStatus,
   notableChecks,
+} from "./github";
+import {
+  describeProblem,
+  doneSuggestion,
+  linkStatus,
+  linkStatusWords,
   statusesFetchedAt,
 } from "./statuses";
 import type {
@@ -197,6 +200,35 @@ describe("linkStatus", () => {
   });
 });
 
+describe("linkStatusWords", () => {
+  it("tells where the item stands, then its status if it tells more", () => {
+    expect(
+      linkStatusWords(
+        link(pull({ checks: checks({ state: "pending", running: 1 }) })),
+      ),
+    ).toEqual([
+      { word: "Open", tone: "open" },
+      { word: "Checks running", tone: "pending" },
+    ]);
+    expect(linkStatusWords(link(pull({ state: "merged" })))).toEqual([
+      { word: "Merged", tone: "merged" },
+    ]);
+    expect(linkStatusWords(link(issue(), { fetchError: "no_access" }))).toEqual(
+      [
+        { word: "Open", tone: "open" },
+        { word: "No access", tone: "warn" },
+      ],
+    );
+  });
+
+  it("has nothing to tell about links never fetched", () => {
+    expect(linkStatusWords(link())).toEqual([]);
+    expect(
+      linkStatusWords(link(undefined, { fetchError: "no_access" })),
+    ).toEqual([]);
+  });
+});
+
 describe("itemState", () => {
   it.each([
     [pull(), "open"],
@@ -218,14 +250,16 @@ describe("doneSuggestion", () => {
       doneSuggestion({ completed: false, links: [link(pull()), merged] }),
     ).toEqual({
       link: merged,
-      state: "merged",
+      word: "Merged",
+      reason: "todai#58 was merged",
     });
     const completed = link(
       issue({ state: "closed", stateReason: "completed" }),
     );
     expect(doneSuggestion({ completed: false, links: [completed] })).toEqual({
       link: completed,
-      state: "completed",
+      word: "Completed",
+      reason: "todai#58 was completed",
     });
   });
 
@@ -361,26 +395,32 @@ describe("describeProblem", () => {
   const from = new Date(2026, 9, 10, 14, 2);
 
   it("tells since when the statuses are when offline", () => {
-    expect(describeProblem({ kind: "offline" }, from)).toEqual({
+    expect(describeProblem("github", { kind: "offline" }, from)).toEqual({
       label: "Offline · link statuses from 14:02",
       detail:
         "GitHub could not be reached: the links show their statuses from 14:02.",
     });
-    expect(describeProblem({ kind: "offline" }).label).toBe("Offline");
+    expect(describeProblem("github", { kind: "offline" }).label).toBe(
+      "Offline",
+    );
   });
 
   it("tells what to do about the GitHub CLI", () => {
     expect(
-      describeProblem({ kind: "signed_out", login: "pierreyoda" }, from).detail,
+      describeProblem(
+        "github",
+        { kind: "signed_out", login: "pierreyoda" },
+        from,
+      ).detail,
     ).toContain("isn't signed in to pierreyoda anymore: run gh auth login");
-    expect(describeProblem({ kind: "gh_missing" }).label).toBe(
+    expect(describeProblem("github", { kind: "gh_missing" }).label).toBe(
       "GitHub CLI not found",
     );
   });
 
   it("tells until when GitHub asked to wait", () => {
     expect(
-      describeProblem({
+      describeProblem("github", {
         kind: "rate_limited",
         resetAt: new Date(2026, 9, 10, 15, 30),
       }).label,
@@ -389,7 +429,7 @@ describe("describeProblem", () => {
 
   it("gives GitHub's error as is", () => {
     expect(
-      describeProblem({
+      describeProblem("github", {
         kind: "failed",
         message: "GitHub answered with HTTP 418.",
       }).detail,

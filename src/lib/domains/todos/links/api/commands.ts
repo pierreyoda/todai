@@ -48,8 +48,8 @@ type LinkCommands = {
     returns: Todo;
   };
   /**
-   * Recognizes what `url` points to, as `parse_link`, then, for a GitHub pull request or issue, asks GitHub about it
-   * through the active workspace's connection, if any. Nothing is stored.
+   * Recognizes what `url` points to, as `parse_link`, then, for an item fetched from a provider (e.g. a GitHub pull
+   * request or issue), asks it about it through the active workspace's connection, if any. Nothing is stored.
    */
   preview_link: {
     args: {
@@ -65,9 +65,9 @@ type LinkCommands = {
     returns: never;
   };
   /**
-   * Refreshes the status of the pull requests and issues linked to the non-deleted todos of `day`, if fetched long
-   * enough ago (5 minutes for open ones, a day for the others, or whenever if `force`), through the active workspace's
-   * GitHub connection. Does nothing without one.
+   * Refreshes the status of the items (e.g. pull requests and issues) linked to the non-deleted todos of `day`, if
+   * fetched long enough ago (5 minutes for open ones, a day for the others, or whenever if `force`), through the active
+   * workspace's connection to their provider. Does nothing for a provider it isn't connected to.
    */
   refresh_links: {
     args: {
@@ -76,7 +76,7 @@ type LinkCommands = {
     };
     returns: RefreshOutcome;
   };
-  /** Refreshes the status of a GitHub link's pull request or issue, however recently fetched, as `refresh_links`. */
+  /** Refreshes the status of a link's item (e.g. a pull request), however recently fetched, as `refresh_links`. */
   refresh_link: {
     args: {
       id: UUID;

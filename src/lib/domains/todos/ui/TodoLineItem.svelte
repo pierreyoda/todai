@@ -3,7 +3,7 @@ import { createQuery } from "@tanstack/svelte-query";
 import { attachDraggable, attachDroppable } from "@thisux/sveltednd";
 import { taskProgress } from "#core/markdown";
 import type { Tag } from "#domains/tags";
-import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import { activeWorkspaceQueryOptions, isConnected } from "#domains/workspaces";
 import Button from "#shared/ui/Button.svelte";
 import EditableText from "#shared/ui/EditableText.svelte";
 import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
@@ -15,7 +15,9 @@ import {
   createToggleTodoMutation,
   createUpdateTodoMutation,
 } from "../api/mutations";
+import { linkProvider } from "../links/model/links";
 import { doneSuggestion } from "../links/model/statuses";
+import type { TodoLink } from "../links/model/types";
 import TodoLinkChip from "../links/ui/TodoLinkChip.svelte";
 import { formatEstimates } from "../model/estimates";
 import type { Placement, Todo } from "../model/types";
@@ -58,9 +60,12 @@ const setRowDragImage = (event: DragEvent) => {
   );
 };
 
-// Its GitHub links show their status through the workspace's connection, if any
+// Its links show their status through the workspace's connection to their provider, if any
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-const connected = $derived(!!activeWorkspace.data?.githubLogin);
+const connected = (link: TodoLink) => {
+  const provider = linkProvider(link);
+  return !!provider && isConnected(activeWorkspace.data, provider);
+};
 
 // Resolved from the tags list, so they follow tag renames without refetching todos
 const itemTags = $derived(tags.filter((tag) => item.tagIds.includes(tag.id)));
@@ -70,10 +75,10 @@ let completed = $derived(item.completed);
 const toggleCompleted = createToggleTodoMutation(() => item, {
   onError: () => (completed = item.completed),
 });
-/** Its merged pull request or completed issue, if any, which suggests marking it as done. */
+/** Its link whose item is done with (e.g. a merged pull request), if any, which suggests marking it as done. */
 const doneBecause = $derived(
-  connected && activeWorkspace.data?.linksSuggestDone
-    ? doneSuggestion({ completed, links: item.links })
+  activeWorkspace.data?.linksSuggestDone
+    ? doneSuggestion({ completed, links: item.links.filter(connected) })
     : undefined,
 );
 
@@ -201,7 +206,7 @@ const tasks = $derived(taskProgress(item.description ?? ""));
             <ul class="links" aria-label="Links">
               {#each item.links as link (link.id)}
                 <li class="flex">
-                  <TodoLinkChip {link} todo={item} {connected} />
+                  <TodoLinkChip {link} todo={item} connected={connected(link)} />
                 </li>
               {/each}
             </ul>
@@ -218,7 +223,7 @@ const tasks = $derived(taskProgress(item.description ?? ""));
           style="plain"
           size="xs"
           class="suggest-done"
-          title={`${doneBecause.link.label} was ${doneBecause.state}`}
+          title={doneBecause.reason}
           disabled={toggleCompleted.isPending}
           onclick={() => {
             completed = true;
@@ -226,7 +231,7 @@ const tasks = $derived(taskProgress(item.description ?? ""));
           }}
         >
           <IconCheckCircle />
-          {doneBecause.state === "merged" ? "Merged" : "Completed"} · mark as done
+          {doneBecause.word} · mark as done
         </Button>
       {/if}
       {#if item.estimate}
