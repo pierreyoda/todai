@@ -10,10 +10,11 @@ export interface ProviderInfo {
 
 const PROVIDER_INFOS: Readonly<Record<Provider, ProviderInfo>> = {
   github: { name: "GitHub", where: "on GitHub" },
+  notion: { name: "Notion", where: "in Notion" },
 };
 
 /** Every provider, in the order they're shown. */
-export const PROVIDERS: readonly Provider[] = ["github"];
+export const PROVIDERS: readonly Provider[] = ["github", "notion"];
 
 /** How `provider` is shown, e.g. its name. */
 export const providerInfo = (provider: Provider): ProviderInfo =>
@@ -24,7 +25,10 @@ export const providerInfo = (provider: Provider): ProviderInfo =>
  * passing on its own (e.g. once online again).
  */
 export const needsUser = (problem: IntegrationProblem): boolean =>
-  problem.kind === "signed_out" || problem.kind === "gh_missing";
+  problem.kind === "signed_out" ||
+  problem.kind === "gh_missing" ||
+  problem.kind === "token_refused" ||
+  problem.kind === "token_missing";
 
 /** The providers of `problems` with their problem, in the order they're shown, keeping only those `keep` says. */
 export const problemEntries = (

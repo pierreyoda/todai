@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { githubConnectionState, preselectedGhAccount } from "./connection";
+import {
+  githubConnectionState,
+  notionConnectionState,
+  preselectedGhAccount,
+} from "./connection";
 import type { GhAccount, GhStatus } from "./types";
 
 const account = (
@@ -53,6 +57,42 @@ describe("githubConnectionState", () => {
     expect(
       githubConnectionState("pierreyoda", { path: null, accounts: [] }),
     ).toBe("gh_missing");
+  });
+});
+
+describe("notionConnectionState", () => {
+  const account = { userId: "u1", name: "Pierre-Yves" };
+
+  it("is not connected without a token", () => {
+    expect(notionConnectionState(undefined, undefined, undefined)).toBe(
+      "not_connected",
+    );
+  });
+
+  it("checks until Notion answered", () => {
+    expect(notionConnectionState(account, undefined, undefined)).toBe(
+      "checking",
+    );
+    expect(notionConnectionState(account, undefined, { account })).toBe(
+      "connected",
+    );
+  });
+
+  it("needs attention once Notion refused the token, or it's missing", () => {
+    expect(
+      notionConnectionState(account, { kind: "token_refused" }, undefined),
+    ).toBe("attention");
+    expect(
+      notionConnectionState(account, undefined, {
+        problem: { kind: "token_missing" },
+      }),
+    ).toBe("attention");
+    // Passes on its own
+    expect(
+      notionConnectionState(account, undefined, {
+        problem: { kind: "offline" },
+      }),
+    ).toBe("connected");
   });
 });
 

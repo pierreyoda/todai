@@ -125,6 +125,16 @@ export const describeProblem = (
         label: "GitHub CLI not found",
         detail: `The GitHub CLI (gh) wasn't found: install it, then check again in Settings › Integrations. Until then, ${kept}.`,
       };
+    case "token_refused":
+      return {
+        label: "Notion: paste a new token",
+        detail: `Notion refused this workspace's token: it expired, or was revoked. Paste a new personal access token in Settings › Integrations. Until then, ${kept}.`,
+      };
+    case "token_missing":
+      return {
+        label: "Notion: token missing",
+        detail: `This workspace's Notion token isn't in your Keychain anymore: paste it again in Settings › Integrations. Until then, ${kept}.`,
+      };
     case "rate_limited":
       return {
         label: `${name} rate limit · until ${formatTime(problem.resetAt)}`,

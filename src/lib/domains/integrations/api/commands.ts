@@ -1,7 +1,12 @@
 import type { UUID } from "node:crypto";
 import type { Workspace } from "#domains/workspaces";
 import { createInvoker } from "#shared/ipc/invoke.ts";
-import type { GhStatus, GitHubApiStatus } from "../model/types";
+import type {
+  GhStatus,
+  GitHubApiStatus,
+  NotionApiStatus,
+  NotionConnectOutcome,
+} from "../model/types";
 
 /** Commands about the app itself rather than the active workspace's content. */
 type IntegrationCommands = {
@@ -36,6 +41,31 @@ type IntegrationCommands = {
       workspaceId: UUID;
     };
     returns: GitHubApiStatus;
+  };
+  /**
+   * Connects a workspace to Notion with a personal access token, instead of any other one: once Notion tells whose it
+   * is, it's kept in the macOS Keychain. Fails only if it can't be kept.
+   */
+  connect_notion: {
+    args: {
+      workspaceId: UUID;
+      token: string;
+    };
+    returns: NotionConnectOutcome;
+  };
+  /** Deletes its token from the Keychain: its links then only show what their URL tells. */
+  disconnect_notion: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: Workspace;
+  };
+  /** Asks Notion whose token a workspace uses, which also checks that Notion still accepts it. Fails if not connected. */
+  get_notion_api_status: {
+    args: {
+      workspaceId: UUID;
+    };
+    returns: NotionApiStatus;
   };
   set_workspace_links_behaviors: {
     args: {

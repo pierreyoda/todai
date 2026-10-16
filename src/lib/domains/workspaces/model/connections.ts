@@ -2,7 +2,10 @@ import type { IntegrationProblem, Provider } from "#core/integrations";
 import type { Workspace } from "./types";
 
 /** What a workspace tells of its connections. */
-type Connections = Pick<Workspace, "githubLogin" | "githubAttention">;
+type Connections = Pick<
+  Workspace,
+  "githubLogin" | "githubAttention" | "notion" | "notionAttention"
+>;
 
 /** Whether `workspace` is connected to `provider`: its links' items then show where they stand. */
 export const isConnected = (
@@ -12,6 +15,8 @@ export const isConnected = (
   switch (provider) {
     case "github":
       return !!workspace?.githubLogin;
+    case "notion":
+      return !!workspace?.notion;
   }
 };
 
@@ -26,5 +31,7 @@ export const attentionOf = (
   switch (provider) {
     case "github":
       return workspace?.githubAttention;
+    case "notion":
+      return workspace?.notionAttention;
   }
 };

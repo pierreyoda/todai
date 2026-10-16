@@ -418,6 +418,20 @@ describe("describeProblem", () => {
     );
   });
 
+  it("tells what to do about a Notion token", () => {
+    expect(describeProblem("notion", { kind: "token_refused" }, from)).toEqual({
+      label: "Notion: paste a new token",
+      detail:
+        "Notion refused this workspace's token: it expired, or was revoked. Paste a new personal access token in Settings › Integrations. Until then, the links show their statuses from 14:02.",
+    });
+    expect(describeProblem("notion", { kind: "token_missing" }).label).toBe(
+      "Notion: token missing",
+    );
+    expect(describeProblem("notion", { kind: "offline" }).detail).toBe(
+      "Notion could not be reached: the links show what their URL tells.",
+    );
+  });
+
   it("tells until when GitHub asked to wait", () => {
     expect(
       describeProblem("github", {

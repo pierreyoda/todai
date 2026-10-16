@@ -15,6 +15,7 @@ export const workspaceKeys = {
   id: (id: UUID) => [...workspaceKeys.all, id] as const,
   backups: (id: UUID) => [...workspaceKeys.id(id), "backups"] as const,
   github: (id: UUID) => [...workspaceKeys.id(id), "github"] as const,
+  notion: (id: UUID) => [...workspaceKeys.id(id), "notion"] as const,
 };
 
 /**

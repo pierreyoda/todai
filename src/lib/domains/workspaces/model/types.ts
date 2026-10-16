@@ -2,6 +2,16 @@ import type { UUID } from "node:crypto";
 
 import type { IntegrationProblem } from "#core/integrations";
 
+/** Whose Notion personal access token a workspace uses, as Notion told when it was connected. */
+export interface NotionAccount {
+  /** Notion's ID of the user. */
+  userId: string;
+  name?: string;
+  email?: string;
+  /** The Notion workspace the token is for, if Notion tells. */
+  workspaceName?: string;
+}
+
 /** A workspace, with its own database. */
 export interface Workspace {
   /** UUID v7. */
@@ -29,6 +39,16 @@ export interface Workspace {
   githubAttention?: Extract<
     IntegrationProblem,
     { kind: "gh_missing" | "signed_out" }
+  >;
+  /** Whose Notion personal access token it uses, if connected to Notion: the token itself is in the macOS Keychain. */
+  notion?: NotionAccount;
+  /**
+   * Why its Notion connection needs the user, if it did the last time Notion was asked (since todai was opened): its
+   * token was refused, or isn't in the Keychain anymore.
+   */
+  notionAttention?: Extract<
+    IntegrationProblem,
+    { kind: "token_refused" | "token_missing" }
   >;
   /** Whether its links' statuses are refreshed on their own while todai is open, rather than only when asked. */
   linksAutoRefresh: boolean;

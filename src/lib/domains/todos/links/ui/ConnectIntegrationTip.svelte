@@ -22,6 +22,11 @@ const TIPS: Record<Provider, { title: string; detail: string }> = {
     detail:
       "Links work as they are: they open in your browser. Connect GitHub to this workspace and they also show where each pull request and issue stands.",
   },
+  notion: {
+    title: "See where your Notion pages stand",
+    detail:
+      "Links work as they are: they open in your browser. Connect Notion to this workspace and they also show each page's status, assignees and due date.",
+  },
 };
 
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);

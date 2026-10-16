@@ -6,7 +6,7 @@ type FieldTextProps = Omit<HTMLInputAttributes, "type" | "value"> & {
   label: string;
   /** Keeps the label for screen readers only. */
   hideLabel?: boolean;
-  type?: "text" | "search";
+  type?: "text" | "search" | "password";
   value?: string;
   class?: string;
   /** Bindable: the inner `<input>` element. */

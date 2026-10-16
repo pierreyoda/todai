@@ -8,6 +8,11 @@ describe("isConnected", () => {
     expect(isConnected({}, "github")).toBe(false);
     expect(isConnected(undefined, "github")).toBe(false);
   });
+
+  it("tells whether the workspace is connected to Notion", () => {
+    expect(isConnected({ notion: { userId: "u1" } }, "notion")).toBe(true);
+    expect(isConnected({ githubLogin: "octocat" }, "notion")).toBe(false);
+  });
 });
 
 describe("attentionOf", () => {
@@ -21,5 +26,16 @@ describe("attentionOf", () => {
     ).toEqual(signedOut);
     expect(attentionOf({ githubLogin: "octocat" }, "github")).toBeUndefined();
     expect(attentionOf(undefined, "github")).toBeUndefined();
+  });
+
+  it("tells why the workspace's Notion connection needs the user", () => {
+    const refused = { kind: "token_refused" } as const;
+    expect(
+      attentionOf(
+        { notion: { userId: "u1" }, notionAttention: refused },
+        "notion",
+      ),
+    ).toEqual(refused);
+    expect(attentionOf({ notion: { userId: "u1" } }, "notion")).toBeUndefined();
   });
 });
