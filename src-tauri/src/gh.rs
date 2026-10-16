@@ -140,7 +140,9 @@ impl GhCli {
                 RunError::TimedOut => {
                     TodaiError::GhCli(format!("`{name}` took longer than {:?}", self.timeout))
                 }
-                RunError::Failed(said) => TodaiError::GhCli(format!("`{name}` failed: {said}")),
+                RunError::Failed { said, .. } => {
+                    TodaiError::GhCli(format!("`{name}` failed: {said}"))
+                }
                 RunError::Io(error) => error.into(),
             })
     }
@@ -199,8 +201,7 @@ impl Lookup {
         let mut command = Command::new(self.shell.as_ref()?);
         command
             .args(["-l", "-c", "command -v gh"])
-            .stdin(Stdio::null())
-            .stderr(Stdio::null());
+            .stdin(Stdio::null());
         let stdout = process::run(command, self.shell_timeout).await.ok()?;
         // The user's startup files may print lines of their own first.
         let stdout = String::from_utf8(stdout).ok()?;

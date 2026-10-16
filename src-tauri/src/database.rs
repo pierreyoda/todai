@@ -47,6 +47,7 @@ pub const APP: DatabaseKind = DatabaseKind {
         include_str!("../migrations-app/002_workspace_backups.sql"),
         include_str!("../migrations-app/003_workspace_github.sql"),
         include_str!("../migrations-app/004_workspace_links.sql"),
+        include_str!("../migrations-app/005_workspace_notion.sql"),
     ],
 };
 

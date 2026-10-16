@@ -10,6 +10,8 @@ use thiserror::Error;
 pub enum Provider {
     #[serde(rename = "github")]
     GitHub,
+    #[serde(rename = "notion")]
+    Notion,
 }
 
 impl Provider {
@@ -17,6 +19,7 @@ impl Provider {
     pub fn name(self) -> &'static str {
         match self {
             Self::GitHub => "GitHub",
+            Self::Notion => "Notion",
         }
     }
 }
@@ -39,6 +42,12 @@ pub enum IntegrationProblem {
         "The GitHub CLI isn't signed in to {login} anymore: sign in again with `gh auth login`"
     )]
     SignedOut { login: String },
+    /// Notion refused the workspace's personal access token: it expired, or was revoked.
+    #[error("Notion refused the workspace's token: it expired or was revoked")]
+    TokenRefused,
+    /// The workspace's Notion token isn't in the Keychain anymore, e.g. deleted from Keychain Access.
+    #[error("The workspace's Notion token isn't in the Keychain anymore")]
+    TokenMissing,
     /// The service asks to wait until `reset_at`.
     #[error("rate limited until {reset_at}")]
     RateLimited { reset_at: Timestamp },
@@ -56,7 +65,10 @@ impl IntegrationProblem {
     /// Whether only the user can solve it, in todai's settings or elsewhere (e.g. by signing in again), rather than
     /// it passing on its own (e.g. once online again).
     pub fn needs_user(&self) -> bool {
-        matches!(self, Self::SignedOut { .. } | Self::GhMissing)
+        matches!(
+            self,
+            Self::SignedOut { .. } | Self::GhMissing | Self::TokenRefused | Self::TokenMissing
+        )
     }
 }
 
@@ -78,6 +90,10 @@ mod tests {
             serde_json::json!({ "kind": "signed_out", "login": "octocat" })
         );
         assert_eq!(
+            serde_json::to_value(IntegrationProblem::TokenRefused).unwrap(),
+            serde_json::json!({ "kind": "token_refused" })
+        );
+        assert_eq!(
             serde_json::to_value(IntegrationProblem::RateLimited {
                 reset_at: Timestamp::from_second(1_791_000_000).unwrap()
             })
@@ -91,6 +107,10 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Provider::GitHub).unwrap(),
             serde_json::json!("github")
+        );
+        assert_eq!(
+            serde_json::to_value(Provider::Notion).unwrap(),
+            serde_json::json!("notion")
         );
         let problems =
             std::collections::BTreeMap::from([(Provider::GitHub, IntegrationProblem::GhMissing)]);
@@ -107,6 +127,8 @@ mod tests {
             login: "octocat".into()
         }
         .needs_user());
+        assert!(IntegrationProblem::TokenRefused.needs_user());
+        assert!(IntegrationProblem::TokenMissing.needs_user());
         assert!(!IntegrationProblem::Offline.needs_user());
         assert!(!IntegrationProblem::failed("Nope").needs_user());
     }

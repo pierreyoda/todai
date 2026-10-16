@@ -13,27 +13,45 @@ pub fn ok(body: impl Into<String>) -> Response {
     (200, Vec::new(), body.into())
 }
 
+/// A request a `FakeServer` received.
+#[derive(Debug, Clone, Default)]
+pub struct Request {
+    pub method: String,
+    /// With its query, e.g. `/v1/users/me`.
+    pub path: String,
+    /// Lowercase names, with their value.
+    pub headers: Vec<(String, String)>,
+}
+
+impl Request {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(header, _)| header == name)
+            .map(|(_, value)| value.as_str())
+    }
+}
+
 /// A local HTTP server answering each request with the next of the responses it was given, whatever its path: a fake
 /// of a provider's API.
 pub struct FakeServer {
     /// Where it listens, e.g. `http://127.0.0.1:61234`.
     pub url: String,
-    /// The `Authorization` header of each request.
-    authorizations: Arc<Mutex<Vec<String>>>,
+    requests: Arc<Mutex<Vec<Request>>>,
 }
 
 impl FakeServer {
     pub fn serve(responses: Vec<Response>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
-        let authorizations = Arc::new(Mutex::new(Vec::new()));
-        let recorded = authorizations.clone();
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let recorded = requests.clone();
         std::thread::spawn(move || {
             for ((status, headers, body), stream) in responses.into_iter().zip(listener.incoming())
             {
                 let mut stream = stream.unwrap();
-                let authorization = read_authorization(&mut stream);
-                recorded.lock().unwrap().push(authorization);
+                let request = read_request(&mut stream);
+                recorded.lock().unwrap().push(request);
                 let mut response = format!(
                     "HTTP/1.1 {status} Status\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n",
                     body.len()
@@ -46,10 +64,7 @@ impl FakeServer {
                 stream.write_all(response.as_bytes()).unwrap();
             }
         });
-        Self {
-            url,
-            authorizations,
-        }
+        Self { url, requests }
     }
 
     /// Where nothing listens.
@@ -58,15 +73,30 @@ impl FakeServer {
         format!("http://{}", listener.local_addr().unwrap())
     }
 
+    /// The requests received, in order.
+    pub fn requests(&self) -> Vec<Request> {
+        self.requests.lock().unwrap().clone()
+    }
+
+    /// The `Authorization` header of each request.
     pub fn authorizations(&self) -> Vec<String> {
-        self.authorizations.lock().unwrap().clone()
+        self.requests()
+            .iter()
+            .map(|request| request.header("authorization").unwrap_or_default().into())
+            .collect()
     }
 }
 
-/// Reads a whole request, returning its `Authorization` header.
-fn read_authorization(stream: &mut TcpStream) -> String {
+/// Reads a whole request.
+fn read_request(stream: &mut TcpStream) -> Request {
     let mut reader = BufReader::new(stream);
-    let (mut authorization, mut length) = (String::new(), 0);
+    let mut request = Request::default();
+    let mut line = String::new();
+    reader.read_line(&mut line).unwrap();
+    let mut parts = line.split_whitespace();
+    request.method = parts.next().unwrap_or_default().into();
+    request.path = parts.next().unwrap_or_default().into();
+    let mut length = 0;
     loop {
         let mut line = String::new();
         reader.read_line(&mut line).unwrap();
@@ -75,12 +105,12 @@ fn read_authorization(stream: &mut TcpStream) -> String {
             break;
         }
         let (name, value) = line.split_once(':').unwrap_or((line, ""));
-        match name.to_ascii_lowercase().as_str() {
-            "authorization" => authorization = value.trim().into(),
-            "content-length" => length = value.trim().parse().unwrap(),
-            _ => {}
+        let (name, value) = (name.to_ascii_lowercase(), value.trim().to_owned());
+        if name == "content-length" {
+            length = value.parse().unwrap();
         }
+        request.headers.push((name, value));
     }
     reader.read_exact(&mut vec![0; length]).unwrap();
-    authorization
+    request
 }

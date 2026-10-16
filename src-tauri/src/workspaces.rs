@@ -13,6 +13,7 @@ use crate::{
         models::{DbTimestamp, DbWorkspace},
     },
     errors::{Result, TodaiError},
+    models::integrations::NotionAccount,
 };
 
 /// Application database filename, in the app data directory.
@@ -396,6 +397,40 @@ pub fn set_github_login(app_db: &Connection, id: &str, login: Option<&str>) -> R
         .ok_or_else(|| workspace_not_found(id))
 }
 
+/// Sets whose Notion personal access token the registered workspace `id` uses, as Notion told, or disconnects it from
+/// Notion if `None`. The token itself is kept in the Keychain, not here.
+pub fn set_notion_account(
+    app_db: &Connection,
+    id: &str,
+    account: Option<&NotionAccount>,
+) -> Result<DbWorkspace> {
+    if account.is_some_and(|account| account.user_id.is_empty()) {
+        return Err(TodaiError::CommandError(
+            "Notion user ID cannot be empty".into(),
+        ));
+    }
+    app_db
+        .prepare_cached(
+            "UPDATE workspaces
+             SET notion_user_id = :user_id, notion_user_name = :name, notion_user_email = :email,
+                 notion_workspace_name = :workspace_name
+             WHERE id = :id
+             RETURNING *",
+        )?
+        .query_row(
+            named_params! {
+                ":id": id,
+                ":user_id": account.map(|account| &account.user_id),
+                ":name": account.and_then(|account| account.name.as_ref()),
+                ":email": account.and_then(|account| account.email.as_ref()),
+                ":workspace_name": account.and_then(|account| account.workspace_name.as_ref()),
+            },
+            DbWorkspace::from_row,
+        )
+        .optional()?
+        .ok_or_else(|| workspace_not_found(id))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -764,6 +799,57 @@ mod tests {
         let disconnected = set_github_login(&setup.app_db, &work.id, None).unwrap();
         assert_eq!(disconnected.github_login, None);
         assert_eq!(login_of(&personal.id).as_deref(), Some("pierreyoda"));
+    }
+
+    #[test]
+    fn set_notion_account_connects_and_disconnects_each_workspace() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        let personal = setup.create("Personal", "personal.sqlite3");
+        assert_eq!(work.notion_user_id, None);
+        let account = NotionAccount {
+            user_id: "u1".into(),
+            name: Some("Pierre-Yves".into()),
+            email: Some("py@example.org".into()),
+            workspace_name: None,
+        };
+
+        let connected = set_notion_account(&setup.app_db, &work.id, Some(&account)).unwrap();
+        assert_eq!(connected.notion_user_id.as_deref(), Some("u1"));
+        assert_eq!(connected.notion_user_name.as_deref(), Some("Pierre-Yves"));
+        assert_eq!(
+            connected.notion_user_email.as_deref(),
+            Some("py@example.org")
+        );
+        assert_eq!(connected.notion_workspace_name, None);
+        assert_eq!(
+            get(&setup.app_db, &personal.id).unwrap().notion_user_id,
+            None
+        );
+
+        let disconnected = set_notion_account(&setup.app_db, &work.id, None).unwrap();
+        assert_eq!(
+            (
+                disconnected.notion_user_id,
+                disconnected.notion_user_name,
+                disconnected.notion_user_email
+            ),
+            (None, None, None)
+        );
+    }
+
+    #[test]
+    fn set_notion_account_rejects_empty_ids_and_unknown_workspaces() {
+        let setup = Setup::new();
+        let work = setup.create("Work", "work.sqlite3");
+        let nobody = NotionAccount {
+            user_id: String::new(),
+            name: None,
+            email: None,
+            workspace_name: None,
+        };
+        assert!(set_notion_account(&setup.app_db, &work.id, Some(&nobody)).is_err());
+        assert!(set_notion_account(&setup.app_db, "unknown", None).is_err());
     }
 
     #[test]

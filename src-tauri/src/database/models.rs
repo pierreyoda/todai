@@ -149,6 +149,12 @@ pub struct DbWorkspace {
     pub auto_backup_keep: u32,
     /// The GitHub CLI account it uses on github.com, if connected.
     pub github_login: Option<String>,
+    /// The Notion user whose personal access token it uses, if connected to Notion: its token is in the Keychain.
+    pub notion_user_id: Option<String>,
+    pub notion_user_name: Option<String>,
+    pub notion_user_email: Option<String>,
+    /// The Notion workspace its token is for, if Notion told.
+    pub notion_workspace_name: Option<String>,
     /// Whether its links' GitHub statuses are refreshed on their own while todai is open.
     pub links_auto_refresh: bool,
     /// Whether a todo whose pull request is merged (or issue completed) offers to be marked as done.
@@ -168,6 +174,10 @@ impl DbWorkspace {
             auto_backup: row.get("auto_backup")?,
             auto_backup_keep: row.get("auto_backup_keep")?,
             github_login: row.get("github_login")?,
+            notion_user_id: row.get("notion_user_id")?,
+            notion_user_name: row.get("notion_user_name")?,
+            notion_user_email: row.get("notion_user_email")?,
+            notion_workspace_name: row.get("notion_workspace_name")?,
             links_auto_refresh: row.get("links_auto_refresh")?,
             links_suggest_done: row.get("links_suggest_done")?,
             links_paste_to_create: row.get("links_paste_to_create")?,

@@ -94,6 +94,21 @@ impl TryFrom<DbTodoLink> for TodoLink {
     }
 }
 
+/// Whose personal access token a workspace connected to Notion uses, as Notion told when it was connected.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionAccount {
+    /// Notion's ID of the user.
+    pub user_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// The Notion workspace the token is for, if Notion tells.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
+}
+
 /// An account `gh` knows on github.com.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

@@ -150,10 +150,15 @@ async fn preview(
     Ok(preview)
 }
 
-/// The account through which `workspace` is connected to `provider`, if it is.
+/// The account through which `workspace` is connected to `provider`, if it is: for Notion, the workspace itself, which
+/// has a token of its own.
 fn connection(workspace: &DbWorkspace, provider: Provider) -> Option<&str> {
     match provider {
         Provider::GitHub => workspace.github_login.as_deref(),
+        Provider::Notion => workspace
+            .notion_user_id
+            .as_ref()
+            .map(|_| workspace.id.as_str()),
     }
 }
 
@@ -175,6 +180,8 @@ async fn fetch(
                 .fetch_items(providers.gh_tokens, account, &refs)
                 .await
         }
+        // Notion pages are plain links, until recognized as Notion's: none to fetch yet
+        Provider::Notion => return None,
     };
     state.note(provider, account, &results);
     Some(results)
