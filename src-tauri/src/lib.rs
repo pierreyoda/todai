@@ -6,10 +6,16 @@ pub mod database;
 pub mod errors;
 pub mod gh;
 pub mod github;
+pub mod integrations;
 pub mod links;
 pub mod logging;
 pub mod models;
+pub mod notion;
+pub mod process;
+pub mod secrets;
 pub mod state;
+#[cfg(test)]
+pub(crate) mod testing;
 pub mod workspaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -58,6 +64,8 @@ pub fn run() {
             app.manage(state::AppState::new(app_db, db, backups_dir));
             app.manage(gh::GhFinder::default());
             app.manage(github::GitHub::new()?);
+            app.manage(notion::Notion::new()?);
+            app.manage(secrets::Keychain::new(notion::KEYCHAIN_SERVICE));
             commands::backups::spawn_daily_backups(app.handle().clone());
             Ok(())
         })
@@ -110,6 +118,13 @@ pub fn run() {
             commands::github::disconnect_github,
             commands::github::get_github_api_status,
             commands::github::set_workspace_links_behaviors,
+            commands::notion::connect_notion,
+            commands::notion::disconnect_notion,
+            commands::notion::get_notion_api_status,
+            commands::notion::list_notion_done_rules,
+            commands::notion::set_notion_done_rule,
+            commands::notion::delete_notion_done_rule,
+            commands::notion::get_notion_columns,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

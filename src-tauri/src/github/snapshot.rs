@@ -1,56 +1,16 @@
-//! What todai keeps of a pull request or issue: plain facts, as GitHub tells them. The single status word shown on a
-//! link is picked from them by the frontend.
+//! What todai keeps of a pull request or issue (see `links::snapshot`), and how it's read from GitHub's answer.
 
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
-use crate::links::{self, LinkKind, ParsedLink};
-
-/// The stored snapshots' format: one in another format is ignored, as if never fetched, until fetched again.
-const VERSION: u32 = 1;
+use crate::links::{
+    self,
+    snapshot::{FetchedItem, LinkSnapshot},
+    LinkKind, ParsedLink,
+};
 
 /// How many checks are kept, in GitHub's order: the counts cover all of them.
 pub(super) const MAX_CHECKS: usize = 20;
-
-/// A pull request or issue, as GitHub last told about it.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum GitHubSnapshot {
-    PullRequest(PullRequestSnapshot),
-    Issue(IssueSnapshot),
-}
-
-#[derive(Serialize, Deserialize)]
-struct Stored<T> {
-    v: u32,
-    data: T,
-}
-
-impl GitHubSnapshot {
-    /// For the `snapshot` column.
-    pub fn to_db(&self) -> serde_json::Result<String> {
-        serde_json::to_string(&Stored {
-            v: VERSION,
-            data: self,
-        })
-    }
-
-    /// From the `snapshot` column: `None` if stored in another format.
-    pub fn from_db(json: &str) -> Option<Self> {
-        match serde_json::from_str::<Stored<Self>>(json) {
-            Ok(stored) if stored.v == VERSION => Some(stored.data),
-            _ => None,
-        }
-    }
-
-    /// Whether it's merged or closed: it then rarely changes.
-    pub fn is_settled(&self) -> bool {
-        match self {
-            Self::PullRequest(pull) => pull.state != PullRequestState::Open,
-            Self::Issue(issue) => issue.state != IssueState::Open,
-        }
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -77,6 +37,13 @@ pub struct PullRequestSnapshot {
     pub updated_at: Timestamp,
     /// The first few issues it closes once merged.
     pub closes: Vec<RelatedItem>,
+}
+
+impl PullRequestSnapshot {
+    /// Whether it's merged or closed.
+    pub fn is_settled(&self) -> bool {
+        self.state != PullRequestState::Open
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -162,6 +129,13 @@ pub struct IssueSnapshot {
     pub closed_by: Vec<RelatedItem>,
 }
 
+impl IssueSnapshot {
+    /// Whether it's closed.
+    pub fn is_settled(&self) -> bool {
+        self.state != IssueState::Open
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum IssueState {
@@ -212,15 +186,6 @@ pub enum RelatedState {
     NotPlanned,
     /// An issue.
     Duplicate,
-}
-
-/// A pull request or issue, with the link it's at.
-#[derive(Debug, Clone, PartialEq)]
-pub struct FetchedItem {
-    /// Where GitHub says it is: e.g. a pull request linked as an issue (GitHub redirects one to the other), or in a
-    /// renamed repository.
-    pub link: ParsedLink,
-    pub snapshot: GitHubSnapshot,
 }
 
 // What the GraphQL API answers (see `query::ITEM_FRAGMENT`). Its enums are kept as strings, so that a value added by
@@ -390,8 +355,8 @@ impl RawItem {
     /// `None` if it's not where a pull request or issue is expected to be, on github.com.
     pub(super) fn into_fetched(self) -> Option<FetchedItem> {
         let (url, snapshot) = match self {
-            Self::PullRequest(pull) => (pull.url.clone(), GitHubSnapshot::PullRequest(pull.into())),
-            Self::Issue(issue) => (issue.url.clone(), GitHubSnapshot::Issue(issue.into())),
+            Self::PullRequest(pull) => (pull.url.clone(), LinkSnapshot::PullRequest(pull.into())),
+            Self::Issue(issue) => (issue.url.clone(), LinkSnapshot::Issue(issue.into())),
         };
         let link = github_link(&url)?;
         Some(FetchedItem { link, snapshot })

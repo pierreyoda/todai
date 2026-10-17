@@ -5,11 +5,13 @@ use url::Url;
 use crate::{
     database::models::DbTodoLink,
     errors::TodaiError,
-    github::snapshot::GitHubSnapshot,
-    links::{domain_label, github_label, FetchError, GitHubRef, LinkKind},
+    links::{
+        self, domain_label, snapshot::LinkSnapshot, FetchError, GitHubRef, LinkKind, LinkRef,
+        NotionRef,
+    },
 };
 
-/// A link on a todo: a GitHub pull request or issue, or any other web page.
+/// A link on a todo: a GitHub pull request or issue, a Notion page, or any other web page.
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TodoLink {
@@ -23,16 +25,26 @@ pub struct TodoLink {
     /// Set exactly for the GitHub kinds.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
-    pub created_at: Timestamp,
-    /// What GitHub last told about its pull request or issue, if fetched since it was added.
+    /// Set exactly for the Notion kind.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub snapshot: Option<GitHubSnapshot>,
-    /// When GitHub last answered about it.
+    pub notion: Option<NotionRef>,
+    pub created_at: Timestamp,
+    /// What its provider last told about its item, if fetched since it was added.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<LinkSnapshot>,
+    /// When its provider last answered about it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fetched_at: Option<Timestamp>,
-    /// Why GitHub's last answer had nothing about it, if so: `snapshot` is then the one before, if any.
+    /// Why its provider's last answer had nothing about it, if so: `snapshot` is then the one before, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fetch_error: Option<FetchError>,
+}
+
+impl TodoLink {
+    /// The item it points to, if it's fetched from a provider.
+    pub fn item(&self) -> Option<LinkRef> {
+        links::item_of(self.github.as_ref(), self.notion.as_ref())
+    }
 }
 
 impl TryFrom<DbTodoLink> for TodoLink {
@@ -41,13 +53,14 @@ impl TryFrom<DbTodoLink> for TodoLink {
     fn try_from(link: DbTodoLink) -> std::result::Result<Self, Self::Error> {
         let kind = LinkKind::try_from(link.kind.as_str())?;
         // The columns are either all set, for the GitHub kinds, or all `NULL`.
+        let is_github = matches!(kind, LinkKind::GithubPull | LinkKind::GithubIssue);
         let github = match (link.github_owner, link.github_repo, link.github_number) {
-            (Some(owner), Some(repo), Some(number)) if kind != LinkKind::Url => Some(GitHubRef {
+            (Some(owner), Some(repo), Some(number)) if is_github => Some(GitHubRef {
                 owner,
                 repo,
                 number,
             }),
-            (None, None, None) if kind == LinkKind::Url => None,
+            (None, None, None) if !is_github => None,
             _ => {
                 return Err(TodaiError::InvalidLink(format!(
                     "unexpected GitHub columns for the {} link {}",
@@ -55,16 +68,36 @@ impl TryFrom<DbTodoLink> for TodoLink {
                 )))
             }
         };
-        let label = match &github {
-            Some(github) => github_label(github),
+        let notion = match (kind, link.notion_id) {
+            (LinkKind::Notion, Some(id)) => Some(NotionRef { id }),
+            (LinkKind::Notion, None) | (_, Some(_)) => {
+                return Err(TodaiError::InvalidLink(format!(
+                    "unexpected Notion column for the {} link {}",
+                    link.kind, link.id
+                )))
+            }
+            (_, None) => None,
+        };
+        // Ignored if stored in another format: as if never fetched, until fetched again.
+        let snapshot = link.snapshot.as_deref().and_then(LinkSnapshot::from_db);
+        let label = match (&github, &notion, &snapshot) {
+            (Some(github), _, _) => links::github::label(github),
+            // Its unique ID or title once fetched, else what its URL's slug tells
+            (None, Some(_), Some(LinkSnapshot::NotionPage(page))) => page
+                .label()
+                .unwrap_or_else(|| links::notion::label_from_url(&link.url)),
+            (None, Some(_), Some(LinkSnapshot::NotionDatabase(database)))
+                if !database.title.is_empty() =>
+            {
+                database.title.clone()
+            }
+            (None, Some(_), _) => links::notion::label_from_url(&link.url),
             // Normalized when added: always parses, but falls back to the URL itself rather than failing the list.
-            None => Url::parse(&link.url)
+            (None, None, _) => Url::parse(&link.url)
                 .ok()
                 .and_then(|url| url.host_str().map(domain_label))
                 .unwrap_or_else(|| link.url.clone()),
         };
-        // Ignored if stored in another format: as if never fetched, until fetched again.
-        let snapshot = link.snapshot.as_deref().and_then(GitHubSnapshot::from_db);
         Ok(Self {
             id: link.id,
             todo_id: link.todo_id,
@@ -72,6 +105,7 @@ impl TryFrom<DbTodoLink> for TodoLink {
             url: link.url,
             label,
             github,
+            notion,
             created_at: Timestamp::from_second(link.created_at)?,
             fetched_at: link
                 .fetched_at
@@ -86,6 +120,21 @@ impl TryFrom<DbTodoLink> for TodoLink {
                 .transpose()?,
         })
     }
+}
+
+/// Whose personal access token a workspace connected to Notion uses, as Notion told when it was connected.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionAccount {
+    /// Notion's ID of the user.
+    pub user_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// The Notion workspace the token is for, if Notion tells.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
 }
 
 /// An account `gh` knows on github.com.

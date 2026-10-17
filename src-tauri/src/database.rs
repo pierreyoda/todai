@@ -34,6 +34,10 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/005_notes.sql"),
         include_str!("../migrations/006_todo_links.sql"),
         include_str!("../migrations/007_todo_link_statuses.sql"),
+        include_str!("../migrations/008_todo_links_notion.sql"),
+        include_str!("../migrations/009_todo_stage.sql"),
+        include_str!("../migrations/010_notion_done_rules.sql"),
+        include_str!("../migrations/011_notion_legacy_links.sql"),
     ],
 };
 
@@ -47,6 +51,7 @@ pub const APP: DatabaseKind = DatabaseKind {
         include_str!("../migrations-app/002_workspace_backups.sql"),
         include_str!("../migrations-app/003_workspace_github.sql"),
         include_str!("../migrations-app/004_workspace_links.sql"),
+        include_str!("../migrations-app/005_workspace_notion.sql"),
     ],
 };
 
@@ -777,6 +782,113 @@ mod tests {
         assert!(set_error("no_access").is_ok());
         assert!(set_error("sso_required").is_ok());
         assert!(set_error("offline").is_err());
+    }
+
+    #[test]
+    fn open_existing_puts_the_todos_of_a_workspace_database_to_do_on_the_board() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without the board.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..8] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 8).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-17', 'Planned', 'a0', 0, 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
+        let stage: Option<String> = conn
+            .query_row("SELECT stage FROM todos WHERE id = 't'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(stage, None);
+        let set_stage = |stage: &str| {
+            conn.execute("UPDATE todos SET stage = ?1 WHERE id = 't'", [stage])
+        };
+        assert!(set_stage("urgent").is_ok());
+        assert!(set_stage("doing").is_ok());
+        // "Done" is `completed`.
+        assert!(set_stage("done").is_err());
+    }
+
+    #[test]
+    fn open_existing_recognizes_the_notion_links_of_a_workspace_database() {
+        const ID: &str = "8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5";
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version keeping the Notion links added before as plain URLs.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..10] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 10).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute_batch(&format!(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-17', 'Linked', 'a0', 0, 0), ('u', '2026-10-17', 'Linked too', 'a1', 0, 0);
+                 INSERT INTO todo_links (id, todo_id, kind, url, notion_id, created_at) VALUES
+                   ('ticket', 't', 'url', 'https://app.notion.com/p/acme/API-Contrats-La-compagnie-3de1a7bfbfe38143818ec324a01df742', NULL, 0),
+                   ('bare', 't', 'url', 'https://www.notion.so/8C1D2E3F4A5B46C7D8E9F0A1B2C3D4E5', NULL, 0),
+                   ('site', 't', 'url', 'https://acme.notion.site/Define-the-0-3-scope-0f1e2d3c4b5a69788796a5b4c3d2e1f0', NULL, 0),
+                   ('view', 't', 'url', 'https://www.notion.so/acme/Tickets-1a2b3c4d5e6f708192a3b4c5d6e7f809?v=0123456789abcdef0123456789abcdef', NULL, 0),
+                   ('elsewhere', 't', 'url', 'https://evil.example.com/x.notion.site/Page-{ID}', NULL, 0),
+                   ('plain', 't', 'url', 'https://example.com/', NULL, 0),
+                   ('known', 'u', 'notion', 'https://www.notion.so/Page-{ID}', '{ID}', 0),
+                   ('twice', 'u', 'url', 'https://app.notion.com/p/acme/Page-{ID}', NULL, 0);"
+            ))
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
+        let links: Vec<(String, String, String, Option<String>)> = conn
+            .prepare("SELECT id, kind, url, notion_id FROM todo_links ORDER BY rowid")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        let notion_ids: Vec<(&str, &str, Option<&str>)> = links
+            .iter()
+            .map(|(id, kind, _, notion_id)| (id.as_str(), kind.as_str(), notion_id.as_deref()))
+            .collect();
+        assert_eq!(
+            notion_ids,
+            [
+                ("ticket", "notion", Some("3de1a7bfbfe38143818ec324a01df742")),
+                ("bare", "notion", Some(ID)),
+                ("site", "notion", Some("0f1e2d3c4b5a69788796a5b4c3d2e1f0")),
+                // Not ending with the ID: left as they were
+                ("view", "url", None),
+                ("elsewhere", "url", None),
+                ("plain", "url", None),
+                ("known", "notion", Some(ID)),
+                // Its page already linked to
+                ("twice", "url", None),
+            ]
+        );
+        // As recognized when added now
+        for (_, kind, url, notion_id) in &links {
+            if kind == "notion" {
+                let parsed = crate::links::parse(url).unwrap();
+                assert_eq!(
+                    parsed.notion.map(|page| page.id),
+                    notion_id.clone(),
+                    "{url}"
+                );
+            }
+        }
     }
 
     #[test]

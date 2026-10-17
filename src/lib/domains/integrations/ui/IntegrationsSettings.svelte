@@ -5,6 +5,7 @@ import SettingsContainer from "#shared/ui/SettingsContainer.svelte";
 import { goto } from "$app/navigation";
 import GitHubCard from "./GitHubCard.svelte";
 import LinksBehaviorSettings from "./LinksBehaviorSettings.svelte";
+import NotionCard from "./NotionCard.svelte";
 
 type IntegrationsSettingsProps = {
   workspaces: readonly Workspace[];
@@ -29,17 +30,19 @@ const { workspaces, workspace }: IntegrationsSettingsProps = $props();
       />
       <p class="hint">
         Each workspace has its own connections: one can use your own GitHub
-        account, another your company's.
+        account and Notion workspace, another your company's.
       </p>
     </div>
     <p class="intro">
-      todai reads the pull requests and issues linked to this workspace's todos,
-      to show where they stand. It never writes to GitHub, and stores no token:
-      it asks the GitHub CLI for the connected account's when needed.
+      todai reads the pull requests, issues and Notion pages linked to this
+      workspace's todos, to show where they stand. It never writes to GitHub or
+      Notion. GitHub's token stays with the GitHub CLI; Notion's is kept in your
+      macOS Keychain.
     </p>
     <!-- Recreated for each workspace, so that outcomes (e.g. a failed disconnection) don't carry over -->
     {#key workspace.id}
       <GitHubCard {workspace} />
+      <NotionCard {workspace} />
       <LinksBehaviorSettings {workspace} />
     {/key}
   </div>

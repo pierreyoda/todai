@@ -1,5 +1,6 @@
 <script lang="ts">
 import { createQuery } from "@tanstack/svelte-query";
+import { keepProblems, PROVIDERS, type Provider } from "#core/integrations";
 import { dateToTodaiDate } from "#core/time";
 import type { Tag } from "#domains/tags";
 import { tagsQueryOptions } from "#domains/tags";
@@ -8,7 +9,7 @@ import {
   TodoPanel,
   todosQueryOptions,
 } from "#domains/todos";
-import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import { activeWorkspaceQueryOptions, isConnected } from "#domains/workspaces";
 import SidePanel from "#shell/SidePanel.svelte";
 
 // Usable, as the page is only shown then (see `ActiveWorkspaceGuard`)
@@ -19,9 +20,11 @@ const tags = createQuery(() => tagsQueryOptions);
 const todos = createQuery(() => todosQueryOptions(day));
 let selectedTagId = $state<Tag["id"] | null>(null);
 
-// The statuses of the todos' GitHub links, through the workspace's connection: refreshed as shown, then regularly,
-// unless only when asked (e.g. once a link is added)
-const connected = $derived(!!activeWorkspace.data?.githubLogin);
+// The statuses of the todos' links, through the workspace's connections to their providers: refreshed as shown, then
+// regularly, unless only when asked (e.g. once a link is added)
+const connectedTo = (provider: Provider) =>
+  isConnected(activeWorkspace.data, provider);
+const connected = $derived(PROVIDERS.some(connectedTo));
 const autoRefresh = $derived(
   connected && !!activeWorkspace.data?.linksAutoRefresh,
 );
@@ -73,7 +76,7 @@ const dayTags = $derived.by(() => {
       tags={dayTags}
       {selectedTagId}
       onSelectedTagChanged={(id) => (selectedTagId = id)}
-      linksProblem={connected ? linkStatuses.data?.problem : undefined}
+      linksProblems={keepProblems(linkStatuses.data?.problems, connectedTo)}
     />
   {/if}
 </main>

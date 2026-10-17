@@ -1,7 +1,17 @@
+//! The links on todos: what their URL points to, and what's known of the item there.
+
+pub mod github;
+pub mod notion;
+pub mod snapshot;
+
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::errors::{Result, TodaiError};
+pub use self::{github::GitHubRef, notion::NotionRef};
+use crate::{
+    errors::{Result, TodaiError},
+    integrations::Provider,
+};
 
 /// Longest URL accepted, in bytes: longer ones are rarely links worth keeping (e.g. tracking parameters).
 pub const MAX_URL_LENGTH: usize = 2048;
@@ -14,6 +24,8 @@ pub enum LinkKind {
     GithubPull,
     /// An issue on github.com.
     GithubIssue,
+    /// A page, or a database, in Notion.
+    Notion,
     /// Any other web page.
     Url,
 }
@@ -21,6 +33,7 @@ pub enum LinkKind {
 impl LinkKind {
     const DB_GITHUB_PULL: &str = "github_pull";
     const DB_GITHUB_ISSUE: &str = "github_issue";
+    const DB_NOTION: &str = "notion";
     const DB_URL: &str = "url";
 
     /// The `kind` column.
@@ -28,7 +41,17 @@ impl LinkKind {
         match self {
             Self::GithubPull => Self::DB_GITHUB_PULL,
             Self::GithubIssue => Self::DB_GITHUB_ISSUE,
+            Self::Notion => Self::DB_NOTION,
             Self::Url => Self::DB_URL,
+        }
+    }
+
+    /// Where the item it points to is fetched from: `None` for any other web page, which has no status.
+    pub fn provider(self) -> Option<Provider> {
+        match self {
+            Self::GithubPull | Self::GithubIssue => Some(Provider::GitHub),
+            Self::Notion => Some(Provider::Notion),
+            Self::Url => None,
         }
     }
 }
@@ -41,19 +64,20 @@ impl TryFrom<&str> for LinkKind {
         match kind {
             Self::DB_GITHUB_PULL => Ok(Self::GithubPull),
             Self::DB_GITHUB_ISSUE => Ok(Self::GithubIssue),
+            Self::DB_NOTION => Ok(Self::Notion),
             Self::DB_URL => Ok(Self::Url),
             _ => Err(TodaiError::InvalidLink(format!("unknown kind {kind:?}"))),
         }
     }
 }
 
-/// Why GitHub's last answer had nothing about a link's pull request or issue. Serialized like the `fetch_error` column.
+/// Why its provider's last answer had nothing about a link's item. Serialized like the `fetch_error` column.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum FetchError {
     /// Missing, deleted, or private to others: GitHub can't tell these apart.
     NoAccess,
-    /// Its organization requires single sign-on, which the GitHub CLI's token isn't authorized for.
+    /// GitHub: its organization requires single sign-on, which the GitHub CLI's token isn't authorized for.
     SsoRequired,
 }
 
@@ -85,15 +109,6 @@ impl TryFrom<&str> for FetchError {
     }
 }
 
-/// A pull request or issue on github.com.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
-pub struct GitHubRef {
-    pub owner: String,
-    pub repo: String,
-    pub number: u32,
-}
-
 /// A URL recognized as a link, ready to be added to a todo.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -107,6 +122,57 @@ pub struct ParsedLink {
     /// Set exactly for the GitHub kinds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
+    /// Set exactly for the Notion kind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notion: Option<NotionRef>,
+}
+
+impl ParsedLink {
+    /// The item it points to, if it's fetched from a provider.
+    pub fn item(&self) -> Option<LinkRef> {
+        item_of(self.github.as_ref(), self.notion.as_ref())
+    }
+}
+
+/// The item of a link with these references, if any.
+pub fn item_of(github: Option<&GitHubRef>, notion: Option<&NotionRef>) -> Option<LinkRef> {
+    match (github, notion) {
+        (Some(github), _) => Some(LinkRef::GitHub(github.clone())),
+        (None, Some(notion)) => Some(LinkRef::Notion(notion.clone())),
+        (None, None) => None,
+    }
+}
+
+/// The item a link points to, at its provider: what's fetched to tell where it stands.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LinkRef {
+    GitHub(GitHubRef),
+    Notion(NotionRef),
+}
+
+impl LinkRef {
+    pub fn provider(&self) -> Provider {
+        match self {
+            Self::GitHub(_) => Provider::GitHub,
+            Self::Notion(_) => Provider::Notion,
+        }
+    }
+
+    /// The pull request or issue, for GitHub's.
+    pub fn github(&self) -> Option<&GitHubRef> {
+        match self {
+            Self::GitHub(github) => Some(github),
+            Self::Notion(_) => None,
+        }
+    }
+
+    /// The page or database, for Notion's.
+    pub fn notion(&self) -> Option<&NotionRef> {
+        match self {
+            Self::Notion(notion) => Some(notion),
+            Self::GitHub(_) => None,
+        }
+    }
 }
 
 fn invalid(reason: &str) -> TodaiError {
@@ -143,86 +209,16 @@ pub fn parse(input: &str) -> Result<ParsedLink> {
         .filter(|host| !host.is_empty())
         .ok_or_else(|| invalid("it has no domain"))?;
 
-    if let Some((kind, github)) = github_ref(&url) {
-        return Ok(ParsedLink {
-            kind,
-            url: github_url(kind, &github),
-            label: github_label(&github),
-            github: Some(github),
-        });
+    if let Some(link) = github::recognize(&url).or_else(|| notion::recognize(&url)) {
+        return Ok(link);
     }
     Ok(ParsedLink {
         kind: LinkKind::Url,
         label: domain_label(host),
         url: url.into(),
         github: None,
+        notion: None,
     })
-}
-
-/// The pull request or issue `url` points to, if any, even on one of its tabs (`/files`, `/commits`...).
-fn github_ref(url: &Url) -> Option<(LinkKind, GitHubRef)> {
-    if !matches!(url.host_str()?, "github.com" | "www.github.com") {
-        return None;
-    }
-    let mut segments = url.path_segments()?;
-    let owner = segments.next().filter(|owner| is_github_owner(owner))?;
-    let repo = segments.next().filter(|repo| is_github_repo(repo))?;
-    let kind = match segments.next()? {
-        "pull" => LinkKind::GithubPull,
-        "issues" => LinkKind::GithubIssue,
-        _ => return None,
-    };
-    // Digits only: `parse` would also accept a leading `+`.
-    let number = segments
-        .next()
-        .filter(|number| !number.is_empty() && number.bytes().all(|b| b.is_ascii_digit()))?
-        .parse()
-        .ok()
-        .filter(|number| *number > 0)?;
-    Some((
-        kind,
-        GitHubRef {
-            owner: owner.into(),
-            repo: repo.into(),
-            number,
-        },
-    ))
-}
-
-/// A GitHub account or organization name: letters, digits and hyphens.
-fn is_github_owner(owner: &str) -> bool {
-    (1..=39).contains(&owner.len())
-        && owner
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-}
-
-/// A GitHub repository name: letters, digits, `-`, `_` and `.`, but not `.` nor `..`.
-fn is_github_repo(repo: &str) -> bool {
-    (1..=100).contains(&repo.len())
-        && repo != "."
-        && repo != ".."
-        && repo
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
-}
-
-/// The normalized URL of a pull request or issue.
-pub fn github_url(kind: LinkKind, github: &GitHubRef) -> String {
-    let section = if kind == LinkKind::GithubPull {
-        "pull"
-    } else {
-        "issues"
-    };
-    format!(
-        "https://github.com/{}/{}/{section}/{}",
-        github.owner, github.repo, github.number
-    )
-}
-
-/// E.g. `todai#58`: the owner is left out, as it's usually the same across one's links.
-pub fn github_label(github: &GitHubRef) -> String {
-    format!("{}#{}", github.repo, github.number)
 }
 
 /// The domain of a link, without `www.`.
@@ -234,76 +230,10 @@ pub fn domain_label(host: &str) -> String {
 mod tests {
     use super::*;
 
-    fn github(owner: &str, repo: &str, number: u32) -> Option<GitHubRef> {
-        Some(GitHubRef {
-            owner: owner.into(),
-            repo: repo.into(),
-            number,
-        })
-    }
-
     fn reason(input: &str) -> String {
         match parse(input) {
             Err(TodaiError::InvalidLink(reason)) => reason,
             other => panic!("{input:?} was not rejected: {other:?}"),
-        }
-    }
-
-    #[test]
-    fn recognizes_pull_requests_even_on_their_tabs() {
-        for input in [
-            "https://github.com/pierreyoda/todai/pull/58",
-            "https://github.com/pierreyoda/todai/pull/58/",
-            "https://github.com/pierreyoda/todai/pull/58/files",
-            "https://github.com/pierreyoda/todai/pull/58/commits?w=1#diff-abc",
-            "http://www.github.com/pierreyoda/todai/pull/58",
-            "  https://GitHub.com/pierreyoda/todai/pull/58  ",
-            "github.com/pierreyoda/todai/pull/58",
-        ] {
-            assert_eq!(
-                parse(input).unwrap(),
-                ParsedLink {
-                    kind: LinkKind::GithubPull,
-                    url: "https://github.com/pierreyoda/todai/pull/58".into(),
-                    label: "todai#58".into(),
-                    github: github("pierreyoda", "todai", 58),
-                },
-                "{input:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn recognizes_issues() {
-        assert_eq!(
-            parse("https://github.com/some-org/my_repo.rs/issues/12#issuecomment-1").unwrap(),
-            ParsedLink {
-                kind: LinkKind::GithubIssue,
-                url: "https://github.com/some-org/my_repo.rs/issues/12".into(),
-                label: "my_repo.rs#12".into(),
-                github: github("some-org", "my_repo.rs", 12),
-            }
-        );
-    }
-
-    #[test]
-    fn other_github_pages_are_plain_links() {
-        for input in [
-            "https://github.com/pierreyoda/todai",
-            "https://github.com/pierreyoda/todai/pulls",
-            "https://github.com/pierreyoda/todai/issues",
-            "https://github.com/pierreyoda/todai/pull/0",
-            "https://github.com/pierreyoda/todai/pull/+58",
-            "https://github.com/pierreyoda/todai/pull/abc",
-            "https://github.com/pierreyoda/todai/pull/99999999999",
-            "https://github.com/pierreyoda/todai/discussions/3",
-            "https://github.com/pierre_yoda/todai/pull/58",
-            "https://github.com/pierreyoda/../pull/58",
-            "https://gist.github.com/pierreyoda/todai/pull/58",
-        ] {
-            let link = parse(input).unwrap();
-            assert_eq!(link.kind, LinkKind::Url, "{input:?}");
-            assert_eq!(link.github, None, "{input:?}");
         }
     }
 
@@ -316,6 +246,7 @@ mod tests {
                 url: "https://www.docs.rs/keyring/latest/keyring/?search=entry#top".into(),
                 label: "docs.rs".into(),
                 github: None,
+                notion: None,
             }
         );
         assert_eq!(
@@ -351,7 +282,12 @@ mod tests {
 
     #[test]
     fn link_kind_round_trips_through_the_kind_column() {
-        for kind in [LinkKind::GithubPull, LinkKind::GithubIssue, LinkKind::Url] {
+        for kind in [
+            LinkKind::GithubPull,
+            LinkKind::GithubIssue,
+            LinkKind::Notion,
+            LinkKind::Url,
+        ] {
             assert_eq!(LinkKind::try_from(kind.to_db()).unwrap(), kind);
             assert_eq!(
                 serde_json::to_value(kind).unwrap(),

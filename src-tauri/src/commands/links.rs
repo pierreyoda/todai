@@ -10,6 +10,7 @@ use crate::{
     errors::{Result, TodaiError},
     links::{self, ParsedLink},
     models::{core::Day, integrations::TodoLink},
+    notion::rules,
     state::AppState,
 };
 
@@ -96,11 +97,27 @@ pub(crate) fn insert_links_in(
             )));
         }
 
+        // The same Notion page, under another URL (e.g. without its slug)
+        if let Some(notion) = &link.notion {
+            let exists: bool = tx
+                .prepare_cached(
+                    "SELECT EXISTS (SELECT 1 FROM todo_links WHERE todo_id = ?1 AND notion_id = ?2)",
+                )?
+                .query_row([todo_id, &notion.id], |row| row.get(0))?;
+            if exists {
+                return Err(TodaiError::CommandError(format!(
+                    "The todo already links to this Notion page ({})",
+                    link.url
+                )));
+            }
+        }
+
         let github = link.github.as_ref();
         let row = tx
             .prepare_cached(
-                "INSERT INTO todo_links (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at)
-                 VALUES (:id, :todo_id, :kind, :url, :github_owner, :github_repo, :github_number, :now)
+                "INSERT INTO todo_links
+                 (id, todo_id, kind, url, github_owner, github_repo, github_number, notion_id, created_at)
+                 VALUES (:id, :todo_id, :kind, :url, :github_owner, :github_repo, :github_number, :notion_id, :now)
                  RETURNING *",
             )?
             .query_row(
@@ -112,6 +129,7 @@ pub(crate) fn insert_links_in(
                     ":github_owner": github.map(|github| &github.owner),
                     ":github_repo": github.map(|github| &github.repo),
                     ":github_number": github.map(|github| github.number),
+                    ":notion_id": link.notion.as_ref().map(|notion| &notion.id),
                     ":now": now,
                 },
                 DbTodoLink::from_row,
@@ -154,9 +172,12 @@ pub(crate) fn query_links_between(
          ORDER BY todo_links.created_at, todo_links.id",
     )?;
     let rows = statement.query_map([&start.raw, &end.raw], DbTodoLink::from_row)?;
+    // Notion pages, as their database's done rule tells, if it has one
+    let rules = rules::load(db)?;
     let mut links: HashMap<String, Vec<TodoLink>> = HashMap::new();
     for row in rows {
-        let link = TodoLink::try_from(row?)?;
+        let mut link = TodoLink::try_from(row?)?;
+        rules::apply_to_link(&mut link, &rules);
         links.entry(link.todo_id.clone()).or_default().push(link);
     }
     Ok(links)
@@ -453,5 +474,36 @@ mod tests {
         let value = serde_json::to_value(&page).unwrap();
         assert_eq!(value["label"], "example.org");
         assert!(value.get("github").is_none());
+    }
+
+    #[test]
+    fn notion_pages_are_added_with_their_id_and_once_whatever_their_url() {
+        let mut db = open_test_database(&WORKSPACE);
+        insert_todo(&db, "plan", "2026-10-10");
+        let id = "8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5";
+        let links = insert_links(
+            &mut db,
+            "plan",
+            vec![links::parse(&format!("https://www.notion.so/acme/Roadmap-{id}?pvs=4")).unwrap()],
+            NOW,
+        )
+        .unwrap();
+        assert_eq!(links[0].kind, LinkKind::Notion);
+        assert_eq!(links[0].label, "Roadmap");
+        assert_eq!(links[0].notion.as_ref().unwrap().id, id);
+        assert_eq!(links[0].url, format!("https://www.notion.so/Roadmap-{id}"));
+
+        // The same page, without its slug
+        let again = insert_links(
+            &mut db,
+            "plan",
+            vec![links::parse(&format!("https://app.notion.com/p/{id}")).unwrap()],
+            NOW,
+        );
+        assert!(again.is_err());
+        let count: i64 = db
+            .query_row("SELECT COUNT(*) FROM todo_links", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
     }
 }

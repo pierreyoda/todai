@@ -6,7 +6,7 @@ The frontend (`src/`) is organized by domain. `src/lib/architecture.test.ts` che
 
 - `src/lib/shared/`: what knows nothing of todai's domains. `ui/` (UI kit, icons), `utils/` (toasts, autosave,
   timestamps…), `ipc/` (`createInvoker`, `queryClient`, `workspaceDataKey`, `MutationHooks`).
-- `src/lib/core/<module>/`: building blocks. `time` (`Day`, `Month`, `Week`, the date picker), `markdown`, `github`.
+- `src/lib/core/<module>/`: building blocks. `time` (`Day`, `Month`, `Week`, the date picker), `markdown`, `integrations`
 - `src/lib/domains/<domain>/`: `tags`, `workspaces` (with `backups/`), `notes`, `todos` (with `links/`), `agenda`,
   `integrations`.
 - `src/lib/shell/`: the app's frame, e.g. `SidePanel`, `ActiveWorkspaceGuard`.

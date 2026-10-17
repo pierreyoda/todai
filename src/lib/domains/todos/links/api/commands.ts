@@ -5,6 +5,8 @@ import { createInvoker } from "#shared/ipc/invoke.ts";
 import type { Todo } from "../../model/types";
 import type {
   LinkPreview,
+  NotionColumns,
+  NotionDoneRule,
   ParsedLink,
   RefreshOutcome,
   TodoLink,
@@ -48,8 +50,8 @@ type LinkCommands = {
     returns: Todo;
   };
   /**
-   * Recognizes what `url` points to, as `parse_link`, then, for a GitHub pull request or issue, asks GitHub about it
-   * through the active workspace's connection, if any. Nothing is stored.
+   * Recognizes what `url` points to, as `parse_link`, then, for an item fetched from a provider (e.g. a GitHub pull
+   * request or issue), asks it about it through the active workspace's connection, if any. Nothing is stored.
    */
   preview_link: {
     args: {
@@ -65,9 +67,9 @@ type LinkCommands = {
     returns: never;
   };
   /**
-   * Refreshes the status of the pull requests and issues linked to the non-deleted todos of `day`, if fetched long
-   * enough ago (5 minutes for open ones, a day for the others, or whenever if `force`), through the active workspace's
-   * GitHub connection. Does nothing without one.
+   * Refreshes the status of the items (e.g. pull requests and issues) linked to the non-deleted todos of `day`, if
+   * fetched long enough ago (5 minutes for open ones, a day for the others, or whenever if `force`), through the active
+   * workspace's connection to their provider. Does nothing for a provider it isn't connected to.
    */
   refresh_links: {
     args: {
@@ -76,7 +78,7 @@ type LinkCommands = {
     };
     returns: RefreshOutcome;
   };
-  /** Refreshes the status of a GitHub link's pull request or issue, however recently fetched, as `refresh_links`. */
+  /** Refreshes the status of a link's item (e.g. a pull request), however recently fetched, as `refresh_links`. */
   refresh_link: {
     args: {
       id: UUID;
@@ -86,3 +88,36 @@ type LinkCommands = {
 };
 
 export const invokeLinks = createInvoker<LinkCommands>("command");
+
+type NotionRuleCommands = {
+  /** The done rules of the active workspace's Notion databases, by their title. */
+  list_notion_done_rules: {
+    returns: NotionDoneRule[];
+  };
+  /** Instead of any other one for its database. Fails without a value meaning done, unless it's a checkbox. */
+  set_notion_done_rule: {
+    args: {
+      rule: NotionDoneRule;
+    };
+    returns: NotionDoneRule;
+  };
+  /** Whether there was one: the database's pages are then done once their Status is in its Complete group again. */
+  delete_notion_done_rule: {
+    args: {
+      dataSourceId: string;
+    };
+    returns: boolean;
+  };
+  /**
+   * Asks Notion, now, for a database's columns that can tell its pages are done. Fails if the active workspace isn't
+   * connected to Notion, Notion couldn't be asked, or its token can't read the database.
+   */
+  get_notion_columns: {
+    args: {
+      dataSourceId: string;
+    };
+    returns: NotionColumns;
+  };
+};
+
+export const invokeNotionRules = createInvoker<NotionRuleCommands>("command");

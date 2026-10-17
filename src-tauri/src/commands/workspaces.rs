@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use tauri::State;
 
 use crate::{
-    backups, database::models::DbWorkspace, errors::Result, models::app::Workspace,
+    backups, commands::notion, database::models::DbWorkspace, errors::Result,
+    integrations::Provider, models::app::Workspace, notion::Notion, secrets::Keychain,
     state::AppState, workspaces,
 };
 
@@ -27,7 +28,11 @@ pub(crate) fn workspace(
     workspace.github_attention = workspace
         .github_login
         .as_deref()
-        .and_then(|login| state.github_attention(login));
+        .and_then(|login| state.attention(Provider::GitHub, login));
+    workspace.notion_attention = workspace
+        .notion
+        .as_ref()
+        .and_then(|_| state.attention(Provider::Notion, &workspace.id));
     Ok(workspace)
 }
 
@@ -144,18 +149,28 @@ pub async fn rename_workspace(
 #[tauri::command]
 pub async fn remove_workspace(
     state: State<'_, AppState>,
+    notion: State<'_, Notion>,
+    keychain: State<'_, Keychain>,
     id: String,
     delete_backups: bool,
 ) -> Result<()> {
-    let app_db = state.app_db();
-    if delete_backups {
-        // Before unregistering it: should deleting one fail, the others are still listed.
-        let deleted = backups::delete_all(&app_db, state.backups_dir(), &id)?;
-        log::info!("Deleted the {deleted} backups of workspace {id}, before removing it");
-    }
-    if workspaces::remove(&app_db, &id)? {
-        log::info!("Removed the active workspace {id}: no workspace is open anymore");
-        state.replace_db(None);
+    let notion_connected = {
+        let app_db = state.app_db();
+        let notion_connected = workspaces::get(&app_db, &id)?.notion_user_id.is_some();
+        if delete_backups {
+            // Before unregistering it: should deleting one fail, the others are still listed.
+            let deleted = backups::delete_all(&app_db, state.backups_dir(), &id)?;
+            log::info!("Deleted the {deleted} backups of workspace {id}, before removing it");
+        }
+        if workspaces::remove(&app_db, &id)? {
+            log::info!("Removed the active workspace {id}: no workspace is open anymore");
+            state.replace_db(None);
+        }
+        notion_connected
+    };
+    // Its token goes with it: a backup restored as a new workspace starts unconnected
+    if notion_connected {
+        notion::forget_removed(&state, &notion, &*keychain, &id).await;
     }
     Ok(())
 }

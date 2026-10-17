@@ -1,25 +1,21 @@
-import type { GitHubProblem } from "#core/github";
+import {
+  type IntegrationProblem,
+  type Provider,
+  providerInfo,
+} from "#core/integrations";
 import { formatTime } from "#shared/utils/timestamps.ts";
 import type { Todo } from "../../model/types";
-import { hasLink } from "./links";
-import type {
-  Check,
-  Checks,
-  GitHubSnapshot,
-  ItemState,
-  ParsedLink,
-  PullRequestSnapshot,
-  RelatedItem,
-  TodoLink,
-} from "./types";
+import { githubDone, githubStatus, githubStatusWords } from "./github";
+import { notionDone, notionStatus, notionStatusWords } from "./notion";
+import type { LinkSnapshot, NotionColor, TodoLink } from "./types";
 
 /**
  * How a link's status reads, which colors it and picks its glyph:
  * - `open`: an open pull request or issue, with nothing more to tell;
  * - `good`, `bad`, `pending`: an open pull request's checks or review;
  * - `merged`: a merged pull request, or a completed issue;
- * - `neutral`: closed otherwise, or a draft;
- * - `warn`: GitHub can't tell about it.
+ * - `neutral`: closed otherwise, or a draft; or a Notion status, shown in its own color;
+ * - `warn`: its provider can't tell about it.
  */
 export type LinkTone =
   | "open"
@@ -30,58 +26,28 @@ export type LinkTone =
   | "neutral"
   | "warn";
 
+/** The glyph shown before a status word on a chip, when its tone doesn't pick it. */
+export type LinkGlyph = "check" | "dot" | "ring";
+
 /** The one word shown after a link's label, e.g. "Checks failing". */
 export interface LinkStatus {
   word: string;
   tone: LinkTone;
+  /** Colored so rather than by its tone: a Notion status, in its Notion color. */
+  color?: NotionColor;
+  /** Shown before it rather than its tone's glyph: a Notion status, by its group. */
+  glyph?: LinkGlyph;
 }
 
-/** Where a pull request or issue stands, e.g. a pull request's `draft`, or an issue's `not_planned`. */
-export const itemState = (snapshot: GitHubSnapshot): ItemState => {
-  if (snapshot.type === "pull_request") {
-    if (snapshot.state !== "open") return snapshot.state;
-    return snapshot.isDraft ? "draft" : "open";
-  }
-  if (snapshot.state === "open") return "open";
-  return snapshot.stateReason ?? "completed";
-};
-
-const STATE_STATUSES: Record<ItemState, LinkStatus> = {
-  open: { word: "Open", tone: "open" },
-  draft: { word: "Draft", tone: "neutral" },
-  merged: { word: "Merged", tone: "merged" },
-  closed: { word: "Closed", tone: "neutral" },
-  completed: { word: "Completed", tone: "merged" },
-  not_planned: { word: "Not planned", tone: "neutral" },
-  duplicate: { word: "Duplicate", tone: "neutral" },
-};
-
-/** Where a pull request or issue stands, in a word: e.g. "Merged", or "Not planned". */
-export const stateStatus = (state: ItemState): LinkStatus =>
-  STATE_STATUSES[state];
-
-/** Picked by priority: what matters most first, e.g. failing checks before a review. */
-const pullRequestStatus = (pull: PullRequestSnapshot): LinkStatus => {
-  const state = itemState(pull);
-  if (state !== "open") return stateStatus(state);
-  if (pull.checks?.state === "failure")
-    return { word: "Checks failing", tone: "bad" };
-  if (pull.reviewDecision === "changes_requested")
-    return { word: "Changes requested", tone: "bad" };
-  if (pull.reviewDecision === "approved")
-    return { word: "Approved", tone: "good" };
-  if (pull.reviewDecision === "review_required")
-    return { word: "Review required", tone: "pending" };
-  if (pull.checks?.state === "pending")
-    return { word: "Checks running", tone: "pending" };
-  return stateStatus(state);
-};
+/** Whether `snapshot` is a GitHub pull request's or issue's. */
+const isGitHub = (
+  snapshot: LinkSnapshot,
+): snapshot is Extract<LinkSnapshot, { type: "pull_request" | "issue" }> =>
+  snapshot.type === "pull_request" || snapshot.type === "issue";
 
 /**
- * The one status word of a link, picked by priority:
- * - a pull request: Merged › Closed › Draft › Checks failing › Changes requested › Approved › Review required › Checks
- *   running › Open;
- * - an issue: Completed › Not planned › Duplicate › Open.
+ * The one status word of a link, as its provider picks it by priority (e.g. "Checks failing" before "Approved" for a
+ * pull request): see `githubStatus`.
  *
  * `null` for a link never fetched, e.g. a plain web link.
  */
@@ -93,42 +59,51 @@ export const linkStatus = ({
   if (fetchError === "sso_required")
     return { word: "SSO required", tone: "warn" };
   if (!snapshot) return null;
-  return snapshot.type === "pull_request"
-    ? pullRequestStatus(snapshot)
-    : stateStatus(itemState(snapshot));
+  return isGitHub(snapshot) ? githubStatus(snapshot) : notionStatus(snapshot);
 };
 
 /**
- * Why `todo` could be marked as done, if it isn't yet: its first pull request merged, or issue completed. Only a
- * suggestion: todos are never completed on their own.
+ * The words telling where a link's item stands, as in its details: e.g. "Open" then "Checks running" for a pull
+ * request. None until fetched.
+ */
+export const linkStatusWords = (
+  link: Pick<TodoLink, "snapshot" | "fetchError">,
+): LinkStatus[] => {
+  if (!link.snapshot) return [];
+  return isGitHub(link.snapshot)
+    ? githubStatusWords(link.snapshot, linkStatus(link))
+    : notionStatusWords(link.snapshot);
+};
+
+/** Why a todo could be marked as done. */
+export interface DoneSuggestion {
+  /** The link whose item is done with. */
+  link: TodoLink;
+  /** E.g. "Merged". */
+  word: string;
+  /** E.g. "todai#57 was merged". */
+  reason: string;
+}
+
+/**
+ * Why `todo` could be marked as done, if it isn't yet: its first link whose item is done with, e.g. a pull request
+ * merged, an issue completed, or a Notion page whose Status is in its Complete group. Only a suggestion: todos are never
+ * completed on their own.
  */
 export const doneSuggestion = ({
   completed,
   links,
-}: Pick<Todo, "completed" | "links">):
-  | { link: TodoLink; state: "merged" | "completed" }
-  | undefined => {
+}: Pick<Todo, "completed" | "links">): DoneSuggestion | undefined => {
   if (completed) return undefined;
   for (const link of links) {
-    const state = link.snapshot && itemState(link.snapshot);
-    if (state === "merged" || state === "completed") return { link, state };
+    if (!link.snapshot) continue;
+    const done = isGitHub(link.snapshot)
+      ? githubDone(link.snapshot, link.label)
+      : notionDone(link.snapshot, link.label);
+    if (done) return { link, ...done };
   }
   return undefined;
 };
-
-/**
- * The pull request worth adding along with the issue `snapshot`: the first one closing it (or set to) that wasn't
- * closed unmerged, unless `links` already has it.
- */
-export const closingPullRequest = (
-  snapshot: GitHubSnapshot | undefined,
-  links: readonly Pick<ParsedLink, "url">[],
-): RelatedItem | undefined =>
-  snapshot?.type === "issue"
-    ? snapshot.closedBy.find(
-        (item) => item.state !== "closed" && !hasLink(links, item.url),
-      )
-    : undefined;
 
 /** When the most recently fetched of `links` was: what their statuses are from, if any. */
 export const statusesFetchedAt = (
@@ -140,69 +115,17 @@ export const statusesFetchedAt = (
     undefined,
   );
 
-/** E.g. "2 of 3 passed, 1 running", or "4 skipped" when none ran. */
-export const describeChecks = ({
-  passed,
-  failed,
-  running,
-  skipped,
-}: Checks): string => {
-  const ran = passed + failed + running;
-  if (ran === 0) return `${skipped} skipped`;
-  return [
-    `${passed} of ${ran} passed`,
-    failed > 0 && `${failed} failing`,
-    running > 0 && `${running} running`,
-  ]
-    .filter(Boolean)
-    .join(", ");
-};
-
-const CHECK_ORDER: Record<Check["outcome"], number> = {
-  failed: 0,
-  running: 1,
-  passed: 2,
-  skipped: 3,
-};
-
-/** The checks worth listing, failing then running then passed ones, without the skipped ones: at most `max`, if given. */
-export const notableChecks = (checks: Checks, max?: number): Check[] =>
-  checks.runs
-    .filter((check) => check.outcome !== "skipped")
-    .sort((a, b) => CHECK_ORDER[a.outcome] - CHECK_ORDER[b.outcome])
-    .slice(0, max);
-
-/** E.g. "check · svelte-check": a GitHub Actions job is named after its workflow first. */
-export const checkName = ({
-  name,
-  workflow,
-}: Pick<Check, "name" | "workflow">): string =>
-  workflow ? `${workflow} · ${name}` : name;
-
-const REVIEW_DECISIONS: Record<
-  NonNullable<PullRequestSnapshot["reviewDecision"]>,
-  string
-> = {
-  approved: "Approved",
-  changes_requested: "Changes requested",
-  review_required: "Required, not given yet",
-};
-
-/** E.g. "Approved", or "Not required" when its repository requires none. */
-export const describeReview = ({
-  reviewDecision,
-}: Pick<PullRequestSnapshot, "reviewDecision">): string =>
-  reviewDecision ? REVIEW_DECISIONS[reviewDecision] : "Not required";
-
 /**
- * Why GitHub couldn't be asked, in a few words, then in a sentence: e.g. "Offline · link statuses from 14:02".
+ * Why `provider` couldn't be asked, in a few words, then in a sentence: e.g. "Offline · link statuses from 14:02".
  *
  * @param statusesFrom When the statuses shown were fetched, if any.
  */
 export const describeProblem = (
-  problem: GitHubProblem,
+  provider: Provider,
+  problem: IntegrationProblem,
   statusesFrom?: Date,
 ): { label: string; detail: string } => {
+  const { name } = providerInfo(provider);
   const kept = statusesFrom
     ? `the links show their statuses from ${formatTime(statusesFrom)}`
     : "the links show what their URL tells";
@@ -212,7 +135,7 @@ export const describeProblem = (
         label: statusesFrom
           ? `Offline · link statuses from ${formatTime(statusesFrom)}`
           : "Offline",
-        detail: `GitHub could not be reached: ${kept}.`,
+        detail: `${name} could not be reached: ${kept}.`,
       };
     case "signed_out":
       return {
@@ -224,14 +147,24 @@ export const describeProblem = (
         label: "GitHub CLI not found",
         detail: `The GitHub CLI (gh) wasn't found: install it, then check again in Settings › Integrations. Until then, ${kept}.`,
       };
+    case "token_refused":
+      return {
+        label: "Notion: paste a new token",
+        detail: `Notion refused this workspace's token: it expired, or was revoked. Paste a new personal access token in Settings › Integrations. Until then, ${kept}.`,
+      };
+    case "token_missing":
+      return {
+        label: "Notion: token missing",
+        detail: `This workspace's Notion token isn't in your Keychain anymore: paste it again in Settings › Integrations. Until then, ${kept}.`,
+      };
     case "rate_limited":
       return {
-        label: `GitHub rate limit · until ${formatTime(problem.resetAt)}`,
-        detail: `GitHub asked to wait until ${formatTime(problem.resetAt)}: until then, ${kept}.`,
+        label: `${name} rate limit · until ${formatTime(problem.resetAt)}`,
+        detail: `${name} asked to wait until ${formatTime(problem.resetAt)}: until then, ${kept}.`,
       };
     case "failed":
       return {
-        label: "GitHub error",
+        label: `${name} error`,
         detail: `${problem.message.replace(/\.$/, "")}. Until then, ${kept}.`,
       };
   }

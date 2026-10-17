@@ -1,16 +1,18 @@
 <script lang="ts">
-import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
 import { openLink } from "../api/openLink";
 import { describeLink } from "../model/links";
 import type { LinkStatus } from "../model/statuses";
 import type { ItemState, ParsedLink } from "../model/types";
 import LinkKindIcon from "./LinkKindIcon.svelte";
+import LinkStatusWord from "./LinkStatusWord.svelte";
 
 type LinkChipProps = {
   /** A todo's link, one about to be added, or one mentioned by a pull request or issue. */
   link: ParsedLink;
-  /** Where its pull request or issue stands, once known: picks and colors its icon. */
+  /** Where its item stands, once known (e.g. a merged pull request): picks and colors its icon. */
   state?: ItemState;
+  /** A Notion link's, once known: a whole database rather than a page. */
+  iconVariant?: "database";
   /** Its status word, after its label: `"loading"` while fetched for the first time. */
   status?: LinkStatus | "loading" | null;
   /** Opens its details, instead of opening the link in the browser. */
@@ -23,6 +25,7 @@ type LinkChipProps = {
 let {
   link,
   state,
+  iconVariant,
   status,
   onclick,
   active = false,
@@ -39,7 +42,7 @@ const title = $derived(
 </script>
 
 {#snippet content()}
-  <span class="icon"><LinkKindIcon kind={link.kind} {state} /></span>
+  <span class="icon"><LinkKindIcon kind={link.kind} {state} variant={iconVariant} /></span>
   <span class={["label", typeof status === "object" && status?.tone]}>{link.label}</span>
   {#if status}
     <span class="divider" aria-hidden="true"></span>
@@ -47,22 +50,7 @@ const title = $derived(
       <span class="skeleton" aria-hidden="true"></span>
       <span class="sr-only">Loading its status</span>
     {:else}
-      <span class={["status", status.tone]}>
-        {#if status.tone === "good"}
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-          </svg>
-        {:else if status.tone === "bad"}
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-          </svg>
-        {:else if status.tone === "pending"}
-          <span class="ring" aria-hidden="true"></span>
-        {:else if status.tone === "warn"}
-          <IconExclamationTriangle />
-        {/if}
-        {status.word}
-      </span>
+      <LinkStatusWord {status} look="chip" />
     {/if}
   {/if}
 {/snippet}
@@ -132,33 +120,6 @@ const title = $derived(
 
   .divider {
     @apply h-3 w-px shrink-0 bg-white/12;
-  }
-
-  .status {
-    @apply inline-flex shrink-0 items-center gap-1 text-slate-400;
-
-    > :global(svg) {
-      @apply size-3;
-    }
-
-    &.open,
-    &.good {
-      @apply text-green-300;
-    }
-    &.bad {
-      @apply text-red-300;
-    }
-    &.pending,
-    &.warn {
-      @apply text-amber-300;
-    }
-    &.merged {
-      @apply text-purple-300;
-    }
-  }
-
-  .ring {
-    @apply size-1.5 rounded-full border-[1.5px] border-current;
   }
 
   .skeleton {

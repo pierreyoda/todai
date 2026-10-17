@@ -1,12 +1,14 @@
 <script lang="ts">
 import { createQuery } from "@tanstack/svelte-query";
 
-import { activeWorkspaceQueryOptions } from "#domains/workspaces";
+import { providerInfo } from "#core/integrations";
+import { activeWorkspaceQueryOptions, isConnected } from "#domains/workspaces";
 import Button from "#shared/ui/Button.svelte";
 import { HoverPopover } from "#shared/ui/hoverPopover.svelte.ts";
 import IconLink from "#shared/ui/icons/IconLink.svelte";
-import { formatLinksCount } from "../model/links";
-import { itemState, linkStatus } from "../model/statuses";
+import { itemState } from "../model/github";
+import { formatLinksCount, linkProvider } from "../model/links";
+import { linkStatus } from "../model/statuses";
 import type { TodoLink } from "../model/types";
 import LinkChip from "./LinkChip.svelte";
 
@@ -19,10 +21,20 @@ type LinksMarkerProps = {
 const { links, title }: LinksMarkerProps = $props();
 
 const panelId = $props.id();
-// With their status, as last fetched, through the workspace's connection: the calendar never fetches them
+// With their status, as last fetched, through the workspace's connection to their provider: the calendar never fetches
+// them
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
-const connected = $derived(!!activeWorkspace.data?.githubLogin);
-const allOnGitHub = $derived(links.every((link) => link.github));
+const connected = (link: TodoLink) => {
+  const provider = linkProvider(link);
+  return !!provider && isConnected(activeWorkspace.data, provider);
+};
+/** Where they're all opened, if on the same provider. */
+const where = $derived.by(() => {
+  const provider = links[0] && linkProvider(links[0]);
+  return provider && links.every((link) => linkProvider(link) === provider)
+    ? providerInfo(provider).where
+    : "in your browser";
+});
 
 const popover = new HoverPopover();
 </script>
@@ -62,14 +74,20 @@ const popover = new HoverPopover();
         <li class="flex">
           <LinkChip
             {link}
-            state={connected && link.snapshot ? itemState(link.snapshot) : undefined}
-            status={connected ? linkStatus(link) : null}
+            state={connected(link) &&
+            (link.snapshot?.type === "pull_request" || link.snapshot?.type === "issue")
+              ? itemState(link.snapshot)
+              : undefined}
+            iconVariant={connected(link) && link.snapshot?.type === "notion_database"
+              ? "database"
+              : undefined}
+            status={connected(link) ? linkStatus(link) : null}
           />
         </li>
       {/each}
     </ul>
     <span class="hint">
-      Click one to open it {allOnGitHub ? "on GitHub" : "in your browser"}
+      Click one to open it {where}
     </span>
   </div>
 </span>

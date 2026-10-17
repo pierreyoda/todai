@@ -3,7 +3,7 @@
 
 use std::{
     collections::HashMap,
-    env, io,
+    env,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Mutex, MutexGuard, PoisonError},
@@ -11,11 +11,12 @@ use std::{
 };
 
 use serde::Deserialize;
-use tokio::{process::Command, time::timeout};
+use tokio::process::Command;
 
 use crate::{
     errors::{Result, TodaiError},
     models::integrations::GhAccount,
+    process::{self, RunError},
 };
 
 /// The only GitHub host supported: links are only recognized on github.com.
@@ -120,8 +121,7 @@ impl GhCli {
             .env("GH_PROMPT_DISABLED", "1")
             .env("GH_NO_UPDATE_NOTIFIER", "1")
             .env("NO_COLOR", "1")
-            .stdin(Stdio::null())
-            .kill_on_drop(true);
+            .stdin(Stdio::null());
         for var in OVERRIDING_VARS {
             command.env_remove(var);
         }
@@ -133,26 +133,18 @@ impl GhCli {
     async fn run(&self, args: &[&str]) -> Result<Vec<u8>> {
         // E.g. `gh auth status`: the rest may be an account's login.
         let name = format!("gh {}", args[..args.len().min(2)].join(" "));
-        let output = match timeout(self.timeout, self.command(args).output()).await {
-            Err(_) => {
-                return Err(TodaiError::GhCli(format!(
-                    "`{name}` took longer than {:?}",
-                    self.timeout
-                )))
-            }
-            Ok(Err(error)) if error.kind() == io::ErrorKind::NotFound => {
-                return Err(TodaiError::GhNotFound)
-            }
-            Ok(output) => output?,
-        };
-        if !output.status.success() {
-            let said = String::from_utf8_lossy(&output.stderr);
-            return Err(TodaiError::GhCli(format!(
-                "`{name}` failed: {}",
-                said.trim()
-            )));
-        }
-        Ok(output.stdout)
+        process::run(self.command(args), self.timeout)
+            .await
+            .map_err(|error| match error {
+                RunError::NotFound => TodaiError::GhNotFound,
+                RunError::TimedOut => {
+                    TodaiError::GhCli(format!("`{name}` took longer than {:?}", self.timeout))
+                }
+                RunError::Failed { said, .. } => {
+                    TodaiError::GhCli(format!("`{name}` failed: {said}"))
+                }
+                RunError::Io(error) => error.into(),
+            })
     }
 }
 
@@ -209,17 +201,12 @@ impl Lookup {
         let mut command = Command::new(self.shell.as_ref()?);
         command
             .args(["-l", "-c", "command -v gh"])
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .kill_on_drop(true);
-        let output = timeout(self.shell_timeout, command.output())
-            .await
-            .ok()?
-            .ok()?;
+            .stdin(Stdio::null());
+        let stdout = process::run(command, self.shell_timeout).await.ok()?;
         // The user's startup files may print lines of their own first.
-        let stdout = String::from_utf8(output.stdout).ok()?;
+        let stdout = String::from_utf8(stdout).ok()?;
         let path = PathBuf::from(stdout.lines().last()?.trim());
-        (output.status.success() && path.is_absolute() && is_executable(&path)).then_some(path)
+        (path.is_absolute() && is_executable(&path)).then_some(path)
     }
 }
 

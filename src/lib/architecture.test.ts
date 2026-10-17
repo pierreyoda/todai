@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 /*
  * The frontend's architecture, checked on its imports. `src/lib` holds its modules, by layer:
  * - `shared`: what knows nothing of todai's domains (UI kit, toasts, IPC), importing no other module;
- * - `core/<module>`: todai's building blocks (days, Markdown, GitHub), importing only `shared`;
+ * - `core/<module>`: todai's building blocks (days, Markdown, integrations), importing only `shared`;
  * - `domains/<domain>`: its business areas, importing `shared`, `core`, and the lower domains listed in `DOMAINS`;
  * - `shell`: the app's frame (side panel, workspace guard), importing any of them;
  * then `src/routes` composes them. Other folders of `src` hold no source files.

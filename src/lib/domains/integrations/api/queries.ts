@@ -1,6 +1,9 @@
 import type { UUID } from "node:crypto";
 import { queryOptions } from "@tanstack/svelte-query";
-import { refreshGitHubAttention, workspaceKeys } from "#domains/workspaces";
+import {
+  refreshIntegrationsAttention,
+  workspaceKeys,
+} from "#domains/workspaces";
 import { queryClient } from "#shared/ipc/queryClient.ts";
 import { invokeIntegrations } from "./commands";
 
@@ -24,6 +27,24 @@ export const ghStatusQueryOptions = queryOptions({
 });
 
 /**
+ * What Notion says of a workspace's connection: whose token it is, or why it can't be asked (e.g. the token expired).
+ * Unlike the app's own data, it changes behind its back: refetched each time it's shown.
+ */
+export const notionApiStatusQueryOptions = (workspaceId: UUID) =>
+  queryOptions({
+    queryKey: workspaceKeys.notion(workspaceId),
+    queryFn: async () => {
+      const status = await invokeIntegrations({
+        name: "get_notion_api_status",
+        args: { workspaceId },
+      });
+      refreshIntegrationsAttention(queryClient);
+      return status;
+    },
+    staleTime: 0,
+  });
+
+/**
  * What GitHub says of a workspace's connection: its account's rate limit, or why it can't be asked. Unlike the app's
  * own data, it changes behind its back: refetched each time it's shown.
  */
@@ -35,7 +56,7 @@ export const githubApiStatusQueryOptions = (workspaceId: UUID) =>
         name: "get_github_api_status",
         args: { workspaceId },
       });
-      refreshGitHubAttention(queryClient);
+      refreshIntegrationsAttention(queryClient);
       return status;
     },
     staleTime: 0,

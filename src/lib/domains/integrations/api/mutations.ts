@@ -38,6 +38,50 @@ export const createConnectGitHubMutation = () => {
   }));
 };
 
+/**
+ * Connects a workspace to Notion with a personal access token, instead of any other one. Succeeds with why it wasn't
+ * connected when Notion couldn't vouch for the token (e.g. it refused it): nothing is kept then. Must be called during
+ * component initialization.
+ */
+export const createConnectNotionMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: ({
+      workspace,
+      token,
+    }: {
+      workspace: Workspace;
+      token: string;
+    }) =>
+      invokeIntegrations({
+        name: "connect_notion",
+        args: { workspaceId: workspace.id, token },
+      }),
+    onSuccess: (outcome) => {
+      if (outcome.kind !== "connected") return;
+      // The links' statuses, through the new connection, without waiting for Notion
+      queryClient.invalidateQueries({ queryKey: linkStatusKeys.all });
+      // Returned so the mutation stays pending until the workspaces are refetched, with the connection.
+      return queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+    },
+  }));
+};
+
+/** Disconnects a workspace from Notion, deleting its token. Must be called during component initialization. */
+export const createDisconnectNotionMutation = () => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (workspace: Workspace) =>
+      invokeIntegrations({
+        name: "disconnect_notion",
+        args: { workspaceId: workspace.id },
+      }),
+    // Returned so the mutation stays pending until the workspaces are refetched, without the connection.
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.all }),
+  }));
+};
+
 /** Disconnects a workspace from GitHub. Must be called during component initialization. */
 export const createDisconnectGitHubMutation = () => {
   const queryClient = useQueryClient();

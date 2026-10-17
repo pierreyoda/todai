@@ -10,15 +10,14 @@ use std::{
 
 use jiff::{SignedDuration, Timestamp};
 use reqwest::header::{HeaderMap, ACCEPT};
-use serde::Serialize;
 use serde_json::Value;
-use thiserror::Error;
 
-use super::query::{self, Envelope, ItemResult, RateLimit, MAX_ITEMS};
+use super::query::{self, Envelope, RateLimit, MAX_ITEMS};
 use crate::{
     errors::{self, TodaiError},
     gh::GhFinder,
-    links::GitHubRef,
+    integrations::IntegrationProblem,
+    links::{snapshot::ItemResult, GitHubRef},
 };
 
 pub const ENDPOINT: &str = "https://api.github.com/graphql";
@@ -32,55 +31,25 @@ const TOKEN_TTL: Duration = Duration::from_secs(5 * 60);
 /// How long to wait when GitHub asks to slow down without telling until when.
 const DEFAULT_RATE_LIMIT_WAIT: SignedDuration = SignedDuration::from_secs(60);
 
-/// Why GitHub couldn't be asked: links then keep showing their last known status.
-#[derive(Serialize, Error, Debug, Clone, PartialEq, Eq)]
-#[serde(
-    tag = "kind",
-    rename_all = "snake_case",
-    rename_all_fields = "camelCase"
-)]
-pub enum GitHubError {
-    /// No connection, or GitHub failed to answer.
-    #[error("GitHub could not be reached")]
-    Offline,
-    #[error("The GitHub CLI (gh) was not found")]
-    GhMissing,
-    /// The GitHub CLI has no working token for the account anymore.
-    #[error(
-        "The GitHub CLI isn't signed in to {login} anymore: sign in again with `gh auth login`"
-    )]
-    SignedOut { login: String },
-    /// GitHub asks to wait until `reset_at`.
-    #[error("GitHub's rate limit was reached, until {reset_at}")]
-    RateLimited { reset_at: Timestamp },
-    #[error("{message}")]
-    Failed { message: String },
-}
-
-fn failed(message: impl Into<String>) -> GitHubError {
-    GitHubError::Failed {
-        message: message.into(),
-    }
-}
-
 /// Where tokens come from: the GitHub CLI, or a fake one in tests.
 pub trait TokenSource: Sync {
     /// The token of the account `login`.
-    fn token(&self, login: &str) -> impl Future<Output = Result<String, GitHubError>> + Send;
+    fn token(&self, login: &str)
+        -> impl Future<Output = Result<String, IntegrationProblem>> + Send;
 }
 
 impl TokenSource for GhFinder {
-    async fn token(&self, login: &str) -> Result<String, GitHubError> {
-        let gh = self.get(false).await.ok_or(GitHubError::GhMissing)?;
+    async fn token(&self, login: &str) -> Result<String, IntegrationProblem> {
+        let gh = self.get(false).await.ok_or(IntegrationProblem::GhMissing)?;
         gh.token(login).await.map_err(|error| match error {
-            TodaiError::GhNotFound => GitHubError::GhMissing,
+            TodaiError::GhNotFound => IntegrationProblem::GhMissing,
             // What `gh` says once signed out with `gh auth logout`.
             TodaiError::GhCli(message) if message.contains("no oauth token") => {
-                GitHubError::SignedOut {
+                IntegrationProblem::SignedOut {
                     login: login.into(),
                 }
             }
-            error => failed(error.to_string()),
+            error => IntegrationProblem::failed(error.to_string()),
         })
     }
 }
@@ -93,8 +62,6 @@ pub struct GitHub {
     tokens: Mutex<HashMap<String, (String, Instant)>>,
     /// By login, until when GitHub asked to wait.
     rate_limited: Mutex<HashMap<String, Timestamp>>,
-    /// Held while refreshing links: one refresh at a time, so that the next one finds the links just fetched.
-    refreshing: tokio::sync::Mutex<()>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -105,7 +72,7 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 enum Refusal {
     /// It refused the token.
     Unauthorized,
-    Error(GitHubError),
+    Error(IntegrationProblem),
 }
 
 impl GitHub {
@@ -127,13 +94,7 @@ impl GitHub {
             endpoint: endpoint.into(),
             tokens: Mutex::default(),
             rate_limited: Mutex::default(),
-            refreshing: tokio::sync::Mutex::default(),
         })
-    }
-
-    /// Waits for any other refresh of links to end, then holds others off until the guard is dropped.
-    pub async fn refreshing(&self) -> tokio::sync::MutexGuard<'_, ()> {
-        self.refreshing.lock().await
     }
 
     /// The pull requests and issues `refs`, as the account `login` sees them, in the same order.
@@ -142,7 +103,7 @@ impl GitHub {
         tokens: &impl TokenSource,
         login: &str,
         refs: &[GitHubRef],
-    ) -> Result<Vec<ItemResult>, GitHubError> {
+    ) -> Result<Vec<ItemResult>, IntegrationProblem> {
         let mut results = Vec::with_capacity(refs.len());
         for chunk in refs.chunks(MAX_ITEMS) {
             let envelope = self
@@ -158,11 +119,12 @@ impl GitHub {
         &self,
         tokens: &impl TokenSource,
         login: &str,
-    ) -> Result<RateLimit, GitHubError> {
+    ) -> Result<RateLimit, IntegrationProblem> {
         let envelope = self
             .graphql(tokens, login, &query::rate_limit_request())
             .await?;
-        query::rate_limit(&envelope).ok_or_else(|| failed("GitHub didn't tell its rate limit"))
+        query::rate_limit(&envelope)
+            .ok_or_else(|| IntegrationProblem::failed("GitHub didn't tell its rate limit"))
     }
 
     /// Sends the GraphQL request `body` as the account `login`.
@@ -171,9 +133,9 @@ impl GitHub {
         tokens: &impl TokenSource,
         login: &str,
         body: &Value,
-    ) -> Result<Envelope, GitHubError> {
+    ) -> Result<Envelope, IntegrationProblem> {
         if let Some(reset_at) = self.rate_limited_until(login, Timestamp::now()) {
-            return Err(GitHubError::RateLimited { reset_at });
+            return Err(IntegrationProblem::RateLimited { reset_at });
         }
         let mut known = self.known_token(login);
         loop {
@@ -192,13 +154,13 @@ impl GitHub {
                 Err(Refusal::Unauthorized) => {
                     lock(&self.tokens).remove(login);
                     if !from_memory {
-                        return Err(GitHubError::SignedOut {
+                        return Err(IntegrationProblem::SignedOut {
                             login: login.into(),
                         });
                     }
                 }
                 Err(Refusal::Error(error)) => {
-                    if let GitHubError::RateLimited { reset_at } = error {
+                    if let IntegrationProblem::RateLimited { reset_at } = error {
                         log::warn!("GitHub's rate limit for {login} was reached, until {reset_at}");
                         lock(&self.rate_limited).insert(login.into(), reset_at);
                     }
@@ -225,7 +187,7 @@ impl GitHub {
     async fn post(&self, token: &str, body: &Value) -> Result<Envelope, Refusal> {
         let offline = |error: reqwest::Error| {
             log::warn!("Could not reach GitHub: {error}");
-            Refusal::Error(GitHubError::Offline)
+            Refusal::Error(IntegrationProblem::Offline)
         };
         let response = self
             .http
@@ -290,7 +252,7 @@ fn classify(
     now: Timestamp,
 ) -> Result<Envelope, Refusal> {
     let rate_limited = || {
-        Refusal::Error(GitHubError::RateLimited {
+        Refusal::Error(IntegrationProblem::RateLimited {
             reset_at: limits.reset_at(now),
         })
     };
@@ -304,7 +266,7 @@ fn classify(
     match status {
         200..=299 => {
             let envelope: Envelope = serde_json::from_slice(body).map_err(|error| {
-                Refusal::Error(failed(format!(
+                Refusal::Error(IntegrationProblem::failed(format!(
                     "GitHub answered something unexpected: {error}"
                 )))
             })?;
@@ -317,7 +279,7 @@ fn classify(
             }
             if envelope.data.is_none() {
                 let reason = envelope.errors.first().map_or("", |error| &error.message);
-                return Err(Refusal::Error(failed(format!(
+                return Err(Refusal::Error(IntegrationProblem::failed(format!(
                     "GitHub refused the request: {reason}"
                 ))));
             }
@@ -334,9 +296,9 @@ fn classify(
         }
         500..=599 => {
             log::warn!("GitHub failed to answer: HTTP {status}");
-            Err(Refusal::Error(GitHubError::Offline))
+            Err(Refusal::Error(IntegrationProblem::Offline))
         }
-        _ => Err(Refusal::Error(failed(format!(
+        _ => Err(Refusal::Error(IntegrationProblem::failed(format!(
             "GitHub answered with HTTP {status}: {}",
             message()
         )))),
@@ -346,7 +308,10 @@ fn classify(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::github::testing::{ok, FakeGitHub, FakeTokens, Response};
+    use crate::{
+        github::testing::FakeTokens,
+        testing::{ok, FakeServer, Response},
+    };
 
     const NOW: i64 = 1_791_000_000;
 
@@ -366,8 +331,8 @@ mod tests {
 
     #[tokio::test]
     async fn asks_gh_for_a_token_once_then_reuses_it() {
-        let server = FakeGitHub::serve(vec![rate_limit_ok(), rate_limit_ok()]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let server = FakeServer::serve(vec![rate_limit_ok(), rate_limit_ok()]);
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
 
         let rate_limit = github.rate_limit(&tokens, "octocat").await.unwrap();
@@ -380,8 +345,8 @@ mod tests {
 
     #[tokio::test]
     async fn asks_gh_again_once_when_github_refuses_a_known_token() {
-        let server = FakeGitHub::serve(vec![rate_limit_ok(), unauthorized(), rate_limit_ok()]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let server = FakeServer::serve(vec![rate_limit_ok(), unauthorized(), rate_limit_ok()]);
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
 
         github.rate_limit(&tokens, "octocat").await.unwrap();
@@ -396,13 +361,13 @@ mod tests {
 
     #[tokio::test]
     async fn a_refused_token_fresh_from_gh_means_signed_out() {
-        let server = FakeGitHub::serve(vec![unauthorized(), rate_limit_ok()]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let server = FakeServer::serve(vec![unauthorized(), rate_limit_ok()]);
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
 
         assert_eq!(
             github.rate_limit(&tokens, "octocat").await,
-            Err(GitHubError::SignedOut {
+            Err(IntegrationProblem::SignedOut {
                 login: "octocat".into()
             })
         );
@@ -413,7 +378,7 @@ mod tests {
     #[tokio::test]
     async fn waits_for_the_rate_limit_to_reset_without_asking_github() {
         let reset = Timestamp::now().as_second() + 600;
-        let server = FakeGitHub::serve(vec![(
+        let server = FakeServer::serve(vec![(
             403,
             vec![
                 ("x-ratelimit-remaining", "0".into()),
@@ -421,9 +386,9 @@ mod tests {
             ],
             r#"{"message":"API rate limit exceeded"}"#.into(),
         )]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let github = GitHub::with_endpoint(&server.url).unwrap();
         let tokens = FakeTokens::default();
-        let limited = Err(GitHubError::RateLimited {
+        let limited = Err(IntegrationProblem::RateLimited {
             reset_at: Timestamp::from_second(reset).unwrap(),
         });
 
@@ -434,10 +399,10 @@ mod tests {
 
     #[tokio::test]
     async fn an_unreachable_github_is_offline() {
-        let github = GitHub::with_endpoint(&FakeGitHub::unreachable_endpoint()).unwrap();
+        let github = GitHub::with_endpoint(&FakeServer::unreachable_url()).unwrap();
         assert_eq!(
             github.rate_limit(&FakeTokens::default(), "octocat").await,
-            Err(GitHubError::Offline)
+            Err(IntegrationProblem::Offline)
         );
     }
 
@@ -451,8 +416,8 @@ mod tests {
             })
             .collect();
         // Nothing found: each one is then without access.
-        let server = FakeGitHub::serve(vec![ok(r#"{"data":{}}"#), ok(r#"{"data":{}}"#)]);
-        let github = GitHub::with_endpoint(&server.endpoint).unwrap();
+        let server = FakeServer::serve(vec![ok(r#"{"data":{}}"#), ok(r#"{"data":{}}"#)]);
+        let github = GitHub::with_endpoint(&server.url).unwrap();
 
         let results = github
             .fetch_items(&FakeTokens::default(), "octocat", &refs)
@@ -463,10 +428,10 @@ mod tests {
         assert_eq!(server.authorizations().len(), 2);
     }
 
-    fn classified(status: u16, limits: &RateHeaders, body: &str) -> Result<(), GitHubError> {
+    fn classified(status: u16, limits: &RateHeaders, body: &str) -> Result<(), IntegrationProblem> {
         match classify(status, limits, body.as_bytes(), now()) {
             Ok(_) => Ok(()),
-            Err(Refusal::Unauthorized) => Err(GitHubError::SignedOut {
+            Err(Refusal::Unauthorized) => Err(IntegrationProblem::SignedOut {
                 login: String::new(),
             }),
             Err(Refusal::Error(error)) => Err(error),
@@ -476,7 +441,7 @@ mod tests {
     #[test]
     fn classify_tells_what_github_answered() {
         let none = RateHeaders::default();
-        let in_a_minute = GitHubError::RateLimited {
+        let in_a_minute = IntegrationProblem::RateLimited {
             reset_at: now().checked_add(DEFAULT_RATE_LIMIT_WAIT).unwrap(),
         };
         assert_eq!(classified(200, &none, RATE_LIMIT_BODY), Ok(()));
@@ -491,7 +456,7 @@ mod tests {
         );
         assert_eq!(
             classified(401, &none, r#"{"message":"Bad credentials"}"#),
-            Err(GitHubError::SignedOut {
+            Err(IntegrationProblem::SignedOut {
                 login: String::new()
             })
         );
@@ -512,7 +477,7 @@ mod tests {
                 },
                 r#"{"message":"You have exceeded a secondary rate limit."}"#
             ),
-            Err(GitHubError::RateLimited {
+            Err(IntegrationProblem::RateLimited {
                 reset_at: now().checked_add(SignedDuration::from_secs(30)).unwrap()
             })
         );
@@ -526,38 +491,19 @@ mod tests {
         );
         assert_eq!(
             classified(502, &none, "<html>Bad gateway</html>"),
-            Err(GitHubError::Offline)
+            Err(IntegrationProblem::Offline)
         );
         assert!(matches!(
             classified(403, &none, r#"{"message":"Resource not accessible by integration"}"#),
-            Err(GitHubError::Failed { message }) if message.contains("Resource not accessible")
+            Err(IntegrationProblem::Failed { message }) if message.contains("Resource not accessible")
         ));
         assert!(matches!(
             classified(200, &none, r#"{"errors":[{"message":"Parse error on \"}\""}]}"#),
-            Err(GitHubError::Failed { message }) if message.contains("Parse error")
+            Err(IntegrationProblem::Failed { message }) if message.contains("Parse error")
         ));
         assert!(matches!(
             classified(200, &none, "not json"),
-            Err(GitHubError::Failed { .. })
+            Err(IntegrationProblem::Failed { .. })
         ));
-    }
-
-    #[test]
-    fn errors_serialize_with_their_kind() {
-        assert_eq!(
-            serde_json::to_value(GitHubError::Offline).unwrap(),
-            serde_json::json!({ "kind": "offline" })
-        );
-        assert_eq!(
-            serde_json::to_value(GitHubError::SignedOut {
-                login: "octocat".into()
-            })
-            .unwrap(),
-            serde_json::json!({ "kind": "signed_out", "login": "octocat" })
-        );
-        assert_eq!(
-            serde_json::to_value(GitHubError::RateLimited { reset_at: now() }).unwrap(),
-            serde_json::json!({ "kind": "rate_limited", "resetAt": "2026-10-03T04:00:00Z" })
-        );
     }
 }

@@ -1,4 +1,6 @@
-import type { GhAccount, GhStatus } from "./types";
+import { type IntegrationProblem, needsUser } from "#core/integrations";
+import type { NotionAccount } from "#domains/workspaces";
+import type { GhAccount, GhStatus, NotionApiStatus } from "./types";
 
 /**
  * Where a workspace stands with GitHub:
@@ -28,6 +30,34 @@ export const githubConnectionState = (
   )
     ? "connected"
     : "signed_out";
+};
+
+/**
+ * Where a workspace stands with Notion:
+ * - `not_connected`: it has no personal access token;
+ * - `checking`: connected, while Notion is asked about its token for the first time;
+ * - `connected`: Notion accepts its token (or couldn't be asked, e.g. offline, which passes on its own);
+ * - `attention`: Notion refused its token, or it isn't in the Keychain anymore.
+ */
+export type NotionConnectionState =
+  | "not_connected"
+  | "checking"
+  | "connected"
+  | "attention";
+
+/**
+ * Where a workspace connected to Notion as `account` (if any) stands, given why its connection needed the user the last
+ * time Notion was asked (`attention`), and what Notion says of it now (`status`, once asked).
+ */
+export const notionConnectionState = (
+  account: NotionAccount | undefined,
+  attention: IntegrationProblem | undefined,
+  status: NotionApiStatus | undefined,
+): NotionConnectionState => {
+  if (!account) return "not_connected";
+  if (attention || (status?.problem && needsUser(status.problem)))
+    return "attention";
+  return status ? "connected" : "checking";
 };
 
 /**

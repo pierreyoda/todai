@@ -3,18 +3,22 @@ import {
   checkName,
   closingPullRequest,
   describeChecks,
-  describeProblem,
   describeReview,
-  doneSuggestion,
   itemState,
-  linkStatus,
   notableChecks,
+} from "./github";
+import {
+  describeProblem,
+  doneSuggestion,
+  linkStatus,
+  linkStatusWords,
   statusesFetchedAt,
 } from "./statuses";
 import type {
   Checks,
   GitHubSnapshot,
   IssueSnapshot,
+  NotionPageSnapshot,
   PullRequestSnapshot,
   RelatedItem,
   TodoLink,
@@ -197,6 +201,35 @@ describe("linkStatus", () => {
   });
 });
 
+describe("linkStatusWords", () => {
+  it("tells where the item stands, then its status if it tells more", () => {
+    expect(
+      linkStatusWords(
+        link(pull({ checks: checks({ state: "pending", running: 1 }) })),
+      ),
+    ).toEqual([
+      { word: "Open", tone: "open" },
+      { word: "Checks running", tone: "pending" },
+    ]);
+    expect(linkStatusWords(link(pull({ state: "merged" })))).toEqual([
+      { word: "Merged", tone: "merged" },
+    ]);
+    expect(linkStatusWords(link(issue(), { fetchError: "no_access" }))).toEqual(
+      [
+        { word: "Open", tone: "open" },
+        { word: "No access", tone: "warn" },
+      ],
+    );
+  });
+
+  it("has nothing to tell about links never fetched", () => {
+    expect(linkStatusWords(link())).toEqual([]);
+    expect(
+      linkStatusWords(link(undefined, { fetchError: "no_access" })),
+    ).toEqual([]);
+  });
+});
+
 describe("itemState", () => {
   it.each([
     [pull(), "open"],
@@ -211,21 +244,90 @@ describe("itemState", () => {
   });
 });
 
+const notionLink = (
+  status: NotionPageSnapshot["status"],
+  overrides: Partial<NotionPageSnapshot> = {},
+): TodoLink => ({
+  id: "0199d0c0-0000-7000-8000-000000000003",
+  todoId: "0199d0c0-0000-7000-8000-000000000002",
+  kind: "notion",
+  url: "https://www.notion.so/Write-the-release-notes-8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5",
+  label: "TOD-27",
+  notion: { id: "8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5" },
+  createdAt: new Date("2026-10-10T08:00:00Z"),
+  snapshot: {
+    type: "notion_page",
+    title: "Write the release notes",
+    uniqueId: { prefix: "TOD", number: 27 },
+    status,
+    assignees: [],
+    tags: [],
+    lastEditedAt: new Date("2026-10-10T12:00:00Z"),
+    inTrash: false,
+    ...overrides,
+  },
+  fetchedAt: new Date("2026-10-10T14:02:00Z"),
+});
+
 describe("doneSuggestion", () => {
+  it("suggests marking a todo as done once one of its Notion pages is complete", () => {
+    const shipped = notionLink({
+      name: "Shipped",
+      color: "purple",
+      group: "complete",
+    });
+    expect(
+      doneSuggestion({
+        completed: false,
+        links: [
+          notionLink({
+            name: "In review",
+            color: "blue",
+            group: "in_progress",
+          }),
+          shipped,
+        ],
+      }),
+    ).toEqual({
+      link: shipped,
+      word: "Shipped",
+      reason: "TOD-27 is Shipped in Notion",
+    });
+  });
+
+  it("doesn't for Notion pages not complete, trashed, or of an unknown group", () => {
+    expect(
+      doneSuggestion({
+        completed: false,
+        links: [
+          notionLink({ name: "Not started", color: "default", group: "to_do" }),
+          notionLink(
+            { name: "Done", color: "green", group: "complete" },
+            { inTrash: true },
+          ),
+          notionLink({ name: "Done", color: "green" }),
+          notionLink(undefined),
+        ],
+      }),
+    ).toBeUndefined();
+  });
+
   it("suggests marking a todo as done once one of its pull requests is merged or issues completed", () => {
     const merged = link(pull({ state: "merged" }));
     expect(
       doneSuggestion({ completed: false, links: [link(pull()), merged] }),
     ).toEqual({
       link: merged,
-      state: "merged",
+      word: "Merged",
+      reason: "todai#58 was merged",
     });
     const completed = link(
       issue({ state: "closed", stateReason: "completed" }),
     );
     expect(doneSuggestion({ completed: false, links: [completed] })).toEqual({
       link: completed,
-      state: "completed",
+      word: "Completed",
+      reason: "todai#58 was completed",
     });
   });
 
@@ -361,26 +463,46 @@ describe("describeProblem", () => {
   const from = new Date(2026, 9, 10, 14, 2);
 
   it("tells since when the statuses are when offline", () => {
-    expect(describeProblem({ kind: "offline" }, from)).toEqual({
+    expect(describeProblem("github", { kind: "offline" }, from)).toEqual({
       label: "Offline · link statuses from 14:02",
       detail:
         "GitHub could not be reached: the links show their statuses from 14:02.",
     });
-    expect(describeProblem({ kind: "offline" }).label).toBe("Offline");
+    expect(describeProblem("github", { kind: "offline" }).label).toBe(
+      "Offline",
+    );
   });
 
   it("tells what to do about the GitHub CLI", () => {
     expect(
-      describeProblem({ kind: "signed_out", login: "pierreyoda" }, from).detail,
+      describeProblem(
+        "github",
+        { kind: "signed_out", login: "pierreyoda" },
+        from,
+      ).detail,
     ).toContain("isn't signed in to pierreyoda anymore: run gh auth login");
-    expect(describeProblem({ kind: "gh_missing" }).label).toBe(
+    expect(describeProblem("github", { kind: "gh_missing" }).label).toBe(
       "GitHub CLI not found",
+    );
+  });
+
+  it("tells what to do about a Notion token", () => {
+    expect(describeProblem("notion", { kind: "token_refused" }, from)).toEqual({
+      label: "Notion: paste a new token",
+      detail:
+        "Notion refused this workspace's token: it expired, or was revoked. Paste a new personal access token in Settings › Integrations. Until then, the links show their statuses from 14:02.",
+    });
+    expect(describeProblem("notion", { kind: "token_missing" }).label).toBe(
+      "Notion: token missing",
+    );
+    expect(describeProblem("notion", { kind: "offline" }).detail).toBe(
+      "Notion could not be reached: the links show what their URL tells.",
     );
   });
 
   it("tells until when GitHub asked to wait", () => {
     expect(
-      describeProblem({
+      describeProblem("github", {
         kind: "rate_limited",
         resetAt: new Date(2026, 9, 10, 15, 30),
       }).label,
@@ -389,7 +511,7 @@ describe("describeProblem", () => {
 
   it("gives GitHub's error as is", () => {
     expect(
-      describeProblem({
+      describeProblem("github", {
         kind: "failed",
         message: "GitHub answered with HTTP 418.",
       }).detail,

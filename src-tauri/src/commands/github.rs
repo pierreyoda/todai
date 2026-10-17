@@ -5,7 +5,8 @@ use crate::{
     commands::workspaces::workspace,
     errors::{Result, TodaiError},
     gh::GhFinder,
-    github::{query::RateLimit, GitHub, GitHubError},
+    github::{query::RateLimit, GitHub},
+    integrations::{IntegrationProblem, Provider},
     models::{
         app::Workspace,
         integrations::{GhAccount, GhStatus},
@@ -71,7 +72,7 @@ pub struct GitHubApiStatus {
     pub rate_limit: Option<RateLimit>,
     /// Why GitHub couldn't be asked, if so.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub problem: Option<GitHubError>,
+    pub problem: Option<IntegrationProblem>,
 }
 
 /// Asks GitHub for the rate limit of the account the workspace `workspace_id` is connected to: which also checks that
@@ -91,7 +92,7 @@ pub async fn get_github_api_status(
             ))
         })?;
     let result = github.rate_limit(&*finder, &login).await;
-    state.note_github(&login, &result);
+    state.note(Provider::GitHub, &login, &result);
     Ok(match result {
         Ok(rate_limit) => GitHubApiStatus {
             rate_limit: Some(rate_limit),

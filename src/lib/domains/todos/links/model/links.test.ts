@@ -4,7 +4,9 @@ import {
   formatLinksCount,
   hasLink,
   isWebUrl,
+  itemWhere,
   linkKindName,
+  linkProvider,
   mayBeLink,
 } from "./links";
 import type { ParsedLink } from "./types";
@@ -20,6 +22,12 @@ const issue: ParsedLink = {
   url: "https://github.com/pierreyoda/todai/issues/12",
   label: "todai#12",
   github: { owner: "pierreyoda", repo: "todai", number: 12 },
+};
+const notionPage: ParsedLink = {
+  kind: "notion",
+  url: "https://www.notion.so/Roadmap-8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5",
+  label: "Roadmap",
+  notion: { id: "8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5" },
 };
 const page: ParsedLink = {
   kind: "url",
@@ -43,8 +51,44 @@ describe("describeLink", () => {
     expect(describeLink(issue)).toBe("GitHub issue pierreyoda/todai#12");
   });
 
+  it("names Notion pages and databases by their label", () => {
+    expect(describeLink(notionPage)).toBe("Notion page “Roadmap”");
+    expect(
+      describeLink({
+        ...notionPage,
+        label: "Tickets",
+        snapshot: {
+          type: "notion_database",
+          title: "Tickets",
+          lastEditedAt: new Date("2026-10-14T08:00:00Z"),
+          inTrash: false,
+        },
+      }),
+    ).toBe("Notion database “Tickets”");
+  });
+
   it("names other links by their domain", () => {
     expect(describeLink(page)).toBe("Link to docs.rs");
+  });
+});
+
+describe("linkProvider", () => {
+  it("tells where pull requests and issues are fetched from", () => {
+    expect(linkProvider(pull)).toBe("github");
+    expect(linkProvider(issue)).toBe("github");
+    expect(linkProvider(notionPage)).toBe("notion");
+  });
+
+  it("has none for other links", () => {
+    expect(linkProvider(page)).toBeUndefined();
+  });
+});
+
+describe("itemWhere", () => {
+  it("tells a pull request's or issue's repository and number", () => {
+    expect(itemWhere(pull)).toBe("pierreyoda/todai #58");
+    expect(itemWhere(notionPage)).toBe("“Roadmap” in Notion");
+    expect(itemWhere(page)).toBeUndefined();
   });
 });
 
@@ -94,6 +138,9 @@ describe("mayBeLink", () => {
     "https://github.com/pierreyoda/todai/pull/58",
     "  github.com/pierreyoda/todai/issues/12 ",
     "www.github.com/pierreyoda/todai/pull/58",
+    "notion.so/Roadmap-8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5",
+    "app.notion.com/p/8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5",
+    "acme.notion.site/Roadmap-8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5",
     "http://example.org/a?b=c",
   ])("takes %j for a link", (text) => {
     expect(mayBeLink(text)).toBe(true);
@@ -105,6 +152,7 @@ describe("mayBeLink", () => {
     "github.com",
     "Read https://docs.rs",
     "docs.rs/jiff",
+    "notion.so",
   ])("takes %j for a title", (text) => {
     expect(mayBeLink(text)).toBe(false);
   });

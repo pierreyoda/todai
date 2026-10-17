@@ -15,13 +15,15 @@ export const workspaceKeys = {
   id: (id: UUID) => [...workspaceKeys.all, id] as const,
   backups: (id: UUID) => [...workspaceKeys.id(id), "backups"] as const,
   github: (id: UUID) => [...workspaceKeys.id(id), "github"] as const,
+  notion: (id: UUID) => [...workspaceKeys.id(id), "notion"] as const,
 };
 
 /**
- * Refreshes the workspaces once GitHub was asked: they tell whether their connection needs the user (`githubAttention`).
- * Only them, not what's nested in their keys (e.g. their GitHub API status, which may have just been asked).
+ * Refreshes the workspaces once a provider was asked: they tell whether their connection to it needs the user (e.g.
+ * `githubAttention`). Only them, not what's nested in their keys (e.g. their GitHub API status, which may have just been
+ * asked).
  */
-export const refreshGitHubAttention = (queryClient: QueryClient) =>
+export const refreshIntegrationsAttention = (queryClient: QueryClient) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true }),
     queryClient.invalidateQueries({

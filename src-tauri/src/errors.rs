@@ -37,6 +37,8 @@ pub enum TodaiError {
     GhNotFound,
     #[error("GitHub CLI error: {0}")]
     GhCli(String),
+    #[error("Keychain error: {0}")]
+    Keychain(String),
     #[error("Command error: {0}")]
     CommandError(String),
 }
