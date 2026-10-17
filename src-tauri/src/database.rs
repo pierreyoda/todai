@@ -36,6 +36,7 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/007_todo_link_statuses.sql"),
         include_str!("../migrations/008_todo_links_notion.sql"),
         include_str!("../migrations/009_todo_stage.sql"),
+        include_str!("../migrations/010_notion_done_rules.sql"),
     ],
 };
 

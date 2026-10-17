@@ -62,7 +62,7 @@ $effect(() => {
       <FieldText
         label="Link to add"
         hideLabel
-        placeholder="Paste a pull request, an issue or any link"
+        placeholder="Paste a pull request, an issue, a Notion page or any link"
         autocomplete="off"
         spellcheck={false}
         bind:value={url}

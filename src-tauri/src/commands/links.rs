@@ -10,6 +10,7 @@ use crate::{
     errors::{Result, TodaiError},
     links::{self, ParsedLink},
     models::{core::Day, integrations::TodoLink},
+    notion::rules,
     state::AppState,
 };
 
@@ -171,9 +172,12 @@ pub(crate) fn query_links_between(
          ORDER BY todo_links.created_at, todo_links.id",
     )?;
     let rows = statement.query_map([&start.raw, &end.raw], DbTodoLink::from_row)?;
+    // Notion pages, as their database's done rule tells, if it has one
+    let rules = rules::load(db)?;
     let mut links: HashMap<String, Vec<TodoLink>> = HashMap::new();
     for row in rows {
-        let link = TodoLink::try_from(row?)?;
+        let mut link = TodoLink::try_from(row?)?;
+        rules::apply_to_link(&mut link, &rules);
         links.entry(link.todo_id.clone()).or_default().push(link);
     }
     Ok(links)

@@ -121,6 +121,10 @@ pub fn run() {
             commands::notion::connect_notion,
             commands::notion::disconnect_notion,
             commands::notion::get_notion_api_status,
+            commands::notion::list_notion_done_rules,
+            commands::notion::set_notion_done_rule,
+            commands::notion::delete_notion_done_rule,
+            commands::notion::get_notion_columns,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -108,6 +108,54 @@ export interface NotionPageSnapshot {
   database?: { dataSourceId: string; title?: string };
 }
 
+/** What kind of Notion column can tell a page is done. */
+export type NotionColumnKind =
+  | "status"
+  | "select"
+  | "multi_select"
+  | "checkbox";
+
+/** An option of a status, select or multi-select column. */
+export interface NotionOption {
+  /** Notion's ID, which stays the same when renamed. */
+  id: string;
+  name: string;
+  color: NotionColor;
+}
+
+/** A column of a database that can tell its pages are done, with every option it offers. */
+export interface NotionSchemaColumn {
+  /** Notion's ID of the property, which stays the same when renamed. */
+  propertyId: string;
+  name: string;
+  kind: NotionColumnKind;
+  /** None for a checkbox. */
+  options: NotionOption[];
+}
+
+/** A database's columns that can tell its pages are done (`get_notion_columns`). */
+export interface NotionColumns {
+  title: string;
+  columns: NotionSchemaColumn[];
+}
+
+/**
+ * Which values of which column of a Notion database mean its pages are done, rather than their Status being in its
+ * Complete group: one per database. The backend shows the pages as it tells (their status becomes the column's value).
+ */
+export interface NotionDoneRule {
+  dataSourceId: string;
+  /** As when the rule was set. */
+  databaseTitle: string;
+  propertyId: string;
+  /** As when the rule was set. */
+  propertyName: string;
+  propertyKind: NotionColumnKind;
+  /** By ID, with their name as when the rule was set. Empty for a checkbox, done when checked. */
+  doneOptions: { id: string; name: string }[];
+  updatedAt?: Date;
+}
+
 /** A whole database: a link to one shows its title, without a status. */
 export interface NotionDatabaseSnapshot {
   type: "notion_database";

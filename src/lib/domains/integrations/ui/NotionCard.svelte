@@ -1,6 +1,6 @@
 <script lang="ts">
 import { createQuery } from "@tanstack/svelte-query";
-import { describeProblem } from "#domains/todos";
+import { describeProblem, NotionDoneRules } from "#domains/todos";
 import type { Workspace } from "#domains/workspaces";
 import Button from "#shared/ui/Button.svelte";
 import ErrorBanner from "#shared/ui/ErrorBanner.svelte";
@@ -100,6 +100,14 @@ let showConnectModal = $state(false);
         <p class="problem-title">Notion refused to answer</p>
         <p class="problem-text">{apiProblem.detail}</p>
       </div>
+    {/if}
+    <!-- Kept in the workspace's own database: only readable while it's the active one -->
+    {#if workspace.isActive}
+      <NotionDoneRules />
+    {:else}
+      <p class="unconnected text-xs/5!">
+        Switch to {workspace.name} to see when its Notion pages are done.
+      </p>
     {/if}
     <div class="actions">
       {#if connection === "attention"}

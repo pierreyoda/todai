@@ -37,21 +37,21 @@ const save = () =>
   {/if}
   <FieldCheckbox
     label="Keep links up to date while todai is open"
-    description="Open pull requests and issues: every 10 minutes, and when you come back to todai. Merged or closed ones: once a day. Otherwise, only when a link is added, or refreshed from its details."
+    description="Open pull requests, issues and Notion pages: every 10 minutes, and when you come back to todai. Merged, closed or completed ones: once a day. Otherwise, only when a link is added, or refreshed from its details."
     bind:checked={autoRefresh}
     disabled={update.isPending}
     onchange={save}
   />
   <FieldCheckbox
     label="Suggest completing a todo once its link is done"
-    description="A merged pull request or a completed issue shows “mark as done” on its todo. Nothing is ever completed on its own."
+    description="A merged pull request, a completed issue, or a Notion page whose status is in its Complete group shows “mark as done” on its todo. Nothing is ever completed on its own."
     bind:checked={suggestDone}
     disabled={update.isPending}
     onchange={save}
   />
   <FieldCheckbox
     label="Offer to create a todo from a pasted link"
-    description="In “Add a new todo item”, a pasted pull request or issue lends its title to the todo."
+    description="In “Add a new todo item”, a pasted pull request, issue or Notion page lends its title to the todo."
     bind:checked={pasteToCreate}
     disabled={update.isPending}
     onchange={save}

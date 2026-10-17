@@ -5,6 +5,8 @@ import { createInvoker } from "#shared/ipc/invoke.ts";
 import type { Todo } from "../../model/types";
 import type {
   LinkPreview,
+  NotionColumns,
+  NotionDoneRule,
   ParsedLink,
   RefreshOutcome,
   TodoLink,
@@ -86,3 +88,36 @@ type LinkCommands = {
 };
 
 export const invokeLinks = createInvoker<LinkCommands>("command");
+
+type NotionRuleCommands = {
+  /** The done rules of the active workspace's Notion databases, by their title. */
+  list_notion_done_rules: {
+    returns: NotionDoneRule[];
+  };
+  /** Instead of any other one for its database. Fails without a value meaning done, unless it's a checkbox. */
+  set_notion_done_rule: {
+    args: {
+      rule: NotionDoneRule;
+    };
+    returns: NotionDoneRule;
+  };
+  /** Whether there was one: the database's pages are then done once their Status is in its Complete group again. */
+  delete_notion_done_rule: {
+    args: {
+      dataSourceId: string;
+    };
+    returns: boolean;
+  };
+  /**
+   * Asks Notion, now, for a database's columns that can tell its pages are done. Fails if the active workspace isn't
+   * connected to Notion, Notion couldn't be asked, or its token can't read the database.
+   */
+  get_notion_columns: {
+    args: {
+      dataSourceId: string;
+    };
+    returns: NotionColumns;
+  };
+};
+
+export const invokeNotionRules = createInvoker<NotionRuleCommands>("command");

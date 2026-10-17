@@ -1,12 +1,18 @@
 use serde::Serialize;
 use tauri::State;
 
+use jiff::Timestamp;
+
 use crate::{
     commands::workspaces::workspace,
     errors::{Result, TodaiError},
     integrations::{IntegrationProblem, Provider},
     models::{app::Workspace, integrations::NotionAccount},
-    notion::Notion,
+    notion::{
+        rules::{self, NotionDoneRule},
+        snapshot::SchemaColumn,
+        Notion,
+    },
     secrets::{Keychain, SecretStore},
     state::AppState,
     workspaces,
@@ -77,6 +83,94 @@ pub async fn get_notion_api_status(
     workspace_id: String,
 ) -> Result<NotionApiStatus> {
     api_status(&state, &notion, &*keychain, &workspace_id).await
+}
+
+/// The done rules of the active workspace's Notion databases, by their title.
+#[tauri::command]
+pub async fn list_notion_done_rules(state: State<'_, AppState>) -> Result<Vec<NotionDoneRule>> {
+    rules::list(&*state.db()?)
+}
+
+/// Sets the done rule of a Notion database of the active workspace, instead of any other one: its pages are then done
+/// once its column holds one of its options meaning done (or is checked), rather than once their Status is in its
+/// Complete group.
+#[tauri::command]
+pub async fn set_notion_done_rule(
+    state: State<'_, AppState>,
+    rule: NotionDoneRule,
+) -> Result<NotionDoneRule> {
+    let saved = rules::set(&*state.db()?, &rule, Timestamp::now().as_second())?;
+    log::info!(
+        "Set the done rule of the Notion database {}: column {}",
+        saved.data_source_id,
+        saved.property_id
+    );
+    Ok(saved)
+}
+
+/// Deletes the done rule of the Notion database `data_source_id`, returning whether there was one: its pages are then
+/// done once their Status is in its Complete group again.
+#[tauri::command]
+pub async fn delete_notion_done_rule(
+    state: State<'_, AppState>,
+    data_source_id: String,
+) -> Result<bool> {
+    rules::delete(&*state.db()?, &data_source_id)
+}
+
+/// A Notion database's columns that can tell its pages are done, to pick from for its done rule.
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionColumns {
+    pub title: String,
+    pub columns: Vec<SchemaColumn>,
+}
+
+/// Asks Notion for the columns of the database `data_source_id` that can tell its pages are done, through the active
+/// workspace's connection. Fails if it isn't connected, Notion couldn't be asked, or its token can't read it.
+#[tauri::command]
+pub async fn get_notion_columns(
+    state: State<'_, AppState>,
+    notion: State<'_, Notion>,
+    keychain: State<'_, Keychain>,
+    data_source_id: String,
+) -> Result<NotionColumns> {
+    columns(&state, &notion, &*keychain, &data_source_id).await
+}
+
+async fn columns(
+    state: &AppState,
+    notion: &Notion,
+    secrets: &impl SecretStore,
+    data_source_id: &str,
+) -> Result<NotionColumns> {
+    let workspace_id = {
+        let app_db = state.app_db();
+        let id = workspaces::active_id(&app_db)?.ok_or(TodaiError::NoActiveWorkspace)?;
+        let entry = workspaces::get(&app_db, &id)?;
+        if entry.notion_user_id.is_none() {
+            return Err(TodaiError::CommandError(
+                "This workspace isn't connected to Notion".into(),
+            ));
+        }
+        entry.id
+    };
+    let result = notion
+        .fresh_schema(secrets, &workspace_id, data_source_id)
+        .await;
+    state.note(Provider::Notion, &workspace_id, &result);
+    match result {
+        Ok(Some(schema)) => Ok(NotionColumns {
+            title: schema.title,
+            columns: schema.columns,
+        }),
+        Ok(None) => Err(TodaiError::CommandError(
+            "This workspace's Notion token can't read this database".into(),
+        )),
+        Err(problem) => Err(TodaiError::CommandError(format!(
+            "Could not ask Notion for the database's columns: {problem}"
+        ))),
+    }
 }
 
 /// `token`, trimmed, if it may be a token at all.
@@ -456,5 +550,32 @@ mod tests {
             workspace.notion_attention,
             Some(IntegrationProblem::TokenMissing)
         );
+    }
+
+    #[tokio::test]
+    async fn the_columns_of_a_database_come_fresh_from_notion() {
+        use crate::notion::snapshot::{tests::tickets_schema_json, ColumnKind};
+        let s = setup();
+        workspaces::set_active(&s.state.app_db(), &s.work.id, NOW).unwrap();
+        let server = FakeServer::serve(vec![
+            me(),
+            ok(tickets_schema_json().to_string()),
+            ok(tickets_schema_json().to_string()),
+        ]);
+        let notion = Notion::with_endpoint(&server.url).unwrap();
+        let secrets = FakeSecrets::default();
+        assert!(columns(&s.state, &notion, &secrets, "ds1").await.is_err());
+        connect(&s.state, &notion, &secrets, &s.work.id, "ntn_t")
+            .await
+            .unwrap();
+
+        let found = columns(&s.state, &notion, &secrets, "ds1").await.unwrap();
+        assert_eq!(found.title, "Tickets");
+        let stage = found.columns.iter().find(|c| c.name == "Stage").unwrap();
+        assert_eq!(stage.kind, ColumnKind::Select);
+        assert_eq!(stage.options.len(), 3);
+        // Asked again, rather than kept
+        columns(&s.state, &notion, &secrets, "ds1").await.unwrap();
+        assert_eq!(server.requests().len(), 3);
     }
 }

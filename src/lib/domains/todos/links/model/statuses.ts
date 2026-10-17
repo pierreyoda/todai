@@ -6,7 +6,7 @@ import {
 import { formatTime } from "#shared/utils/timestamps.ts";
 import type { Todo } from "../../model/types";
 import { githubDone, githubStatus, githubStatusWords } from "./github";
-import { notionStatus, notionStatusWords } from "./notion";
+import { notionDone, notionStatus, notionStatusWords } from "./notion";
 import type { LinkSnapshot, NotionColor, TodoLink } from "./types";
 
 /**
@@ -87,7 +87,8 @@ export interface DoneSuggestion {
 
 /**
  * Why `todo` could be marked as done, if it isn't yet: its first link whose item is done with, e.g. a pull request
- * merged, or an issue completed. Only a suggestion: todos are never completed on their own.
+ * merged, an issue completed, or a Notion page whose Status is in its Complete group. Only a suggestion: todos are never
+ * completed on their own.
  */
 export const doneSuggestion = ({
   completed,
@@ -95,11 +96,10 @@ export const doneSuggestion = ({
 }: Pick<Todo, "completed" | "links">): DoneSuggestion | undefined => {
   if (completed) return undefined;
   for (const link of links) {
-    // Notion pages: in M4
-    const done =
-      link.snapshot && isGitHub(link.snapshot)
-        ? githubDone(link.snapshot, link.label)
-        : undefined;
+    if (!link.snapshot) continue;
+    const done = isGitHub(link.snapshot)
+      ? githubDone(link.snapshot, link.label)
+      : notionDone(link.snapshot, link.label);
     if (done) return { link, ...done };
   }
   return undefined;

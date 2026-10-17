@@ -40,6 +40,93 @@ pub struct NotionPageSnapshot {
     /// The database it's in, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub database: Option<NotionParentDatabase>,
+    /// The value of each of its columns that can tell it's done (see `rules`): absent from snapshots stored before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub columns: Vec<NotionColumn>,
+}
+
+/// The value of a page's column that can tell it's done: a status, a select or multi-select, or a checkbox.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionColumn {
+    /// Notion's ID of the property, which stays the same when renamed.
+    pub property_id: String,
+    pub name: String,
+    pub value: NotionColumnValue,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum NotionColumnValue {
+    Status { option: Option<NotionOptionValue> },
+    Select { option: Option<NotionOptionValue> },
+    MultiSelect { options: Vec<NotionOptionValue> },
+    Checkbox { checked: bool },
+}
+
+/// An option picked in a status, select or multi-select column.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct NotionOptionValue {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+}
+
+/// A column of a database that can tell its pages are done, with every option it offers.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaColumn {
+    pub property_id: String,
+    pub name: String,
+    pub kind: ColumnKind,
+    /// None for a checkbox.
+    pub options: Vec<NotionOptionValue>,
+}
+
+/// What kind of column a done rule reads. Serialized like the `property_kind` column of `notion_done_rules`.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnKind {
+    Status,
+    Select,
+    MultiSelect,
+    Checkbox,
+}
+
+impl ColumnKind {
+    pub fn to_db(self) -> &'static str {
+        match self {
+            Self::Status => "status",
+            Self::Select => "select",
+            Self::MultiSelect => "multi_select",
+            Self::Checkbox => "checkbox",
+        }
+    }
+
+    pub fn from_db(kind: &str) -> Option<Self> {
+        match kind {
+            "status" => Some(Self::Status),
+            "select" => Some(Self::Select),
+            "multi_select" => Some(Self::MultiSelect),
+            "checkbox" => Some(Self::Checkbox),
+            _ => None,
+        }
+    }
+}
+
+impl NotionColumnValue {
+    pub fn kind(&self) -> ColumnKind {
+        match self {
+            Self::Status { .. } => ColumnKind::Status,
+            Self::Select { .. } => ColumnKind::Select,
+            Self::MultiSelect { .. } => ColumnKind::MultiSelect,
+            Self::Checkbox { .. } => ColumnKind::Checkbox,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -128,12 +215,15 @@ impl NotionPageSnapshot {
     }
 }
 
-/// What's known of a database's schema (a data source's, in Notion's terms): what its pages' status groups mean.
+/// What's known of a database's schema (a data source's, in Notion's terms): what its pages' status groups mean, and
+/// the columns that can tell they're done.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DataSourceInfo {
     pub title: String,
     /// Its Status property's groups, each with the IDs of its options.
     pub status_groups: Vec<(StatusGroup, Vec<String>)>,
+    /// By name.
+    pub columns: Vec<SchemaColumn>,
 }
 
 impl DataSourceInfo {
@@ -188,7 +278,19 @@ enum RawProperty {
         title: Vec<RawRichText>,
     },
     Status {
-        status: Option<RawStatusValue>,
+        #[serde(default)]
+        id: String,
+        status: Option<NotionOptionValue>,
+    },
+    Select {
+        #[serde(default)]
+        id: String,
+        select: Option<NotionOptionValue>,
+    },
+    Checkbox {
+        #[serde(default)]
+        id: String,
+        checkbox: bool,
     },
     People {
         people: Vec<RawPerson>,
@@ -197,7 +299,9 @@ enum RawProperty {
         date: Option<RawDate>,
     },
     MultiSelect {
-        multi_select: Vec<NotionOption>,
+        #[serde(default)]
+        id: String,
+        multi_select: Vec<NotionOptionValue>,
     },
     UniqueId {
         unique_id: UniqueId,
@@ -209,13 +313,6 @@ enum RawProperty {
 #[derive(Deserialize)]
 struct RawRichText {
     plain_text: String,
-}
-
-#[derive(Deserialize)]
-struct RawStatusValue {
-    id: String,
-    name: String,
-    color: String,
 }
 
 #[derive(Deserialize)]
@@ -273,7 +370,7 @@ pub(super) fn parse_page(id: &NotionRef, page: Value) -> serde_json::Result<Pars
         properties,
         &["status", "state"],
         |property| match property {
-            RawProperty::Status { status } => status.as_ref(),
+            RawProperty::Status { status, .. } => status.as_ref(),
             _ => None,
         },
     );
@@ -302,10 +399,19 @@ pub(super) fn parse_page(id: &NotionRef, page: Value) -> serde_json::Result<Pars
         },
     );
     let tags = property(properties, &["tags", "labels"], |property| match property {
-        RawProperty::MultiSelect { multi_select } => Some(multi_select),
+        RawProperty::MultiSelect { multi_select, .. } => Some(multi_select),
         _ => None,
     })
-    .map(|options| options.iter().take(MAX_TAGS).cloned().collect())
+    .map(|options| {
+        options
+            .iter()
+            .take(MAX_TAGS)
+            .map(|option| NotionOption {
+                name: option.name.clone(),
+                color: option.color.clone(),
+            })
+            .collect()
+    })
     .unwrap_or_default();
     let unique_id = property(properties, &["id"], |property| match property {
         RawProperty::UniqueId { unique_id } => Some(unique_id.clone()),
@@ -318,6 +424,40 @@ pub(super) fn parse_page(id: &NotionRef, page: Value) -> serde_json::Result<Pars
         }),
         _ => None,
     };
+    let columns = properties
+        .iter()
+        .filter_map(|(name, property)| {
+            let (property_id, value) = match property {
+                RawProperty::Status { id, status } => (
+                    id,
+                    NotionColumnValue::Status {
+                        option: status.clone(),
+                    },
+                ),
+                RawProperty::Select { id, select } => (
+                    id,
+                    NotionColumnValue::Select {
+                        option: select.clone(),
+                    },
+                ),
+                RawProperty::MultiSelect { id, multi_select } => (
+                    id,
+                    NotionColumnValue::MultiSelect {
+                        options: multi_select.clone(),
+                    },
+                ),
+                RawProperty::Checkbox { id, checkbox } => {
+                    (id, NotionColumnValue::Checkbox { checked: *checkbox })
+                }
+                _ => return None,
+            };
+            Some(NotionColumn {
+                property_id: property_id.clone(),
+                name: name.clone(),
+                value,
+            })
+        })
+        .collect();
     let snapshot = NotionPageSnapshot {
         title,
         icon: match page.icon {
@@ -336,6 +476,7 @@ pub(super) fn parse_page(id: &NotionRef, page: Value) -> serde_json::Result<Pars
         last_edited_at: page.last_edited_time,
         in_trash: page.in_trash,
         database,
+        columns,
     };
     Ok(ParsedPage {
         link: link_at(id, page.url.as_deref()),
@@ -369,14 +510,38 @@ struct RawDataSource {
 #[serde(tag = "type", rename_all = "snake_case")]
 enum RawSchemaProperty {
     Status {
+        #[serde(default)]
+        id: String,
         status: RawStatusSchema,
+    },
+    Select {
+        #[serde(default)]
+        id: String,
+        select: RawOptionsSchema,
+    },
+    MultiSelect {
+        #[serde(default)]
+        id: String,
+        multi_select: RawOptionsSchema,
+    },
+    Checkbox {
+        #[serde(default)]
+        id: String,
     },
     #[serde(other)]
     Other,
 }
 
 #[derive(Deserialize)]
+struct RawOptionsSchema {
+    #[serde(default)]
+    options: Vec<NotionOptionValue>,
+}
+
+#[derive(Deserialize)]
 struct RawStatusSchema {
+    #[serde(default)]
+    options: Vec<NotionOptionValue>,
     #[serde(default)]
     groups: Vec<RawStatusGroup>,
 }
@@ -395,7 +560,7 @@ pub(super) fn parse_data_source(value: Value) -> serde_json::Result<DataSourceIn
         &source.properties,
         &["status", "state"],
         |property| match property {
-            RawSchemaProperty::Status { status } => Some(&status.groups),
+            RawSchemaProperty::Status { status, .. } => Some(&status.groups),
             _ => None,
         },
     )
@@ -409,9 +574,35 @@ pub(super) fn parse_data_source(value: Value) -> serde_json::Result<DataSourceIn
             .collect()
     })
     .unwrap_or_default();
+    let columns = source
+        .properties
+        .iter()
+        .filter_map(|(name, property)| {
+            let (property_id, kind, options) = match property {
+                RawSchemaProperty::Status { id, status } => {
+                    (id, ColumnKind::Status, status.options.clone())
+                }
+                RawSchemaProperty::Select { id, select } => {
+                    (id, ColumnKind::Select, select.options.clone())
+                }
+                RawSchemaProperty::MultiSelect { id, multi_select } => {
+                    (id, ColumnKind::MultiSelect, multi_select.options.clone())
+                }
+                RawSchemaProperty::Checkbox { id } => (id, ColumnKind::Checkbox, Vec::new()),
+                RawSchemaProperty::Other => return None,
+            };
+            Some(SchemaColumn {
+                property_id: property_id.clone(),
+                name: name.clone(),
+                kind,
+                options,
+            })
+        })
+        .collect();
     Ok(DataSourceInfo {
         title: plain_text(&source.title),
         status_groups: groups,
+        columns,
     })
 }
 
@@ -493,10 +684,21 @@ pub(crate) mod tests {
                     { "id": "x", "name": "links", "color": "orange" }, { "id": "y", "name": "backend", "color": "purple" }
                 ]},
                 "ID": { "id": "i", "type": "unique_id", "unique_id": { "prefix": "TOD", "number": 31 } },
-                "Priority": { "id": "p", "type": "select", "select": { "name": "High", "color": "red" } },
+                "Priority": { "id": "p", "type": "select", "select": { "id": "opt-high", "name": "High", "color": "red" } },
+                "Stage": { "id": "st", "type": "select", "select": { "id": "opt-qa", "name": "QA", "color": "pink" } },
+                "Shipped": { "id": "sh", "type": "checkbox", "checkbox": false },
                 "Rollup": { "id": "r", "type": "rollup", "rollup": { "type": "number", "number": 3 } }
             }
         })
+    }
+
+    /// The ticket, as read, its Status filed under In progress.
+    pub(crate) fn parsed_ticket() -> NotionPageSnapshot {
+        let mut snapshot = parse_page(&id(), ticket_json()).unwrap().snapshot;
+        if let Some(status) = &mut snapshot.status {
+            status.group = Some(StatusGroup::InProgress);
+        }
+        snapshot
     }
 
     pub(crate) fn tickets_schema_json() -> Value {
@@ -516,7 +718,14 @@ pub(crate) mod tests {
                         { "id": "g3", "name": "Complete", "color": "green", "option_ids": ["opt-done"] }
                     ]
                 }},
-                "Name": { "id": "title", "type": "title", "title": {} }
+                "Name": { "id": "title", "type": "title", "title": {} },
+                "Stage": { "id": "st", "type": "select", "select": { "options": [
+                    { "id": "opt-dev", "name": "Dev", "color": "blue" },
+                    { "id": "opt-qa", "name": "QA", "color": "pink" },
+                    { "id": "opt-released", "name": "Released", "color": "green" }
+                ]}},
+                "Shipped": { "id": "sh", "type": "checkbox", "checkbox": {} },
+                "Due": { "id": "d", "type": "date", "date": {} }
             }
         })
     }
@@ -553,6 +762,68 @@ pub(crate) mod tests {
         );
         assert!(!snapshot.in_trash);
         assert!(!snapshot.is_settled());
+    }
+
+    #[test]
+    fn keeps_the_columns_that_can_tell_a_page_is_done() {
+        let snapshot = parse_page(&id(), ticket_json()).unwrap().snapshot;
+        let column = |name: &str| {
+            snapshot
+                .columns
+                .iter()
+                .find(|column| column.name == name)
+                .map(|column| (column.property_id.as_str(), column.value.clone()))
+        };
+        assert_eq!(
+            column("Stage"),
+            Some((
+                "st",
+                NotionColumnValue::Select {
+                    option: Some(NotionOptionValue {
+                        id: "opt-qa".into(),
+                        name: "QA".into(),
+                        color: "pink".into()
+                    })
+                }
+            ))
+        );
+        assert_eq!(
+            column("Shipped"),
+            Some(("sh", NotionColumnValue::Checkbox { checked: false }))
+        );
+        assert!(matches!(
+            column("Status"),
+            Some(("s", NotionColumnValue::Status { option: Some(_) }))
+        ));
+        assert!(matches!(
+            column("Tags"),
+            Some(("t", NotionColumnValue::MultiSelect { options })) if options.len() == 2
+        ));
+        assert_eq!(column("Due"), None);
+        // Stored then read again
+        let stored = serde_json::to_value(&snapshot).unwrap();
+        assert_eq!(
+            serde_json::from_value::<NotionPageSnapshot>(stored).unwrap(),
+            snapshot
+        );
+    }
+
+    #[test]
+    fn a_schema_lists_the_columns_that_can_tell_its_pages_are_done() {
+        let info = parse_data_source(tickets_schema_json()).unwrap();
+        let names: Vec<(&str, ColumnKind, usize)> = info
+            .columns
+            .iter()
+            .map(|column| (column.name.as_str(), column.kind, column.options.len()))
+            .collect();
+        assert_eq!(
+            names,
+            [
+                ("Shipped", ColumnKind::Checkbox, 0),
+                ("Stage", ColumnKind::Select, 3),
+                ("Status", ColumnKind::Status, 3)
+            ]
+        );
     }
 
     #[test]

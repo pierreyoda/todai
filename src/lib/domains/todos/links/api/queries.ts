@@ -4,7 +4,7 @@ import type { Day } from "#core/time";
 import { refreshIntegrationsAttention } from "#domains/workspaces";
 import { queryClient, workspaceDataKey } from "#shared/ipc/queryClient.ts";
 import { invalidateTodosOf } from "../../api/queries";
-import { invokeLinks } from "./commands";
+import { invokeLinks, invokeNotionRules } from "./commands";
 
 /**
  * The refreshes of the links' statuses, by day: what the last one ran into. Like the todos, they come from the active
@@ -91,3 +91,28 @@ export const fetchLinkPreview = (url: string) =>
 /** What `url` is recognized as (see `parseLinkQueryOptions`), fetched now: e.g. once submitted, before recognized. */
 export const fetchParsedLink = (url: string) =>
   queryClient.fetchQuery(parseLinkQueryOptions(url));
+
+/**
+ * The done rules of the active workspace's Notion databases, and what Notion tells of their columns. Like the todos,
+ * they come from the active workspace: refreshed when switching to another one.
+ */
+export const notionDoneRuleKeys = {
+  all: [...workspaceDataKey, "notionDoneRules"] as const,
+  list: () => [...notionDoneRuleKeys.all, "list"] as const,
+  columns: (dataSourceId: string) =>
+    [...notionDoneRuleKeys.all, "columns", dataSourceId] as const,
+};
+
+export const notionDoneRulesQueryOptions = queryOptions({
+  queryKey: notionDoneRuleKeys.list(),
+  queryFn: () => invokeNotionRules({ name: "list_notion_done_rules" }),
+});
+
+/** A database's columns that can tell its pages are done: asked to Notion each time they're shown, e.g. once added. */
+export const notionColumnsQueryOptions = (dataSourceId: string) =>
+  queryOptions({
+    queryKey: notionDoneRuleKeys.columns(dataSourceId),
+    queryFn: () =>
+      invokeNotionRules({ name: "get_notion_columns", args: { dataSourceId } }),
+    staleTime: 0,
+  });

@@ -12,6 +12,7 @@ export {
   linkStatusKeys,
 } from "./links/api/queries";
 export { describeProblem } from "./links/model/statuses";
+export { default as NotionDoneRules } from "./links/ui/NotionDoneRules.svelte";
 export type { Todo } from "./model/types";
 export { default as TodoPanel } from "./ui/TodoPanel.svelte";
 export { default as TodoSummaryItem } from "./ui/TodoSummaryItem.svelte";

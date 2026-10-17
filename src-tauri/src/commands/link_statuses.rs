@@ -21,7 +21,7 @@ use crate::{
         FetchError, GitHubRef, LinkRef, NotionRef, ParsedLink,
     },
     models::{core::Day, integrations::TodoLink},
-    notion::Notion,
+    notion::{rules, Notion},
     secrets::{Keychain, SecretStore},
     state::AppState,
     workspaces,
@@ -155,8 +155,10 @@ async fn preview(
     match results {
         Ok(results) => match results.into_iter().next() {
             Some(ItemResult::Found(item)) => {
+                let mut snapshot = item.snapshot;
+                rules::apply_to_snapshot(&mut snapshot, &rules::load(&*state.db()?)?);
                 preview.link = item.link;
-                preview.snapshot = Some(item.snapshot);
+                preview.snapshot = Some(snapshot);
             }
             Some(ItemResult::NoAccess) => preview.fetch_error = Some(FetchError::NoAccess),
             Some(ItemResult::SsoRequired) => preview.fetch_error = Some(FetchError::SsoRequired),
@@ -324,10 +326,13 @@ fn due_links(
             row.get::<_, bool>("todo_completed")?,
         ))
     })?;
+    // Settled as their database's done rule tells, for Notion pages
+    let rules = rules::load(db)?;
     let mut due = Vec::new();
     for row in rows {
         let (link, todo_completed) = row?;
-        let link = TodoLink::try_from(link)?;
+        let mut link = TodoLink::try_from(link)?;
+        rules::apply_to_link(&mut link, &rules);
         if let Target::Link(id) = target {
             if link.kind.provider().is_none() {
                 return Err(TodaiError::CommandError(format!(
@@ -1090,6 +1095,59 @@ mod tests {
         assert_eq!(json["snapshot"]["database"]["title"], "Tickets");
         assert!(stored(&s.state, "g").fetched_at.is_none());
         assert_eq!(server.requests().len(), 2);
+    }
+
+    #[test]
+    fn a_done_rule_decides_when_a_notion_page_is_settled() {
+        use crate::notion::{
+            rules::{self, DoneOption, NotionDoneRule},
+            snapshot::{tests::ID, ColumnKind},
+        };
+        let s = setup(false);
+        let parsed = crate::notion::snapshot::tests::parsed_ticket();
+        add_link(
+            &s.state,
+            "n",
+            "t",
+            &format!("https://www.notion.so/Ticket-{ID}"),
+            Some((NOW - OPEN_TTL, &LinkSnapshot::NotionPage(parsed))),
+        );
+        let today = Target::Day(day());
+        // In progress, by its Status: due after 5 minutes
+        assert_eq!(due_ids(&s.state, &today, NOW, false).unwrap(), ["n"]);
+
+        // Done by its Stage being QA, as the rule says
+        rules::set(
+            &s.state.db().unwrap(),
+            &NotionDoneRule {
+                data_source_id: "ds1".into(),
+                database_title: "Tickets".into(),
+                property_id: "st".into(),
+                property_name: "Stage".into(),
+                property_kind: ColumnKind::Select,
+                done_options: vec![DoneOption {
+                    id: "opt-qa".into(),
+                    name: "QA".into(),
+                }],
+                updated_at: None,
+            },
+            NOW,
+        )
+        .unwrap();
+        assert!(due_ids(&s.state, &today, NOW, false).unwrap().is_empty());
+        let listed =
+            crate::commands::links::query_links_between(&s.state.db().unwrap(), &day(), &day())
+                .unwrap()
+                .remove("t")
+                .unwrap();
+        let Some(LinkSnapshot::NotionPage(page)) = &listed[0].snapshot else {
+            panic!("{listed:?}");
+        };
+        let status = page.status.as_ref().unwrap();
+        assert_eq!(
+            (status.name.as_str(), status.group),
+            ("QA", Some(crate::notion::snapshot::StatusGroup::Complete))
+        );
     }
 
     /// Switches to another workspace while giving its token, as if the user did while GitHub was being asked.

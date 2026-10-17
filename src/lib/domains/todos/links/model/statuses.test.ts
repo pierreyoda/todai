@@ -18,6 +18,7 @@ import type {
   Checks,
   GitHubSnapshot,
   IssueSnapshot,
+  NotionPageSnapshot,
   PullRequestSnapshot,
   RelatedItem,
   TodoLink,
@@ -243,7 +244,74 @@ describe("itemState", () => {
   });
 });
 
+const notionLink = (
+  status: NotionPageSnapshot["status"],
+  overrides: Partial<NotionPageSnapshot> = {},
+): TodoLink => ({
+  id: "0199d0c0-0000-7000-8000-000000000003",
+  todoId: "0199d0c0-0000-7000-8000-000000000002",
+  kind: "notion",
+  url: "https://www.notion.so/Write-the-release-notes-8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5",
+  label: "TOD-27",
+  notion: { id: "8c1d2e3f4a5b46c7d8e9f0a1b2c3d4e5" },
+  createdAt: new Date("2026-10-10T08:00:00Z"),
+  snapshot: {
+    type: "notion_page",
+    title: "Write the release notes",
+    uniqueId: { prefix: "TOD", number: 27 },
+    status,
+    assignees: [],
+    tags: [],
+    lastEditedAt: new Date("2026-10-10T12:00:00Z"),
+    inTrash: false,
+    ...overrides,
+  },
+  fetchedAt: new Date("2026-10-10T14:02:00Z"),
+});
+
 describe("doneSuggestion", () => {
+  it("suggests marking a todo as done once one of its Notion pages is complete", () => {
+    const shipped = notionLink({
+      name: "Shipped",
+      color: "purple",
+      group: "complete",
+    });
+    expect(
+      doneSuggestion({
+        completed: false,
+        links: [
+          notionLink({
+            name: "In review",
+            color: "blue",
+            group: "in_progress",
+          }),
+          shipped,
+        ],
+      }),
+    ).toEqual({
+      link: shipped,
+      word: "Shipped",
+      reason: "TOD-27 is Shipped in Notion",
+    });
+  });
+
+  it("doesn't for Notion pages not complete, trashed, or of an unknown group", () => {
+    expect(
+      doneSuggestion({
+        completed: false,
+        links: [
+          notionLink({ name: "Not started", color: "default", group: "to_do" }),
+          notionLink(
+            { name: "Done", color: "green", group: "complete" },
+            { inTrash: true },
+          ),
+          notionLink({ name: "Done", color: "green" }),
+          notionLink(undefined),
+        ],
+      }),
+    ).toBeUndefined();
+  });
+
   it("suggests marking a todo as done once one of its pull requests is merged or issues completed", () => {
     const merged = link(pull({ state: "merged" }));
     expect(

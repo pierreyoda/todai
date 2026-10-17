@@ -190,6 +190,18 @@ impl Notion {
         })))
     }
 
+    /// The schema of the database (data source) `data_source_id`, fetched now rather than as kept: e.g. to pick the
+    /// column telling its pages are done, maybe just added. `None` if the token can't read it.
+    pub async fn fresh_schema(
+        &self,
+        secrets: &impl SecretStore,
+        workspace_id: &str,
+        data_source_id: &str,
+    ) -> Result<Option<DataSourceInfo>, IntegrationProblem> {
+        lock(&self.schemas).remove(data_source_id);
+        self.schema(secrets, workspace_id, data_source_id).await
+    }
+
     /// The schema of the data source `data_source_id`, as kept or fetched: `None` if the token can't read it.
     async fn schema(
         &self,
