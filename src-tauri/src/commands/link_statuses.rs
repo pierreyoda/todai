@@ -18,9 +18,11 @@ use crate::{
     links::{
         self,
         snapshot::{ItemResult, LinkSnapshot},
-        FetchError, GitHubRef, LinkRef, ParsedLink,
+        FetchError, GitHubRef, LinkRef, NotionRef, ParsedLink,
     },
     models::{core::Day, integrations::TodoLink},
+    notion::Notion,
+    secrets::{Keychain, SecretStore},
     state::AppState,
     workspaces,
 };
@@ -43,10 +45,13 @@ pub struct RefreshOutcome {
 }
 
 /// The providers linked items are fetched from.
-pub(crate) struct Providers<'a, T> {
+pub(crate) struct Providers<'a, T, S> {
     pub github: &'a GitHub,
     /// Where GitHub's tokens come from: the GitHub CLI.
     pub gh_tokens: &'a T,
+    pub notion: &'a Notion,
+    /// Where Notion's tokens are kept: the Keychain.
+    pub secrets: &'a S,
 }
 
 /// Refreshes the status of the items linked to the non-deleted todos of `day`, if fetched long enough ago (or whenever
@@ -57,12 +62,16 @@ pub async fn refresh_links(
     state: State<'_, AppState>,
     finder: State<'_, GhFinder>,
     github: State<'_, GitHub>,
+    notion: State<'_, Notion>,
+    keychain: State<'_, Keychain>,
     day: Day,
     force: Option<bool>,
 ) -> Result<RefreshOutcome> {
     let providers = Providers {
         github: &github,
         gh_tokens: &*finder,
+        notion: &notion,
+        secrets: &*keychain,
     };
     let target = Target::Day(day);
     refresh(&state, &providers, &target, force.unwrap_or(false)).await
@@ -74,11 +83,15 @@ pub async fn refresh_link(
     state: State<'_, AppState>,
     finder: State<'_, GhFinder>,
     github: State<'_, GitHub>,
+    notion: State<'_, Notion>,
+    keychain: State<'_, Keychain>,
     id: String,
 ) -> Result<RefreshOutcome> {
     let providers = Providers {
         github: &github,
         gh_tokens: &*finder,
+        notion: &notion,
+        secrets: &*keychain,
     };
     refresh(&state, &providers, &Target::Link(id), true).await
 }
@@ -108,18 +121,22 @@ pub async fn preview_link(
     state: State<'_, AppState>,
     finder: State<'_, GhFinder>,
     github: State<'_, GitHub>,
+    notion: State<'_, Notion>,
+    keychain: State<'_, Keychain>,
     url: String,
 ) -> Result<LinkPreview> {
     let providers = Providers {
         github: &github,
         gh_tokens: &*finder,
+        notion: &notion,
+        secrets: &*keychain,
     };
     preview(&state, &providers, &url).await
 }
 
 async fn preview(
     state: &AppState,
-    providers: &Providers<'_, impl TokenSource>,
+    providers: &Providers<'_, impl TokenSource, impl SecretStore>,
     url: &str,
 ) -> Result<LinkPreview> {
     let mut preview = LinkPreview {
@@ -166,7 +183,7 @@ fn connection(workspace: &DbWorkspace, provider: Provider) -> Option<&str> {
 /// it: `None` without one.
 async fn fetch(
     state: &AppState,
-    providers: &Providers<'_, impl TokenSource>,
+    providers: &Providers<'_, impl TokenSource, impl SecretStore>,
     workspace: &DbWorkspace,
     provider: Provider,
     items: &[LinkRef],
@@ -180,8 +197,13 @@ async fn fetch(
                 .fetch_items(providers.gh_tokens, account, &refs)
                 .await
         }
-        // Notion pages are plain links, until recognized as Notion's: none to fetch yet
-        Provider::Notion => return None,
+        Provider::Notion => {
+            let refs: Vec<NotionRef> = items.iter().filter_map(LinkRef::notion).cloned().collect();
+            providers
+                .notion
+                .fetch_items(providers.secrets, account, &refs)
+                .await
+        }
     };
     state.note(provider, account, &results);
     Some(results)
@@ -204,7 +226,7 @@ struct DueLink {
 
 async fn refresh(
     state: &AppState,
-    providers: &Providers<'_, impl TokenSource>,
+    providers: &Providers<'_, impl TokenSource, impl SecretStore>,
     target: &Target,
     force: bool,
 ) -> Result<RefreshOutcome> {
@@ -348,8 +370,14 @@ fn save_results(
     for link in due {
         let error = match results.get(&link.item) {
             Some(ItemResult::Found(item)) => {
-                // Where its provider says it is (e.g. a pull request linked as an issue, or in a renamed repository),
-                // unless its todo already links there too.
+                // Where its provider says it is (e.g. a pull request linked as an issue, or in a renamed repository, or
+                // a Notion page with its current slug), unless its todo already links there too.
+                if item.link.notion.is_some() {
+                    tx.prepare_cached(
+                        "UPDATE OR IGNORE todo_links SET url = :url WHERE id = :id AND url <> :url",
+                    )?
+                    .execute(named_params! { ":id": link.id, ":url": item.link.url })?;
+                }
                 if let Some(github) = &item.link.github {
                     tx.prepare_cached(
                         "UPDATE OR IGNORE todo_links
@@ -409,13 +437,21 @@ mod tests {
         },
         links::LinkKind,
         models::core::Day,
+        secrets::FakeSecrets,
         testing::{ok, FakeServer},
     };
 
     const NOW: i64 = 1_791_000_000;
 
-    fn providers<'a, T>(github: &'a GitHub, gh_tokens: &'a T) -> Providers<'a, T> {
-        Providers { github, gh_tokens }
+    fn providers<'a, T>(github: &'a GitHub, gh_tokens: &'a T) -> Providers<'a, T, FakeSecrets> {
+        Providers {
+            github,
+            gh_tokens,
+            notion: Box::leak(Box::new(
+                Notion::with_endpoint(&FakeServer::unreachable_url()).unwrap(),
+            )),
+            secrets: Box::leak(Box::default()),
+        }
     }
 
     fn github_problem(problem: IntegrationProblem) -> BTreeMap<Provider, IntegrationProblem> {
@@ -473,8 +509,8 @@ mod tests {
             .unwrap()
             .execute(
                 "INSERT INTO todo_links
-                 (id, todo_id, kind, url, github_owner, github_repo, github_number, created_at, snapshot, fetched_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9)",
+                 (id, todo_id, kind, url, github_owner, github_repo, github_number, notion_id, created_at, snapshot, fetched_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10)",
                 params![
                     id,
                     todo_id,
@@ -483,6 +519,7 @@ mod tests {
                     github.map(|github| &github.owner),
                     github.map(|github| &github.repo),
                     github.map(|github| github.number),
+                    link.notion.as_ref().map(|notion| &notion.id),
                     fetched.map(|(_, snapshot)| snapshot.to_db().unwrap()),
                     fetched.map(|(at, _)| at),
                 ],
@@ -979,6 +1016,80 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(s.state.attention(Provider::GitHub, "octocat"), None);
+    }
+
+    #[tokio::test]
+    async fn refresh_asks_notion_about_notion_pages_through_the_workspace_token() {
+        use crate::{
+            models::integrations::NotionAccount,
+            notion::snapshot::{
+                tests::{ticket_json, tickets_schema_json, ID},
+                StatusGroup,
+            },
+        };
+        let s = setup(false);
+        let account = NotionAccount {
+            user_id: "u1".into(),
+            name: None,
+            email: None,
+            workspace_name: None,
+        };
+        let active_id = active_workspace(&s.state.app_db()).unwrap().id;
+        workspaces::set_notion_account(&s.state.app_db(), &active_id, Some(&account)).unwrap();
+        add_link(
+            &s.state,
+            "n",
+            "t",
+            &format!("https://www.notion.so/acme/Old-slug-{ID}"),
+            None,
+        );
+        add_link(&s.state, "g", "t", "https://github.com/o/r/issues/1", None);
+        let server = FakeServer::serve(vec![
+            ok(ticket_json().to_string()),
+            ok(tickets_schema_json().to_string()),
+        ]);
+        let notion = Notion::with_endpoint(&server.url).unwrap();
+        let secrets = FakeSecrets::with(&active_id, "ntn_t");
+        let github = GitHub::with_endpoint(&FakeServer::unreachable_url()).unwrap();
+        let providers = Providers {
+            github: &github,
+            gh_tokens: &FakeTokens::default(),
+            notion: &notion,
+            secrets: &secrets,
+        };
+
+        let outcome = refresh(&s.state, &providers, &Target::Day(day()), false)
+            .await
+            .unwrap();
+        // GitHub isn't connected: its link is left alone, without a problem
+        assert_eq!(
+            outcome,
+            RefreshOutcome {
+                refreshed: 1,
+                problems: BTreeMap::new()
+            }
+        );
+        let link = stored(&s.state, "n");
+        assert_eq!(link.label, "TOD-31");
+        assert_eq!(
+            link.url,
+            format!("https://www.notion.so/Add-links-metadata-to-todos-{ID}")
+        );
+        let Some(LinkSnapshot::NotionPage(page)) = &link.snapshot else {
+            panic!("{link:?}");
+        };
+        assert_eq!(
+            page.status.as_ref().unwrap().group,
+            Some(StatusGroup::InProgress)
+        );
+        let json = serde_json::to_value(&link).unwrap();
+        assert_eq!(json["kind"], "notion");
+        assert_eq!(json["notion"]["id"], ID);
+        assert_eq!(json["snapshot"]["type"], "notion_page");
+        assert_eq!(json["snapshot"]["status"]["group"], "in_progress");
+        assert_eq!(json["snapshot"]["database"]["title"], "Tickets");
+        assert!(stored(&s.state, "g").fetched_at.is_none());
+        assert_eq!(server.requests().len(), 2);
     }
 
     /// Switches to another workspace while giving its token, as if the user did while GitHub was being asked.

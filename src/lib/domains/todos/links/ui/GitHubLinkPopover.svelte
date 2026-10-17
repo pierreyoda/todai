@@ -27,7 +27,11 @@ let {
 
 const activeWorkspace = createQuery(() => activeWorkspaceQueryOptions);
 
-const snapshot = $derived(link.snapshot);
+const snapshot = $derived(
+  link.snapshot?.type === "pull_request" || link.snapshot?.type === "issue"
+    ? link.snapshot
+    : undefined,
+);
 const github = $derived(link.github);
 const isIssue = $derived(
   snapshot ? snapshot.type === "issue" : link.kind === "github_issue",

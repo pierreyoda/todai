@@ -8,7 +8,7 @@ import {
   createRemoveTodoLinkMutation,
 } from "../api/mutations";
 import { openLink } from "../api/openLink";
-import { formatLinksCount, linkKindName } from "../model/links";
+import { formatLinksCount, linkItemName, linkKindName } from "../model/links";
 import LinkKindIcon from "./LinkKindIcon.svelte";
 
 /**
@@ -100,6 +100,8 @@ $effect(() => {
               <span class="detail">
                 {#if link.github}
                   {linkKindName(link.kind)} · {link.github.owner}/{link.github.repo}
+                {:else if link.notion}
+                  {linkItemName(link)}
                 {:else}
                   {link.url}
                 {/if}

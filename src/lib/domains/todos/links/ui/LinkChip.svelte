@@ -11,6 +11,8 @@ type LinkChipProps = {
   link: ParsedLink;
   /** Where its item stands, once known (e.g. a merged pull request): picks and colors its icon. */
   state?: ItemState;
+  /** A Notion link's, once known: a whole database rather than a page. */
+  iconVariant?: "database";
   /** Its status word, after its label: `"loading"` while fetched for the first time. */
   status?: LinkStatus | "loading" | null;
   /** Opens its details, instead of opening the link in the browser. */
@@ -23,6 +25,7 @@ type LinkChipProps = {
 let {
   link,
   state,
+  iconVariant,
   status,
   onclick,
   active = false,
@@ -39,7 +42,7 @@ const title = $derived(
 </script>
 
 {#snippet content()}
-  <span class="icon"><LinkKindIcon kind={link.kind} {state} /></span>
+  <span class="icon"><LinkKindIcon kind={link.kind} {state} variant={iconVariant} /></span>
   <span class={["label", typeof status === "object" && status?.tone]}>{link.label}</span>
   {#if status}
     <span class="divider" aria-hidden="true"></span>

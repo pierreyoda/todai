@@ -9,6 +9,7 @@ import { linkStatus } from "../model/statuses";
 import type { TodoLink } from "../model/types";
 import GitHubLinkPopover from "./GitHubLinkPopover.svelte";
 import LinkChip from "./LinkChip.svelte";
+import NotionLinkPopover from "./NotionLinkPopover.svelte";
 
 type TodoLinkChipProps = {
   link: TodoLink;
@@ -26,8 +27,14 @@ const status = $derived.by(() => {
   if (!withDetails) return null;
   return linkStatus(link) ?? (refreshing.current > 0 ? "loading" : null);
 });
+const snapshot = $derived(withDetails ? link.snapshot : undefined);
 const linkState = $derived(
-  withDetails && link.snapshot ? itemState(link.snapshot) : undefined,
+  snapshot && (snapshot.type === "pull_request" || snapshot.type === "issue")
+    ? itemState(snapshot)
+    : undefined,
+);
+const iconVariant = $derived(
+  snapshot?.type === "notion_database" ? "database" : undefined,
 );
 
 let open = $state(false);
@@ -38,6 +45,7 @@ let chip = $state<HTMLElement>();
   <LinkChip
     {link}
     state={linkState}
+    {iconVariant}
     {status}
     active={open}
     bind:ref={chip}
@@ -45,6 +53,8 @@ let chip = $state<HTMLElement>();
   />
   {#if provider === "github"}
     <GitHubLinkPopover bind:open {link} {todo} anchor={chip} />
+  {:else if provider === "notion"}
+    <NotionLinkPopover bind:open {link} {todo} anchor={chip} />
   {/if}
 {:else}
   <LinkChip {link} />

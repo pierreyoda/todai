@@ -4,7 +4,7 @@
 use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard, PoisonError},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use jiff::{SignedDuration, Timestamp};
@@ -12,9 +12,14 @@ use reqwest::header::{HeaderMap, ACCEPT, RETRY_AFTER};
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::snapshot::{self, DataSourceInfo, NotionPageSnapshot};
 use crate::{
     errors::{self, TodaiError},
     integrations::IntegrationProblem,
+    links::{
+        snapshot::{FetchedItem, ItemResult, LinkSnapshot},
+        NotionRef,
+    },
     models::integrations::NotionAccount,
     secrets::SecretStore,
 };
@@ -33,6 +38,9 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// How long to wait when Notion asks to slow down without telling for how long.
 const DEFAULT_RATE_LIMIT_WAIT: SignedDuration = SignedDuration::from_secs(60);
 
+/// How long a database's schema (its title and status groups) is kept before asking Notion again.
+const SCHEMA_TTL: Duration = Duration::from_secs(60 * 60);
+
 /// What Notion answered to a request for a page, a database...
 #[derive(Debug, Clone, PartialEq)]
 pub enum Answer {
@@ -49,6 +57,8 @@ pub struct Notion {
     tokens: Mutex<HashMap<String, String>>,
     /// By workspace ID, until when Notion asked to wait.
     rate_limited: Mutex<HashMap<String, Timestamp>>,
+    /// By data source ID: its schema (`None` when the token can't read it), with when it was fetched.
+    schemas: Mutex<HashMap<String, (Option<DataSourceInfo>, Instant)>>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -82,6 +92,7 @@ impl Notion {
             endpoint: endpoint.trim_end_matches('/').into(),
             tokens: Mutex::default(),
             rate_limited: Mutex::default(),
+            schemas: Mutex::default(),
         })
     }
 
@@ -103,6 +114,109 @@ impl Notion {
         workspace_id: &str,
     ) -> Result<NotionAccount, IntegrationProblem> {
         account(self.get(secrets, workspace_id, "users/me").await?)
+    }
+
+    /// The pages (or databases) `refs`, as the token of the workspace `workspace_id` sees them, in the same order: one
+    /// request each, plus one per database they're in, for its status groups (kept an hour). Fails at the first problem
+    /// asking Notion, e.g. offline.
+    pub async fn fetch_items(
+        &self,
+        secrets: &impl SecretStore,
+        workspace_id: &str,
+        refs: &[NotionRef],
+    ) -> Result<Vec<ItemResult>, IntegrationProblem> {
+        let mut results = Vec::with_capacity(refs.len());
+        for notion_ref in refs {
+            results.push(self.fetch_item(secrets, workspace_id, notion_ref).await?);
+        }
+        Ok(results)
+    }
+
+    async fn fetch_item(
+        &self,
+        secrets: &impl SecretStore,
+        workspace_id: &str,
+        notion_ref: &NotionRef,
+    ) -> Result<ItemResult, IntegrationProblem> {
+        let path = format!("pages/{}", notion_ref.id);
+        let page = match self.get(secrets, workspace_id, &path).await? {
+            Answer::Found(page) => page,
+            // Maybe a whole database, which has no page
+            Answer::NoAccess(_) => {
+                let path = format!("databases/{}", notion_ref.id);
+                return Ok(match self.get(secrets, workspace_id, &path).await? {
+                    Answer::Found(database) => match snapshot::parse_database(notion_ref, database)
+                    {
+                        Ok((link, snapshot)) => ItemResult::Found(Box::new(FetchedItem {
+                            link,
+                            snapshot: LinkSnapshot::NotionDatabase(snapshot),
+                        })),
+                        Err(error) => {
+                            log::warn!(
+                                "Could not read Notion's database {}: {error}",
+                                notion_ref.id
+                            );
+                            ItemResult::Unreadable
+                        }
+                    },
+                    Answer::NoAccess(_) => ItemResult::NoAccess,
+                });
+            }
+        };
+        let parsed = match snapshot::parse_page(notion_ref, page) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                log::warn!("Could not read Notion's page {}: {error}", notion_ref.id);
+                return Ok(ItemResult::Unreadable);
+            }
+        };
+        let mut snapshot: NotionPageSnapshot = parsed.snapshot;
+        if let Some(database) = &mut snapshot.database {
+            if let Some(schema) = self
+                .schema(secrets, workspace_id, &database.data_source_id)
+                .await?
+            {
+                database.title = Some(schema.title.clone());
+                if let (Some(status), Some(option_id)) =
+                    (&mut snapshot.status, &parsed.status_option_id)
+                {
+                    status.group = schema.group_of(option_id);
+                }
+            }
+        }
+        Ok(ItemResult::Found(Box::new(FetchedItem {
+            link: parsed.link,
+            snapshot: LinkSnapshot::NotionPage(snapshot),
+        })))
+    }
+
+    /// The schema of the data source `data_source_id`, as kept or fetched: `None` if the token can't read it.
+    async fn schema(
+        &self,
+        secrets: &impl SecretStore,
+        workspace_id: &str,
+        data_source_id: &str,
+    ) -> Result<Option<DataSourceInfo>, IntegrationProblem> {
+        let known = lock(&self.schemas)
+            .get(data_source_id)
+            .filter(|(_, at)| at.elapsed() < SCHEMA_TTL)
+            .map(|(schema, _)| schema.clone());
+        if let Some(schema) = known {
+            return Ok(schema);
+        }
+        let path = format!("data_sources/{data_source_id}");
+        let schema = match self.get(secrets, workspace_id, &path).await? {
+            Answer::Found(source) => match snapshot::parse_data_source(source) {
+                Ok(schema) => Some(schema),
+                Err(error) => {
+                    log::warn!("Could not read Notion's data source {data_source_id}: {error}");
+                    None
+                }
+            },
+            Answer::NoAccess(_) => None,
+        };
+        lock(&self.schemas).insert(data_source_id.into(), (schema.clone(), Instant::now()));
+        Ok(schema)
     }
 
     /// Remembers `token` as the one of the workspace `workspace_id`, as just kept in the Keychain.
@@ -478,6 +592,124 @@ mod tests {
         assert_eq!(
             notion.account_of("ntn_t").await,
             Err(IntegrationProblem::Offline)
+        );
+    }
+
+    fn not_found() -> Response {
+        (
+            404,
+            Vec::new(),
+            r#"{"object":"error","status":404,"code":"object_not_found","message":"Could not find page."}"#.into(),
+        )
+    }
+
+    #[tokio::test]
+    async fn fetches_pages_with_their_database_s_schema_once() {
+        use crate::notion::snapshot::{
+            tests::{ticket_json, tickets_schema_json, ID},
+            StatusGroup,
+        };
+        let other = {
+            let mut page = ticket_json();
+            page["properties"]["Status"]["status"]["id"] = json!("opt-done");
+            page["properties"]["Status"]["status"]["name"] = json!("Done");
+            page
+        };
+        let server = FakeServer::serve(vec![
+            ok(ticket_json().to_string()),
+            ok(tickets_schema_json().to_string()),
+            ok(other.to_string()),
+        ]);
+        let notion = Notion::with_endpoint(&server.url).unwrap();
+        let secrets = FakeSecrets::with("w1", "ntn_t");
+        let refs = [
+            NotionRef { id: ID.into() },
+            NotionRef {
+                id: "00000000000000000000000000000001".into(),
+            },
+        ];
+
+        let results = notion.fetch_items(&secrets, "w1", &refs).await.unwrap();
+        let [ItemResult::Found(first), ItemResult::Found(second)] = &results[..] else {
+            panic!("{results:?}");
+        };
+        let LinkSnapshot::NotionPage(page) = &first.snapshot else {
+            panic!("{first:?}");
+        };
+        assert_eq!(
+            page.status.as_ref().unwrap().group,
+            Some(StatusGroup::InProgress)
+        );
+        assert_eq!(
+            page.database.as_ref().unwrap().title.as_deref(),
+            Some("Tickets")
+        );
+        assert!(!page.is_settled());
+        assert_eq!(first.link.label, "Add links metadata to todos");
+        let LinkSnapshot::NotionPage(page) = &second.snapshot else {
+            panic!("{second:?}");
+        };
+        assert_eq!(
+            page.status.as_ref().unwrap().group,
+            Some(StatusGroup::Complete)
+        );
+        assert!(page.is_settled());
+        let paths: Vec<String> = server.requests().iter().map(|r| r.path.clone()).collect();
+        assert_eq!(
+            paths,
+            [
+                format!("/pages/{ID}"),
+                "/data_sources/ds1".to_string(),
+                "/pages/00000000000000000000000000000001".to_string()
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_page_may_be_a_database_or_out_of_reach() {
+        let server =
+            FakeServer::serve(vec![
+            not_found(),
+            ok(json!({ "object": "database", "id": "x", "title": [{ "plain_text": "Tickets" }],
+                "last_edited_time": "2026-10-14T08:00:00.000Z", "in_trash": false }).to_string()),
+            not_found(),
+            not_found(),
+        ]);
+        let notion = Notion::with_endpoint(&server.url).unwrap();
+        let secrets = FakeSecrets::with("w1", "ntn_t");
+        let refs = [
+            NotionRef {
+                id: "2b7c9d0e1f2a43b5c6d7e8f9a0b1c2d3".into(),
+            },
+            NotionRef {
+                id: "00000000000000000000000000000002".into(),
+            },
+        ];
+
+        let results = notion.fetch_items(&secrets, "w1", &refs).await.unwrap();
+        assert!(matches!(
+            &results[0],
+            ItemResult::Found(item) if matches!(&item.snapshot, LinkSnapshot::NotionDatabase(db) if db.title == "Tickets")
+        ));
+        assert_eq!(results[1], ItemResult::NoAccess);
+    }
+
+    #[tokio::test]
+    async fn fetching_stops_at_the_first_problem() {
+        let server = FakeServer::serve(vec![unauthorized()]);
+        let notion = Notion::with_endpoint(&server.url).unwrap();
+        let secrets = FakeSecrets::with("w1", "ntn_expired");
+        assert_eq!(
+            notion
+                .fetch_items(
+                    &secrets,
+                    "w1",
+                    &[NotionRef {
+                        id: "00000000000000000000000000000002".into()
+                    }]
+                )
+                .await,
+            Err(IntegrationProblem::TokenRefused)
         );
     }
 

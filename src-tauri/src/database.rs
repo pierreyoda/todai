@@ -34,6 +34,8 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/005_notes.sql"),
         include_str!("../migrations/006_todo_links.sql"),
         include_str!("../migrations/007_todo_link_statuses.sql"),
+        include_str!("../migrations/008_todo_links_notion.sql"),
+        include_str!("../migrations/009_todo_stage.sql"),
     ],
 };
 
@@ -778,6 +780,42 @@ mod tests {
         assert!(set_error("no_access").is_ok());
         assert!(set_error("sso_required").is_ok());
         assert!(set_error("offline").is_err());
+    }
+
+    #[test]
+    fn open_existing_puts_the_todos_of_a_workspace_database_to_do_on_the_board() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite3");
+        {
+            // As left by the last version without the board.
+            let conn = Connection::open(&path).unwrap();
+            for migration in &WORKSPACE.migrations[..8] {
+                conn.execute_batch(migration).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 8).unwrap();
+            conn.pragma_update(None, "application_id", WORKSPACE.application_id)
+                .unwrap();
+            conn.execute(
+                "INSERT INTO todos (id, day, title, position, created_at, updated_at)
+                 VALUES ('t', '2026-10-17', 'Planned', 'a0', 0, 0)",
+                [],
+            )
+            .unwrap();
+        }
+
+        let conn = open_existing(&path, &WORKSPACE).unwrap();
+        assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
+        let stage: Option<String> = conn
+            .query_row("SELECT stage FROM todos WHERE id = 't'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(stage, None);
+        let set_stage = |stage: &str| {
+            conn.execute("UPDATE todos SET stage = ?1 WHERE id = 't'", [stage])
+        };
+        assert!(set_stage("urgent").is_ok());
+        assert!(set_stage("doing").is_ok());
+        // "Done" is `completed`.
+        assert!(set_stage("done").is_err());
     }
 
     #[test]

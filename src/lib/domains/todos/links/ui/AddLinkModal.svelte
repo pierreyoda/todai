@@ -14,7 +14,13 @@ import type { Todo } from "../../model/types";
 import { createAddTodoLinksMutation } from "../api/mutations";
 import { linkPreviewQueryOptions, parseLinkQueryOptions } from "../api/queries";
 import { closingPullRequest, itemState } from "../model/github";
-import { hasLink, linkKindName, linkProvider } from "../model/links";
+import {
+  hasLink,
+  linkItemName,
+  linkKindName,
+  linkProvider,
+} from "../model/links";
+import { formatDue } from "../model/notion";
 import { describeProblem, linkStatusWords } from "../model/statuses";
 import LinkChip from "./LinkChip.svelte";
 import LinkKindIcon from "./LinkKindIcon.svelte";
@@ -88,6 +94,14 @@ const githubLogin = $derived(activeWorkspace.data?.githubLogin);
 /** Where its provider says it is, e.g. a pull request pasted as an issue. */
 const link = $derived(preview?.link ?? recognized);
 const snapshot = $derived(preview?.snapshot);
+const githubSnapshot = $derived(
+  snapshot?.type === "pull_request" || snapshot?.type === "issue"
+    ? snapshot
+    : undefined,
+);
+const notionPage = $derived(
+  snapshot?.type === "notion_page" ? snapshot : undefined,
+);
 const words = $derived(preview ? linkStatusWords(preview) : []);
 const problem = $derived(
   provider && preview?.problem && describeProblem(provider, preview.problem),
@@ -98,7 +112,7 @@ const alreadyLinked = $derived(
     (hasLink(todo.links, recognized.url) ||
       (!!link && hasLink(todo.links, link.url))),
 );
-const closing = $derived(closingPullRequest(snapshot, todo.links));
+const closing = $derived(closingPullRequest(githubSnapshot, todo.links));
 const urls = $derived.by(() => {
   const added = link?.url ?? url.trim();
   return closing && alsoAddClosing ? [added, closing.url] : [added];
@@ -123,7 +137,7 @@ const onsubmit = (event: SubmitEvent) => {
     <p class="target">To “{todo.title}”</p>
     <FieldText
       label="URL"
-      placeholder="A GitHub pull request or issue, or any link"
+      placeholder="A GitHub pull request or issue, a Notion page, or any link"
       autocomplete="off"
       spellcheck={false}
       aria-invalid={!!invalid}
@@ -135,10 +149,22 @@ const onsubmit = (event: SubmitEvent) => {
         <span class="kind-icon"><IconExclamationTriangle /></span>
         <div class="details">
           <p class="kind">
-            {linkKindName(link.kind)} · {link.github?.owner}/{link.github?.repo}
-            <span class="number">#{link.github?.number}</span>
+            {linkKindName(link.kind)}
+            {#if link.github}
+              · {link.github.owner}/{link.github.repo}
+              <span class="number">#{link.github.number}</span>
+            {/if}
           </p>
-          {#if preview.fetchError === "sso_required"}
+          {#if link.notion}
+            <p class="name">This workspace's Notion token can't see it</p>
+            <p class="note">
+              {activeWorkspace.data?.name}'s token is {activeWorkspace.data
+                ?.notion?.name ?? "its Notion user"}'s, who can't see this page:
+              it may be someone else's private page, or in another Notion
+              workspace. You can still add it here: it shows as “{link.label}”,
+              without a status.
+            </p>
+          {:else if preview.fetchError === "sso_required"}
             <p class="name">Its organization requires single sign-on</p>
             <p class="note">
               Authorize the GitHub CLI's token for {link.github?.owner} on github.com
@@ -170,18 +196,27 @@ const onsubmit = (event: SubmitEvent) => {
     {:else if link}
       <div class="recognized" role="status">
         <span class="kind-icon">
-          <LinkKindIcon kind={link.kind} state={snapshot && itemState(snapshot)} />
+          <LinkKindIcon
+            kind={link.kind}
+            state={githubSnapshot && itemState(githubSnapshot)}
+            variant={snapshot?.type === "notion_database" ? "database" : undefined}
+          />
         </span>
         <div class="details">
           <p class="kind">
-            {linkKindName(link.kind)}
+            {linkItemName({ kind: link.kind, snapshot })}
             {#if link.github}
               · {link.github.owner}/{link.github.repo}
               <span class="number">#{link.github.number}</span>
+            {:else if notionPage?.database?.title}
+              · {notionPage.database.title}
+              {#if notionPage.uniqueId}
+                · <span class="number">{link.label}</span>
+              {/if}
             {/if}
           </p>
           {#if snapshot}
-            <p class="name">{snapshot.title}</p>
+            <p class="name">{snapshot.title || link.label}</p>
             <p class="facts">
               <!-- On one line: whitespace would show between the words -->
               {#each words as word, i (word.word)}{#if i > 0}{" · "}{/if}<LinkStatusWord status={word} look="word" />{/each}
@@ -192,9 +227,16 @@ const onsubmit = (event: SubmitEvent) => {
                 {#if snapshot.milestone}
                   · milestone {snapshot.milestone}
                 {/if}
+              {:else if notionPage}
+                {#if notionPage.assignees.length > 0}
+                  · {notionPage.assignees.join(", ")}
+                {/if}
+                {#if notionPage.due}
+                  · due {formatDue(notionPage.due)}
+                {/if}
               {/if}
             </p>
-          {:else if !link.github}
+          {:else if !provider}
             <p class="name url" title={link.url}>{link.url}</p>
           {/if}
           {#if alreadyLinked}
@@ -203,8 +245,9 @@ const onsubmit = (event: SubmitEvent) => {
             <p class="note">Looking it up {info?.where}…</p>
           {:else if !snapshot}
             <p class="note">
-              {#if !link.github}
-                Not a GitHub pull request or issue: shown by its domain,
+              {#if !provider}
+                Not a pull request, an issue or a Notion page: shown by its
+                domain,
               {:else}
                 Shown on the todo as
               {/if}

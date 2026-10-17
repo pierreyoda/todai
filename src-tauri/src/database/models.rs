@@ -98,7 +98,7 @@ pub struct DbTodoLink {
     /// UUIDv7.
     pub id: String,
     pub todo_id: String,
-    /// `github_pull`, `github_issue` or `url`.
+    /// `github_pull`, `github_issue`, `notion` or `url`.
     pub kind: String,
     /// Normalized.
     pub url: String,
@@ -106,6 +106,8 @@ pub struct DbTodoLink {
     pub github_owner: Option<String>,
     pub github_repo: Option<String>,
     pub github_number: Option<u32>,
+    /// The page's or database's ID: set exactly for the Notion kind.
+    pub notion_id: Option<String>,
     pub created_at: DbTimestamp,
     /// What GitHub last told about the GitHub kinds' pull request or issue, as JSON: see `github::snapshot`.
     pub snapshot: Option<String>,
@@ -125,6 +127,7 @@ impl DbTodoLink {
             github_owner: row.get("github_owner")?,
             github_repo: row.get("github_repo")?,
             github_number: row.get("github_number")?,
+            notion_id: row.get("notion_id")?,
             created_at: row.get("created_at")?,
             snapshot: row.get("snapshot")?,
             fetched_at: row.get("fetched_at")?,

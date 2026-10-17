@@ -22,6 +22,7 @@ pub fn recognize(url: &Url) -> Option<ParsedLink> {
         url: self::url(kind, &github),
         label: label(&github),
         github: Some(github),
+        notion: None,
     })
 }
 
@@ -121,6 +122,7 @@ mod tests {
                     url: "https://github.com/pierreyoda/todai/pull/58".into(),
                     label: "todai#58".into(),
                     github: github("pierreyoda", "todai", 58),
+                    notion: None,
                 },
                 "{input:?}"
             );
@@ -136,6 +138,7 @@ mod tests {
                 url: "https://github.com/some-org/my_repo.rs/issues/12".into(),
                 label: "my_repo.rs#12".into(),
                 github: github("some-org", "my_repo.rs", 12),
+                notion: None,
             }
         );
     }

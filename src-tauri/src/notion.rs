@@ -2,5 +2,6 @@
 //! kept in the Keychain.
 
 pub mod client;
+pub mod snapshot;
 
 pub use client::{Notion, KEYCHAIN_SERVICE};

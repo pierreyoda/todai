@@ -6,14 +6,15 @@ import {
 import { formatTime } from "#shared/utils/timestamps.ts";
 import type { Todo } from "../../model/types";
 import { githubDone, githubStatus, githubStatusWords } from "./github";
-import type { TodoLink } from "./types";
+import { notionStatus, notionStatusWords } from "./notion";
+import type { LinkSnapshot, NotionColor, TodoLink } from "./types";
 
 /**
  * How a link's status reads, which colors it and picks its glyph:
  * - `open`: an open pull request or issue, with nothing more to tell;
  * - `good`, `bad`, `pending`: an open pull request's checks or review;
  * - `merged`: a merged pull request, or a completed issue;
- * - `neutral`: closed otherwise, or a draft;
+ * - `neutral`: closed otherwise, or a draft; or a Notion status, shown in its own color;
  * - `warn`: its provider can't tell about it.
  */
 export type LinkTone =
@@ -25,11 +26,24 @@ export type LinkTone =
   | "neutral"
   | "warn";
 
+/** The glyph shown before a status word on a chip, when its tone doesn't pick it. */
+export type LinkGlyph = "check" | "dot" | "ring";
+
 /** The one word shown after a link's label, e.g. "Checks failing". */
 export interface LinkStatus {
   word: string;
   tone: LinkTone;
+  /** Colored so rather than by its tone: a Notion status, in its Notion color. */
+  color?: NotionColor;
+  /** Shown before it rather than its tone's glyph: a Notion status, by its group. */
+  glyph?: LinkGlyph;
 }
+
+/** Whether `snapshot` is a GitHub pull request's or issue's. */
+const isGitHub = (
+  snapshot: LinkSnapshot,
+): snapshot is Extract<LinkSnapshot, { type: "pull_request" | "issue" }> =>
+  snapshot.type === "pull_request" || snapshot.type === "issue";
 
 /**
  * The one status word of a link, as its provider picks it by priority (e.g. "Checks failing" before "Approved" for a
@@ -45,7 +59,7 @@ export const linkStatus = ({
   if (fetchError === "sso_required")
     return { word: "SSO required", tone: "warn" };
   if (!snapshot) return null;
-  return githubStatus(snapshot);
+  return isGitHub(snapshot) ? githubStatus(snapshot) : notionStatus(snapshot);
 };
 
 /**
@@ -54,8 +68,12 @@ export const linkStatus = ({
  */
 export const linkStatusWords = (
   link: Pick<TodoLink, "snapshot" | "fetchError">,
-): LinkStatus[] =>
-  link.snapshot ? githubStatusWords(link.snapshot, linkStatus(link)) : [];
+): LinkStatus[] => {
+  if (!link.snapshot) return [];
+  return isGitHub(link.snapshot)
+    ? githubStatusWords(link.snapshot, linkStatus(link))
+    : notionStatusWords(link.snapshot);
+};
 
 /** Why a todo could be marked as done. */
 export interface DoneSuggestion {
@@ -77,7 +95,11 @@ export const doneSuggestion = ({
 }: Pick<Todo, "completed" | "links">): DoneSuggestion | undefined => {
   if (completed) return undefined;
   for (const link of links) {
-    const done = link.snapshot && githubDone(link.snapshot, link.label);
+    // Notion pages: in M4
+    const done =
+      link.snapshot && isGitHub(link.snapshot)
+        ? githubDone(link.snapshot, link.label)
+        : undefined;
     if (done) return { link, ...done };
   }
   return undefined;

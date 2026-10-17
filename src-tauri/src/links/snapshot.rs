@@ -4,7 +4,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::ParsedLink;
-use crate::github::snapshot::{IssueSnapshot, PullRequestSnapshot};
+use crate::{
+    github::snapshot::{IssueSnapshot, PullRequestSnapshot},
+    notion::snapshot::{NotionDatabaseSnapshot, NotionPageSnapshot},
+};
 
 /// The stored snapshots' format: one in another format is ignored, as if never fetched, until fetched again.
 const VERSION: u32 = 1;
@@ -17,6 +20,8 @@ pub enum LinkSnapshot {
     PullRequest(PullRequestSnapshot),
     /// On GitHub.
     Issue(IssueSnapshot),
+    NotionPage(NotionPageSnapshot),
+    NotionDatabase(NotionDatabaseSnapshot),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,6 +52,9 @@ impl LinkSnapshot {
         match self {
             Self::PullRequest(pull) => pull.is_settled(),
             Self::Issue(issue) => issue.is_settled(),
+            Self::NotionPage(page) => page.is_settled(),
+            // A database's title rarely changes
+            Self::NotionDatabase(_) => true,
         }
     }
 }

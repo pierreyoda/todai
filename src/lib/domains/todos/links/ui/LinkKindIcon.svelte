@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { ClassValue } from "svelte/elements";
+import IconDocument from "#shared/ui/icons/IconDocument.svelte";
 import IconIssue from "#shared/ui/icons/IconIssue.svelte";
 import IconIssueCompleted from "#shared/ui/icons/IconIssueCompleted.svelte";
 import IconIssueNotPlanned from "#shared/ui/icons/IconIssueNotPlanned.svelte";
@@ -8,15 +9,18 @@ import IconPullRequest from "#shared/ui/icons/IconPullRequest.svelte";
 import IconPullRequestClosed from "#shared/ui/icons/IconPullRequestClosed.svelte";
 import IconPullRequestDraft from "#shared/ui/icons/IconPullRequestDraft.svelte";
 import IconPullRequestMerged from "#shared/ui/icons/IconPullRequestMerged.svelte";
+import IconTableCells from "#shared/ui/icons/IconTableCells.svelte";
 import type { ItemState, TodoLinkKind } from "../model/types";
 
 type LinkKindIconProps = {
   kind: TodoLinkKind;
   /** Where its pull request or issue stands, once known: picks the icon's variant, and colors it as GitHub does. */
   state?: ItemState;
+  /** A Notion link's, once known: a whole database rather than a page. */
+  variant?: "database";
   class?: ClassValue;
 };
-const { kind, state, class: extraClass }: LinkKindIconProps = $props();
+const { kind, state, variant, class: extraClass }: LinkKindIconProps = $props();
 
 const STATE_COLORS: Record<ItemState, string> = {
   open: "text-green-400",
@@ -47,6 +51,12 @@ const iconClass = $derived([extraClass, state && STATE_COLORS[state]]);
     <IconIssueNotPlanned class={iconClass} />
   {:else}
     <IconIssue class={iconClass} />
+  {/if}
+{:else if kind === "notion"}
+  {#if variant === "database"}
+    <IconTableCells class={extraClass} />
+  {:else}
+    <IconDocument class={extraClass} />
   {/if}
 {:else}
   <IconLink class={extraClass} />

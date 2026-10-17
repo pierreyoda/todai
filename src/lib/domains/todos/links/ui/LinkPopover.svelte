@@ -31,6 +31,8 @@ type LinkPopoverProps = {
   anchor: HTMLElement | undefined;
   /** Where its item stands, once known: picks and colors its icon. */
   iconState?: ItemState;
+  /** A Notion link's, once known: a whole database rather than a page. */
+  iconVariant?: "database";
   /** Where its item is, next to its icon: e.g. its repository. */
   where: Snippet;
   /** After its status words, e.g. a pull request's branches. */
@@ -47,6 +49,7 @@ let {
   provider,
   anchor,
   iconState,
+  iconVariant,
   where,
   extras,
   fetchErrorNotice,
@@ -135,7 +138,7 @@ let hadFocus = false;
 >
   <header class="header">
     <div class="context">
-      <LinkKindIcon kind={link.kind} state={iconState} />
+      <LinkKindIcon kind={link.kind} state={iconState} variant={iconVariant} />
       <span class="where">
         {@render where()}
       </span>
@@ -153,7 +156,7 @@ let hadFocus = false;
         />
       </Button>
     </div>
-    <h2 id={titleId} class="title">{link.snapshot?.title ?? link.label}</h2>
+    <h2 id={titleId} class="title">{link.snapshot?.title || link.label}</h2>
     {#if words.length > 0}
       <div class="pills">
         {#each words as word (word.word)}

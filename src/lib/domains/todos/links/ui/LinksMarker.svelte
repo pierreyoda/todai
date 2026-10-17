@@ -74,8 +74,12 @@ const popover = new HoverPopover();
         <li class="flex">
           <LinkChip
             {link}
-            state={connected(link) && link.snapshot
+            state={connected(link) &&
+            (link.snapshot?.type === "pull_request" || link.snapshot?.type === "issue")
               ? itemState(link.snapshot)
+              : undefined}
+            iconVariant={connected(link) && link.snapshot?.type === "notion_database"
+              ? "database"
               : undefined}
             status={connected(link) ? linkStatus(link) : null}
           />

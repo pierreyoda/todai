@@ -16,26 +16,46 @@ const { status, look }: LinkStatusWordProps = $props();
 
 /** Its class, by look: the one each kept when they were styled where shown. */
 const LOOK_CLASSES = { chip: "status", pill: "pill", word: "word" } as const;
+
+/** The glyph shown on a chip: the status' own, else its tone's. */
+const glyphOf = (): "check" | "cross" | "ring" | "dot" | "warn" | undefined => {
+  if (status.glyph) return status.glyph;
+  switch (status.tone) {
+    case "good":
+      return "check";
+    case "bad":
+      return "cross";
+    case "pending":
+      return "ring";
+    case "warn":
+      return "warn";
+    default:
+      return undefined;
+  }
+};
+const glyph = $derived(glyphOf());
 </script>
 
-{#snippet glyph()}
-  {#if status.tone === "good"}
+{#snippet glyphMark()}
+  {#if glyph === "check"}
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
     </svg>
-  {:else if status.tone === "bad"}
+  {:else if glyph === "cross"}
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
       <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
     </svg>
-  {:else if status.tone === "pending"}
+  {:else if glyph === "ring"}
     <span class="ring" aria-hidden="true"></span>
-  {:else if status.tone === "warn"}
+  {:else if glyph === "dot"}
+    <span class="dot" aria-hidden="true"></span>
+  {:else if glyph === "warn"}
     <IconExclamationTriangle />
   {/if}
 {/snippet}
 
 <!-- No whitespace around the word: within a sentence, it would show -->
-<span class={[LOOK_CLASSES[look], status.tone]}>{#if look === "chip"}{@render glyph()}{/if}{status.word}</span>
+<span class={[LOOK_CLASSES[look], status.tone, status.color && `c-${status.color}`]}>{#if look === "chip"}{@render glyphMark()}{/if}{status.word}</span>
 
 <style lang="postcss">
   @reference "tailwindcss";
@@ -50,6 +70,10 @@ const LOOK_CLASSES = { chip: "status", pill: "pill", word: "word" } as const;
 
   .ring {
     @apply size-1.5 rounded-full border-[1.5px] border-current;
+  }
+
+  .dot {
+    @apply size-1.5 rounded-full bg-current;
   }
 
   .pill {
@@ -92,6 +116,71 @@ const LOOK_CLASSES = { chip: "status", pill: "pill", word: "word" } as const;
     }
     &.merged {
       @apply bg-purple-500/15 text-purple-300 ring-purple-500/35;
+    }
+  }
+
+  /* Notion's colors: over the tone's */
+  .status,
+  .word {
+    &.c-default {
+      @apply text-slate-300;
+    }
+    &.c-gray {
+      @apply text-zinc-400;
+    }
+    &.c-brown {
+      @apply text-[#d4a27f];
+    }
+    &.c-orange {
+      @apply text-orange-300;
+    }
+    &.c-yellow {
+      @apply text-yellow-300;
+    }
+    &.c-green {
+      @apply text-green-300;
+    }
+    &.c-blue {
+      @apply text-sky-300;
+    }
+    &.c-purple {
+      @apply text-purple-300;
+    }
+    &.c-pink {
+      @apply text-pink-300;
+    }
+    &.c-red {
+      @apply text-red-300;
+    }
+  }
+
+  .pill {
+    &.c-gray {
+      @apply bg-zinc-500/15 text-zinc-300 ring-zinc-500/35;
+    }
+    &.c-brown {
+      @apply bg-[#d4a27f]/15 text-[#d4a27f] ring-[#d4a27f]/35;
+    }
+    &.c-orange {
+      @apply bg-orange-500/15 text-orange-300 ring-orange-500/35;
+    }
+    &.c-yellow {
+      @apply bg-yellow-500/15 text-yellow-300 ring-yellow-500/35;
+    }
+    &.c-green {
+      @apply bg-green-500/15 text-green-300 ring-green-500/35;
+    }
+    &.c-blue {
+      @apply bg-sky-500/15 text-sky-300 ring-sky-500/35;
+    }
+    &.c-purple {
+      @apply bg-purple-500/15 text-purple-300 ring-purple-500/35;
+    }
+    &.c-pink {
+      @apply bg-pink-500/15 text-pink-300 ring-pink-500/35;
+    }
+    &.c-red {
+      @apply bg-red-500/15 text-red-300 ring-red-500/35;
     }
   }
 </style>

@@ -5,10 +5,13 @@ use url::Url;
 use crate::{
     database::models::DbTodoLink,
     errors::TodaiError,
-    links::{self, domain_label, snapshot::LinkSnapshot, FetchError, GitHubRef, LinkKind, LinkRef},
+    links::{
+        self, domain_label, snapshot::LinkSnapshot, FetchError, GitHubRef, LinkKind, LinkRef,
+        NotionRef,
+    },
 };
 
-/// A link on a todo: a GitHub pull request or issue, or any other web page.
+/// A link on a todo: a GitHub pull request or issue, a Notion page, or any other web page.
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TodoLink {
@@ -22,6 +25,9 @@ pub struct TodoLink {
     /// Set exactly for the GitHub kinds.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
+    /// Set exactly for the Notion kind.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notion: Option<NotionRef>,
     pub created_at: Timestamp,
     /// What its provider last told about its item, if fetched since it was added.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,7 +43,7 @@ pub struct TodoLink {
 impl TodoLink {
     /// The item it points to, if it's fetched from a provider.
     pub fn item(&self) -> Option<LinkRef> {
-        self.github.clone().map(LinkRef::GitHub)
+        links::item_of(self.github.as_ref(), self.notion.as_ref())
     }
 }
 
@@ -47,13 +53,14 @@ impl TryFrom<DbTodoLink> for TodoLink {
     fn try_from(link: DbTodoLink) -> std::result::Result<Self, Self::Error> {
         let kind = LinkKind::try_from(link.kind.as_str())?;
         // The columns are either all set, for the GitHub kinds, or all `NULL`.
+        let is_github = matches!(kind, LinkKind::GithubPull | LinkKind::GithubIssue);
         let github = match (link.github_owner, link.github_repo, link.github_number) {
-            (Some(owner), Some(repo), Some(number)) if kind != LinkKind::Url => Some(GitHubRef {
+            (Some(owner), Some(repo), Some(number)) if is_github => Some(GitHubRef {
                 owner,
                 repo,
                 number,
             }),
-            (None, None, None) if kind == LinkKind::Url => None,
+            (None, None, None) if !is_github => None,
             _ => {
                 return Err(TodaiError::InvalidLink(format!(
                     "unexpected GitHub columns for the {} link {}",
@@ -61,16 +68,36 @@ impl TryFrom<DbTodoLink> for TodoLink {
                 )))
             }
         };
-        let label = match &github {
-            Some(github) => links::github::label(github),
+        let notion = match (kind, link.notion_id) {
+            (LinkKind::Notion, Some(id)) => Some(NotionRef { id }),
+            (LinkKind::Notion, None) | (_, Some(_)) => {
+                return Err(TodaiError::InvalidLink(format!(
+                    "unexpected Notion column for the {} link {}",
+                    link.kind, link.id
+                )))
+            }
+            (_, None) => None,
+        };
+        // Ignored if stored in another format: as if never fetched, until fetched again.
+        let snapshot = link.snapshot.as_deref().and_then(LinkSnapshot::from_db);
+        let label = match (&github, &notion, &snapshot) {
+            (Some(github), _, _) => links::github::label(github),
+            // Its unique ID or title once fetched, else what its URL's slug tells
+            (None, Some(_), Some(LinkSnapshot::NotionPage(page))) => page
+                .label()
+                .unwrap_or_else(|| links::notion::label_from_url(&link.url)),
+            (None, Some(_), Some(LinkSnapshot::NotionDatabase(database)))
+                if !database.title.is_empty() =>
+            {
+                database.title.clone()
+            }
+            (None, Some(_), _) => links::notion::label_from_url(&link.url),
             // Normalized when added: always parses, but falls back to the URL itself rather than failing the list.
-            None => Url::parse(&link.url)
+            (None, None, _) => Url::parse(&link.url)
                 .ok()
                 .and_then(|url| url.host_str().map(domain_label))
                 .unwrap_or_else(|| link.url.clone()),
         };
-        // Ignored if stored in another format: as if never fetched, until fetched again.
-        let snapshot = link.snapshot.as_deref().and_then(LinkSnapshot::from_db);
         Ok(Self {
             id: link.id,
             todo_id: link.todo_id,
@@ -78,6 +105,7 @@ impl TryFrom<DbTodoLink> for TodoLink {
             url: link.url,
             label,
             github,
+            notion,
             created_at: Timestamp::from_second(link.created_at)?,
             fetched_at: link
                 .fetched_at

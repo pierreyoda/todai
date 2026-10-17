@@ -1,12 +1,13 @@
 //! The links on todos: what their URL points to, and what's known of the item there.
 
 pub mod github;
+pub mod notion;
 pub mod snapshot;
 
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-pub use self::github::GitHubRef;
+pub use self::{github::GitHubRef, notion::NotionRef};
 use crate::{
     errors::{Result, TodaiError},
     integrations::Provider,
@@ -23,6 +24,8 @@ pub enum LinkKind {
     GithubPull,
     /// An issue on github.com.
     GithubIssue,
+    /// A page, or a database, in Notion.
+    Notion,
     /// Any other web page.
     Url,
 }
@@ -30,6 +33,7 @@ pub enum LinkKind {
 impl LinkKind {
     const DB_GITHUB_PULL: &str = "github_pull";
     const DB_GITHUB_ISSUE: &str = "github_issue";
+    const DB_NOTION: &str = "notion";
     const DB_URL: &str = "url";
 
     /// The `kind` column.
@@ -37,6 +41,7 @@ impl LinkKind {
         match self {
             Self::GithubPull => Self::DB_GITHUB_PULL,
             Self::GithubIssue => Self::DB_GITHUB_ISSUE,
+            Self::Notion => Self::DB_NOTION,
             Self::Url => Self::DB_URL,
         }
     }
@@ -45,6 +50,7 @@ impl LinkKind {
     pub fn provider(self) -> Option<Provider> {
         match self {
             Self::GithubPull | Self::GithubIssue => Some(Provider::GitHub),
+            Self::Notion => Some(Provider::Notion),
             Self::Url => None,
         }
     }
@@ -58,6 +64,7 @@ impl TryFrom<&str> for LinkKind {
         match kind {
             Self::DB_GITHUB_PULL => Ok(Self::GithubPull),
             Self::DB_GITHUB_ISSUE => Ok(Self::GithubIssue),
+            Self::DB_NOTION => Ok(Self::Notion),
             Self::DB_URL => Ok(Self::Url),
             _ => Err(TodaiError::InvalidLink(format!("unknown kind {kind:?}"))),
         }
@@ -115,12 +122,24 @@ pub struct ParsedLink {
     /// Set exactly for the GitHub kinds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<GitHubRef>,
+    /// Set exactly for the Notion kind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notion: Option<NotionRef>,
 }
 
 impl ParsedLink {
     /// The item it points to, if it's fetched from a provider.
     pub fn item(&self) -> Option<LinkRef> {
-        self.github.clone().map(LinkRef::GitHub)
+        item_of(self.github.as_ref(), self.notion.as_ref())
+    }
+}
+
+/// The item of a link with these references, if any.
+pub fn item_of(github: Option<&GitHubRef>, notion: Option<&NotionRef>) -> Option<LinkRef> {
+    match (github, notion) {
+        (Some(github), _) => Some(LinkRef::GitHub(github.clone())),
+        (None, Some(notion)) => Some(LinkRef::Notion(notion.clone())),
+        (None, None) => None,
     }
 }
 
@@ -128,12 +147,14 @@ impl ParsedLink {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LinkRef {
     GitHub(GitHubRef),
+    Notion(NotionRef),
 }
 
 impl LinkRef {
     pub fn provider(&self) -> Provider {
         match self {
             Self::GitHub(_) => Provider::GitHub,
+            Self::Notion(_) => Provider::Notion,
         }
     }
 
@@ -141,6 +162,15 @@ impl LinkRef {
     pub fn github(&self) -> Option<&GitHubRef> {
         match self {
             Self::GitHub(github) => Some(github),
+            Self::Notion(_) => None,
+        }
+    }
+
+    /// The page or database, for Notion's.
+    pub fn notion(&self) -> Option<&NotionRef> {
+        match self {
+            Self::Notion(notion) => Some(notion),
+            Self::GitHub(_) => None,
         }
     }
 }
@@ -179,7 +209,7 @@ pub fn parse(input: &str) -> Result<ParsedLink> {
         .filter(|host| !host.is_empty())
         .ok_or_else(|| invalid("it has no domain"))?;
 
-    if let Some(link) = github::recognize(&url) {
+    if let Some(link) = github::recognize(&url).or_else(|| notion::recognize(&url)) {
         return Ok(link);
     }
     Ok(ParsedLink {
@@ -187,6 +217,7 @@ pub fn parse(input: &str) -> Result<ParsedLink> {
         label: domain_label(host),
         url: url.into(),
         github: None,
+        notion: None,
     })
 }
 
@@ -215,6 +246,7 @@ mod tests {
                 url: "https://www.docs.rs/keyring/latest/keyring/?search=entry#top".into(),
                 label: "docs.rs".into(),
                 github: None,
+                notion: None,
             }
         );
         assert_eq!(
@@ -250,7 +282,12 @@ mod tests {
 
     #[test]
     fn link_kind_round_trips_through_the_kind_column() {
-        for kind in [LinkKind::GithubPull, LinkKind::GithubIssue, LinkKind::Url] {
+        for kind in [
+            LinkKind::GithubPull,
+            LinkKind::GithubIssue,
+            LinkKind::Notion,
+            LinkKind::Url,
+        ] {
             assert_eq!(LinkKind::try_from(kind.to_db()).unwrap(), kind);
             assert_eq!(
                 serde_json::to_value(kind).unwrap(),

@@ -62,6 +62,11 @@ const preview = $derived(
 );
 const link = $derived(preview?.link ?? recognized);
 const snapshot = $derived(preview?.snapshot);
+const githubSnapshot = $derived(
+  snapshot?.type === "pull_request" || snapshot?.type === "issue"
+    ? snapshot
+    : undefined,
+);
 const words = $derived(preview ? linkStatusWords(preview) : []);
 const lookingUp = $derived(connected && !!recognized && previewed.isPending);
 
@@ -197,7 +202,8 @@ const onkeydown = (event: KeyboardEvent) => {
         <span class="option-icon">
           <LinkKindIcon
             kind={link.kind}
-            state={snapshot && itemState(snapshot)}
+            state={githubSnapshot && itemState(githubSnapshot)}
+            variant={snapshot?.type === "notion_database" ? "database" : undefined}
           />
         </span>
         <div class="option-text">
