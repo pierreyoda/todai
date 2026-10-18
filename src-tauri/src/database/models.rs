@@ -26,6 +26,10 @@ pub struct DbTodo {
     pub updated_at: DbTimestamp,
     pub completed_at: Option<DbTimestamp>,
     pub deleted_at: Option<DbTimestamp>,
+    /// 0 or 1.
+    pub urgent: i8,
+    /// When it was put in the board's "Doing" column; kept once completed.
+    pub started_at: Option<DbTimestamp>,
 }
 
 impl DbTodo {
@@ -43,6 +47,8 @@ impl DbTodo {
             updated_at: row.get("updated_at")?,
             completed_at: row.get("completed_at")?,
             deleted_at: row.get("deleted_at")?,
+            urgent: row.get("urgent")?,
+            started_at: row.get("started_at")?,
         })
     }
 }

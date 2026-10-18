@@ -235,9 +235,13 @@ pub struct UpdateTodoParams {
     pub day: Option<Day>,
     /// Sets or clears `completed_at`, as in `toggle_todo`, only if it changes.
     pub completed: Option<bool>,
+    pub urgent: Option<bool>,
+    /// Starts it (puts it in the board's "Doing" column), keeping when it was first started if it already is; or clears
+    /// when it was started.
+    pub started: Option<bool>,
 }
 
-/// Updates a non-deleted todo's `title`, `day` and/or `completed`.
+/// Updates a non-deleted todo's `title`, `day`, `completed`, `urgent` and/or `started`.
 #[tauri::command]
 pub async fn update_todo(state: State<'_, AppState>, params: UpdateTodoParams) -> Result<()> {
     let db = state.db()?;
@@ -250,6 +254,8 @@ fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Resul
         title,
         day,
         completed,
+        urgent,
+        started,
     } = params;
     let title = title.as_deref().map(str::trim);
     if title.is_some_and(str::is_empty) {
@@ -286,6 +292,11 @@ fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Resul
                          WHEN :completed IS NULL OR :completed = completed THEN completed_at
                          WHEN :completed THEN :now
                      END,
+                     urgent = COALESCE(:urgent, urgent),
+                     started_at = CASE
+                         WHEN :started IS NULL THEN started_at
+                         WHEN :started THEN COALESCE(started_at, :now)
+                     END,
                      updated_at = :now
                  WHERE id = :id AND deleted_at IS NULL",
         )?
@@ -295,6 +306,8 @@ fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Resul
             ":day": day.map(DbDay::from),
             ":position": position.map(|position| position.to_string()),
             ":completed": completed,
+            ":urgent": urgent,
+            ":started": started,
             ":now": now,
         })?;
     if updated == 0 {
@@ -321,6 +334,8 @@ fn move_todo_rows(db: &mut Connection, ids: Vec<String>, day: &Day, now: i64) ->
             title: None,
             day: Some(day.clone()),
             completed: None,
+            urgent: None,
+            started: None,
         };
         update_todo_row(&tx, params, now)?;
     }
@@ -629,6 +644,8 @@ mod tests {
             title: None,
             day: None,
             completed: None,
+            urgent: None,
+            started: None,
         }
     }
 
@@ -644,6 +661,14 @@ mod tests {
         assert_eq!(params.title, None);
         assert_eq!(params.day, Some(day("2026-10-04")));
         assert_eq!(params.completed, Some(true));
+        assert_eq!((params.urgent, params.started), (None, None));
+        let flagged: UpdateTodoParams = serde_json::from_value(serde_json::json!({
+            "id": "a",
+            "urgent": true,
+            "started": false,
+        }))
+        .unwrap();
+        assert_eq!((flagged.urgent, flagged.started), (Some(true), Some(false)));
         assert!(serde_json::from_value::<UpdateTodoParams>(
             serde_json::json!({ "id": "a", "day": "20261004" })
         )
@@ -773,6 +798,82 @@ mod tests {
         .unwrap();
         let todo = todo_row(&db, &id);
         assert_eq!((todo.completed, todo.completed_at), (1, Some(NOW)));
+    }
+
+    #[test]
+    fn update_todo_sets_and_clears_urgent() {
+        let db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        assert_eq!(todo_row(&db, &id).urgent, 0);
+        let set_urgent = |urgent| {
+            update_todo_row(
+                &db,
+                UpdateTodoParams {
+                    urgent: Some(urgent),
+                    ..params(&id)
+                },
+                NOW,
+            )
+            .unwrap();
+            todo_row(&db, &id).urgent
+        };
+        assert_eq!(set_urgent(true), 1);
+        assert_eq!(set_urgent(true), 1);
+        assert_eq!(set_urgent(false), 0);
+    }
+
+    #[test]
+    fn update_todo_sets_started_at_only_when_started() {
+        let db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        let start = |started, now| {
+            update_todo_row(
+                &db,
+                UpdateTodoParams {
+                    started: Some(started),
+                    ..params(&id)
+                },
+                now,
+            )
+            .unwrap();
+            todo_row(&db, &id).started_at
+        };
+        assert_eq!(start(true, NOW), Some(NOW));
+        // Already started: keeps the original start time
+        assert_eq!(start(true, NOW + 60), Some(NOW));
+        assert_eq!(start(false, NOW + 120), None);
+        assert_eq!(start(false, NOW + 180), None);
+        assert_eq!(start(true, NOW + 240), Some(NOW + 240));
+    }
+
+    #[test]
+    fn update_todo_keeps_urgent_and_started_at_when_completed_or_moved() {
+        let mut db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Title");
+        let flagged = UpdateTodoParams {
+            urgent: Some(true),
+            started: Some(true),
+            ..params(&id)
+        };
+        update_todo_row(&db, flagged, NOW).unwrap();
+        // Completed then reopened: back where it was on the board
+        for completed in [true, false] {
+            let toggled = UpdateTodoParams {
+                completed: Some(completed),
+                ..params(&id)
+            };
+            update_todo_row(&db, toggled, NOW + 60).unwrap();
+        }
+        // Carried over to the next day, as unfinished todos are
+        move_todo_rows(&mut db, vec![id.clone()], &day("2026-10-05"), NOW + 120).unwrap();
+        let todo = todo_row(&db, &id);
+        assert_eq!((todo.urgent, todo.started_at), (1, Some(NOW)));
+        let listed = &day_todos(&db, "2026-10-05")[0];
+        assert!(listed.urgent);
+        assert_eq!(
+            listed.started_at,
+            Some(Timestamp::from_second(NOW).unwrap())
+        );
     }
 
     #[test]
