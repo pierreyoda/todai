@@ -5,7 +5,8 @@ import { computePosition, type Placement } from "./positioning";
 /** What receives focus when a menu opens. */
 export type MenuFocusTarget = "first" | "last" | "menu" | "none";
 
-const ITEM_SELECTOR = '[role="menuitem"]:not([aria-disabled="true"])';
+/** Plain items, and checkbox ones (`menuitemcheckbox`). */
+const ITEM_SELECTOR = '[role^="menuitem"]:not([aria-disabled="true"])';
 /** Delay before hovering an item opens its submenu, or closes a sibling's: gives the pointer time to travel diagonally. */
 const HOVER_DELAY_MS = 100;
 const TYPEAHEAD_RESET_MS = 500;

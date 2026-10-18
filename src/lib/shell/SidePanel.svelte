@@ -13,6 +13,7 @@ import {
 import Collapse from "#shared/ui/Collapse.svelte";
 import IconArchiveBox from "#shared/ui/icons/IconArchiveBox.svelte";
 import IconCalendar from "#shared/ui/icons/IconCalendar.svelte";
+import IconClipboardDocumentCheck from "#shared/ui/icons/IconClipboardDocumentCheck.svelte";
 import IconDocumentText from "#shared/ui/icons/IconDocumentText.svelte";
 import IconExclamationTriangle from "#shared/ui/icons/IconExclamationTriangle.svelte";
 import IconFolderOpen from "#shared/ui/icons/IconFolderOpen.svelte";
@@ -71,6 +72,17 @@ const todayHasNote = $derived(noteDrafts.hasNote(day, !!note.data));
             >
               {#snippet icon()}
                 <IconDocumentText />
+              {/snippet}
+            </SidePanelLink>
+          </li>
+          <li>
+            <SidePanelLink
+              label="Kanban"
+              routeId="/(workspace)/today/kanban"
+              nested
+            >
+              {#snippet icon()}
+                <IconClipboardDocumentCheck />
               {/snippet}
             </SidePanelLink>
           </li>

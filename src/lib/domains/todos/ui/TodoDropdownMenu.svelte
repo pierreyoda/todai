@@ -30,6 +30,7 @@ import {
   createMoveTodoMutation,
   createReorderTodoMutation,
   createSetTodoEstimateMutation,
+  createSetTodoUrgentMutation,
 } from "../api/mutations";
 import { todosQueryOptions } from "../api/queries";
 import { createRemoveTodoLinkMutation } from "../links/api/mutations";
@@ -82,7 +83,7 @@ const moveTargets = $derived(
 // Leaves the list it's moved from: tells where it went, with an undo
 const moveTodo = createMoveTodoMutation(() => item, { undoable: true });
 
-// The day's whole list, whatever the panel filters. Only while open, and never in the calendar, which hides priorities.
+// The day's whole list, whatever the panel filters. Only while open, and never in the calendar, which can't reorder it.
 const dayTodos = createQuery(() => ({
   ...todosQueryOptions(item.day),
   enabled: open && !inCalendar,
@@ -90,6 +91,7 @@ const dayTodos = createQuery(() => ({
 const toFirst = $derived(reorderToEdge(dayTodos.data ?? [], item, "first"));
 const toLast = $derived(reorderToEdge(dayTodos.data ?? [], item, "last"));
 const reorderTodo = createReorderTodoMutation(() => item.day);
+const setTodoUrgent = createSetTodoUrgentMutation(() => item);
 
 const setTodoEstimate = createSetTodoEstimateMutation(() => item);
 const removeLink = createRemoveTodoLinkMutation(() => item);
@@ -111,11 +113,11 @@ $effect(() => {
       {/snippet}
       Edit…
     </DropdownItem>
-    {#if !inCalendar}
-      <DropdownSubmenu label="Set priority" keepOpenOnClick={false}>
-        {#snippet icon()}
-          <IconBolt />
-        {/snippet}
+    <DropdownSubmenu label="Set priority" keepOpenOnClick={false}>
+      {#snippet icon()}
+        <IconBolt />
+      {/snippet}
+      {#if !inCalendar}
         <DropdownItem
           disabled={!toFirst || reorderTodo.isPending}
           onclick={() =>
@@ -130,8 +132,16 @@ $effect(() => {
         >
           Last
         </DropdownItem>
-      </DropdownSubmenu>
-    {/if}
+        <DropdownDivider />
+      {/if}
+      <DropdownItem
+        checked={item.urgent}
+        disabled={setTodoUrgent.isPending}
+        onclick={() => setTodoUrgent.mutate(!item.urgent)}
+      >
+        Urgent?
+      </DropdownItem>
+    </DropdownSubmenu>
     <DropdownSubmenu label="Move to" keepOpenOnClick={false}>
       {#snippet icon()}
         <IconArrowRight />

@@ -59,7 +59,10 @@ type TodoCommands = {
     };
     returns: never;
   };
-  /** Fields left out are unchanged; moving a todo to another day puts it at the end of that day. */
+  /**
+   * Fields left out are unchanged; moving a todo to another day puts it at the end of that day. `started` starts it,
+   * keeping when it was first started if it already is, or clears when it was started.
+   */
   update_todo: {
     args: {
       params: {
@@ -67,6 +70,8 @@ type TodoCommands = {
         title?: string;
         day?: Day;
         completed?: boolean;
+        urgent?: boolean;
+        started?: boolean;
       };
     };
     returns: never;

@@ -19,6 +19,8 @@ type DropdownItemProps = {
   keepOpen?: boolean;
   /** Leading `<svg>`, sized and colored by the item. */
   icon?: Snippet;
+  /** Set to make it a checkbox item (`menuitemcheckbox`), showing whether it's checked by a box in place of `icon`. */
+  checked?: boolean;
   class?: ClassValue;
   /** Internal: the submenu this item opens, provided by `DropdownSubmenu`. */
   submenu?: MenuState;
@@ -30,6 +32,7 @@ const {
   onclick,
   keepOpen,
   icon,
+  checked,
   class: extraClass,
   submenu,
   children,
@@ -82,7 +85,8 @@ function handlePointerEnter() {
   href={isLink ? href : undefined}
   type={isLink ? undefined : "button"}
   id={submenu?.triggerId}
-  role="menuitem"
+  role={checked === undefined ? "menuitem" : "menuitemcheckbox"}
+  aria-checked={checked}
   tabindex="-1"
   aria-disabled={disabled || undefined}
   aria-haspopup={submenu ? "menu" : undefined}
@@ -97,7 +101,14 @@ function handlePointerEnter() {
   onpointerleave={(event: PointerEvent) =>
     menu.unhoverItem(event.currentTarget as HTMLElement)}
 >
-  {#if icon}
+  {#if checked !== undefined}
+    <!-- As `FieldCheckbox` draws it -->
+    <span class={["box", checked && "checked"]} aria-hidden="true">
+      <svg viewBox="0 0 14 14" fill="none">
+        <path d="M3 8L6 11L11 3.5" />
+      </svg>
+    </span>
+  {:else if icon}
     <span class="icon" aria-hidden="true">{@render icon()}</span>
   {/if}
   <span class="label">{@render children()}</span>
@@ -145,6 +156,32 @@ function handlePointerEnter() {
 
   .item:focus .icon {
     @apply text-white;
+  }
+
+  /* Where the icon would be, as wide */
+  .box {
+    @apply flex size-5 shrink-0 items-center justify-center rounded-[0.3125rem] border border-white/15 bg-white/5 sm:size-4;
+    @apply forced-colors:border-[CanvasText];
+
+    &.checked {
+      @apply border-white/5 bg-zinc-600 shadow-[inset_0_1px_--theme(--color-white/15%)];
+      @apply forced-colors:bg-[Highlight];
+    }
+
+    svg {
+      @apply size-4 stroke-white stroke-2 opacity-0 sm:size-3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    &.checked svg {
+      @apply opacity-100;
+      @apply forced-colors:stroke-[HighlightText];
+    }
+  }
+
+  .item:focus .box {
+    @apply border-white/40;
   }
 
   .label {
