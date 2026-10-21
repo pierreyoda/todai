@@ -111,6 +111,11 @@ pub struct Todo {
     pub updated_at: Timestamp,
     pub completed_at: Option<Timestamp>,
     pub deleted_at: Option<Timestamp>,
+    /// Shown as such, and in the board's "Urgent" column until started.
+    pub urgent: bool,
+    /// When it was started, i.e. put in the board's "Doing" column. Kept once completed, so that reopened, it's back
+    /// there.
+    pub started_at: Option<Timestamp>,
     /// IDs of its non-deleted tags, to resolve against `list_tags`: tags have a single source of truth on the
     /// frontend, so that renaming one doesn't require refetching todos.
     pub tag_ids: Vec<String>,
@@ -143,6 +148,8 @@ impl TryFrom<DbTodo> for Todo {
             updated_at: Timestamp::from_second(todo.updated_at)?,
             completed_at: todo.completed_at.map(Timestamp::from_second).transpose()?,
             deleted_at: todo.deleted_at.map(Timestamp::from_second).transpose()?,
+            urgent: todo.urgent == 1,
+            started_at: todo.started_at.map(Timestamp::from_second).transpose()?,
             tag_ids: Vec::new(),
             links: Vec::new(),
         })
@@ -352,7 +359,25 @@ mod tests {
             updated_at: 0,
             completed_at: None,
             deleted_at: None,
+            urgent: 0,
+            started_at: None,
         }
+    }
+
+    #[test]
+    fn todo_tells_whether_it_is_urgent_and_when_it_was_started() {
+        let todo = Todo::try_from(DbTodo {
+            urgent: 1,
+            started_at: Some(60),
+            ..db_todo(None, None)
+        })
+        .unwrap();
+        let json = serde_json::to_value(todo).unwrap();
+        assert_eq!(json["urgent"], true);
+        // Ending with "At", so that the frontend reads it as a date (see `parseResponse`).
+        assert_eq!(json["startedAt"], "1970-01-01T00:01:00Z");
+        let not_started = Todo::try_from(db_todo(None, None)).unwrap();
+        assert_eq!((not_started.urgent, not_started.started_at), (false, None));
     }
 
     #[test]

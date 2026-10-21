@@ -63,6 +63,7 @@ describe("setCachedTodoDescription", () => {
     position: id,
     createdAt: DATE,
     updatedAt: DATE,
+    urgent: false,
     tagIds: [],
     links: [],
   });

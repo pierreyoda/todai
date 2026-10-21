@@ -11,6 +11,7 @@ import IconCheckCircle from "#shared/ui/icons/IconCheckCircle.svelte";
 import IconClock from "#shared/ui/icons/IconClock.svelte";
 import IconEllipsisVertical from "#shared/ui/icons/IconEllipsisVertical.svelte";
 import IconGripVertical from "#shared/ui/icons/IconGripVertical.svelte";
+import { formatDateTime } from "#shared/utils/timestamps.ts";
 import {
   createToggleTodoMutation,
   createUpdateTodoMutation,
@@ -21,6 +22,7 @@ import type { TodoLink } from "../links/model/types";
 import TodoLinkChip from "../links/ui/TodoLinkChip.svelte";
 import { formatEstimates } from "../model/estimates";
 import type { Placement, Todo } from "../model/types";
+import TodoBadge from "./TodoBadge.svelte";
 import TodoDescriptionMarker from "./TodoDescriptionMarker.svelte";
 import TodoDropdownMenu from "./TodoDropdownMenu.svelte";
 import TodoUpsertModal from "./TodoUpsertModal.svelte";
@@ -233,6 +235,18 @@ const tasks = $derived(taskProgress(item.description ?? ""));
           <IconCheckCircle />
           {doneBecause.word} · mark as done
         </Button>
+      {/if}
+      <!-- Where it stands on the board, until done -->
+      {#if !completed}
+        {#if item.urgent}
+          <TodoBadge kind="urgent" />
+        {/if}
+        {#if item.startedAt}
+          <TodoBadge
+            kind="doing"
+            title={`Started: ${formatDateTime(item.startedAt)}`}
+          />
+        {/if}
       {/if}
       {#if item.estimate}
         <div class="flex items-center gap-1 text-white">

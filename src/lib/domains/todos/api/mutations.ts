@@ -121,6 +121,27 @@ export const createSetTodoEstimateMutation = (getTodo: () => Todo) => {
   }));
 };
 
+/** Marks `getTodo()` as urgent, or not. Must be called during component initialization. */
+export const createSetTodoUrgentMutation = (getTodo: () => Todo) => {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (urgent: boolean) =>
+      invokeTodos({
+        name: "update_todo",
+        args: { params: { id: getTodo().id, urgent } },
+      }),
+    // Returned so the mutation stays pending until the lists are refetched.
+    onSuccess: () => invalidateTodosOf(queryClient, getTodo().day),
+    onError: (_, urgent) => {
+      const { title } = getTodo();
+      toasts.show(
+        `Could not mark “${title}” as ${urgent ? "urgent" : "not urgent"}`,
+        { tone: "error" },
+      );
+    },
+  }));
+};
+
 /**
  * Sets the description of `getTodo()`, in Markdown, as typed, or removes it if blank. Must be called during component
  * initialization.

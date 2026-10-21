@@ -41,6 +41,13 @@ export interface Todo {
   updatedAt: Date;
   completedAt?: Date;
   deletedAt?: Date;
+  /** Shown as such, and in the board's "Urgent" column until started. */
+  urgent: boolean;
+  /**
+   * When it was started, i.e. put in the board's "Doing" column. Kept once completed, so that reopened, it's back
+   * there.
+   */
+  startedAt?: Date;
   /** IDs of its non-deleted tags, to resolve against the tags list (`list_tags`). */
   tagIds: readonly UUID[];
   /** In the order they were added. */

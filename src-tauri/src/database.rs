@@ -38,6 +38,7 @@ pub const WORKSPACE: DatabaseKind = DatabaseKind {
         include_str!("../migrations/009_todo_stage.sql"),
         include_str!("../migrations/010_notion_done_rules.sql"),
         include_str!("../migrations/011_notion_legacy_links.sql"),
+        include_str!("../migrations/012_todo_urgent_started.sql"),
     ],
 };
 
@@ -785,16 +786,16 @@ mod tests {
     }
 
     #[test]
-    fn open_existing_puts_the_todos_of_a_workspace_database_to_do_on_the_board() {
+    fn open_existing_replaces_the_stage_of_todos_with_urgent_and_started_at() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("workspace.sqlite3");
         {
-            // As left by the last version without the board.
+            // As left by the last version with `stage`, which nothing wrote.
             let conn = Connection::open(&path).unwrap();
-            for migration in &WORKSPACE.migrations[..8] {
+            for migration in &WORKSPACE.migrations[..11] {
                 conn.execute_batch(migration).unwrap();
             }
-            conn.pragma_update(None, "user_version", 8).unwrap();
+            conn.pragma_update(None, "user_version", 11).unwrap();
             conn.pragma_update(None, "application_id", WORKSPACE.application_id)
                 .unwrap();
             conn.execute(
@@ -807,17 +808,26 @@ mod tests {
 
         let conn = open_existing(&path, &WORKSPACE).unwrap();
         assert_eq!(header(&conn).1, WORKSPACE.migrations.len() as i64);
-        let stage: Option<String> = conn
-            .query_row("SELECT stage FROM todos WHERE id = 't'", [], |r| r.get(0))
+        let columns: Vec<String> = conn
+            .prepare("SELECT name FROM pragma_table_info('todos')")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(stage, None);
-        let set_stage = |stage: &str| {
-            conn.execute("UPDATE todos SET stage = ?1 WHERE id = 't'", [stage])
-        };
-        assert!(set_stage("urgent").is_ok());
-        assert!(set_stage("doing").is_ok());
-        // "Done" is `completed`.
-        assert!(set_stage("done").is_err());
+        assert!(!columns.iter().any(|column| column == "stage"));
+        let not_yet: (bool, Option<i64>) = conn
+            .query_row(
+                "SELECT urgent, started_at FROM todos WHERE id = 't'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(not_yet, (false, None));
+        let set_urgent =
+            |urgent: i64| conn.execute("UPDATE todos SET urgent = ?1 WHERE id = 't'", [urgent]);
+        assert!(set_urgent(1).is_ok());
+        assert!(set_urgent(2).is_err());
     }
 
     #[test]

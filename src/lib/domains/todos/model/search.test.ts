@@ -31,6 +31,7 @@ const todo = (
   position: id,
   createdAt: DATE,
   updatedAt: DATE,
+  urgent: false,
   tagIds: tagIds as UUID[],
   links: [],
 });
