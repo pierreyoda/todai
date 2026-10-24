@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use jiff::Timestamp;
-use rusqlite::named_params;
+use rusqlite::{named_params, Connection};
 use tauri::State;
 use uuid::Uuid;
 
@@ -161,23 +161,31 @@ pub async fn set_todo_tags(
             "Todo {todo_id} not found"
         )));
     }
+    replace_todo_tags(&tx, &todo_id, &tag_ids)?;
+    tx.commit()?;
+    Ok(())
+}
 
-    tx.prepare_cached(
+/// Replaces the tags of the todo `todo_id` with `tag_ids`, as `set_todo_tags`, leaving the todo itself unchanged. To
+/// call within a transaction: it fails halfway if one of `tag_ids` isn't a non-deleted tag.
+pub(crate) fn replace_todo_tags(
+    db: &Connection,
+    todo_id: &str,
+    tag_ids: &HashSet<String>,
+) -> Result<()> {
+    db.prepare_cached(
         "DELETE FROM todo_tags
          WHERE todo_id = ?1 AND tag_id IN (SELECT id FROM tags WHERE deleted_at IS NULL)",
     )?
-    .execute([&todo_id])?;
-    {
-        let mut insert = tx.prepare_cached(
-            "INSERT INTO todo_tags (todo_id, tag_id)
-             SELECT ?1, id FROM tags WHERE id = ?2 AND deleted_at IS NULL",
-        )?;
-        for tag_id in &tag_ids {
-            if insert.execute([&todo_id, tag_id])? == 0 {
-                return Err(tag_not_found(tag_id));
-            }
+    .execute([todo_id])?;
+    let mut insert = db.prepare_cached(
+        "INSERT INTO todo_tags (todo_id, tag_id)
+         SELECT ?1, id FROM tags WHERE id = ?2 AND deleted_at IS NULL",
+    )?;
+    for tag_id in tag_ids {
+        if insert.execute([todo_id, tag_id])? == 0 {
+            return Err(tag_not_found(tag_id));
         }
     }
-    tx.commit()?;
     Ok(())
 }

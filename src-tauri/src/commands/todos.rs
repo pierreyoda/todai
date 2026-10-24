@@ -8,7 +8,10 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::{
-    commands::links::{insert_links_in, query_links_between},
+    commands::{
+        links::{insert_links_in, query_links_between},
+        tags::replace_todo_tags,
+    },
     database::models::{DbDay, DbTodo},
     errors::{Result, TodaiError},
     links::{self, ParsedLink},
@@ -126,7 +129,7 @@ fn position_after_last(db: &Connection, day: &Day) -> Result<FractionalIndex> {
     })
 }
 
-/// Creates a todo at the end of `day`.
+/// Creates a todo at the end of `day`, with the tags `tag_ids`: creates nothing if one of them isn't a non-deleted tag.
 ///
 /// `title` and `description` are trimmed; an empty `description` is stored as `NULL`.
 /// `estimate` is checked as in `set_todo_estimate`.
@@ -137,21 +140,41 @@ pub async fn create_todo(
     title: String,
     description: Option<String>,
     estimate: Option<Estimate>,
+    tag_ids: Option<Vec<String>>,
 ) -> Result<Todo> {
     let description = description
         .as_deref()
         .map(str::trim)
         .filter(|description| !description.is_empty());
     let estimate = estimate.map(Estimate::validate).transpose()?;
-    let db = state.db()?;
-    insert_new_todo(
-        &db,
+    let tag_ids = tag_ids.unwrap_or_default().into_iter().collect();
+    let mut db = state.db()?;
+    create_todo_row(
+        &mut db,
         &day,
         &title,
         description,
         estimate,
+        tag_ids,
         Timestamp::now().as_second(),
     )
+}
+
+fn create_todo_row(
+    db: &mut Connection,
+    day: &Day,
+    title: &str,
+    description: Option<&str>,
+    estimate: Option<Estimate>,
+    tag_ids: HashSet<String>,
+    now: i64,
+) -> Result<Todo> {
+    let tx = db.transaction()?;
+    let mut todo = insert_new_todo(&tx, day, title, description, estimate, now)?;
+    replace_todo_tags(&tx, &todo.id, &tag_ids)?;
+    tx.commit()?;
+    todo.tag_ids = tag_ids.into_iter().collect();
+    Ok(todo)
 }
 
 /// Creates a todo at the end of `day` with the link `url`, at once: titled `title` (e.g. its pull request's, as GitHub
@@ -239,15 +262,23 @@ pub struct UpdateTodoParams {
     /// Starts it (puts it in the board's "Doing" column), keeping when it was first started if it already is; or clears
     /// when it was started.
     pub started: Option<bool>,
+    /// Replaces its tags, as `set_todo_tags`.
+    pub tag_ids: Option<HashSet<String>>,
 }
 
-/// Updates a non-deleted todo's `title`, `day`, `completed`, `urgent` and/or `started`.
+/// Updates a non-deleted todo's `title`, `day`, `completed`, `urgent`, `started` and/or tags: changes nothing if one
+/// of the tags isn't a non-deleted tag.
 #[tauri::command]
 pub async fn update_todo(state: State<'_, AppState>, params: UpdateTodoParams) -> Result<()> {
-    let db = state.db()?;
-    update_todo_row(&db, params, Timestamp::now().as_second())
+    let mut db = state.db()?;
+    let tx = db.transaction()?;
+    update_todo_row(&tx, params, Timestamp::now().as_second())?;
+    tx.commit()?;
+    Ok(())
 }
 
+/// To call within a transaction when replacing its tags: it fails after updating the rest if one of them isn't a
+/// non-deleted tag.
 fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Result<()> {
     let UpdateTodoParams {
         id,
@@ -256,6 +287,7 @@ fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Resul
         completed,
         urgent,
         started,
+        tag_ids,
     } = params;
     let title = title.as_deref().map(str::trim);
     if title.is_some_and(str::is_empty) {
@@ -313,6 +345,9 @@ fn update_todo_row(db: &Connection, params: UpdateTodoParams, now: i64) -> Resul
     if updated == 0 {
         return Err(not_found());
     }
+    if let Some(tag_ids) = tag_ids {
+        replace_todo_tags(db, &id, &tag_ids)?;
+    }
     Ok(())
 }
 
@@ -336,6 +371,7 @@ fn move_todo_rows(db: &mut Connection, ids: Vec<String>, day: &Day, now: i64) ->
             completed: None,
             urgent: None,
             started: None,
+            tag_ids: None,
         };
         update_todo_row(&tx, params, now)?;
     }
@@ -646,6 +682,7 @@ mod tests {
             completed: None,
             urgent: None,
             started: None,
+            tag_ids: None,
         }
     }
 
@@ -662,13 +699,16 @@ mod tests {
         assert_eq!(params.day, Some(day("2026-10-04")));
         assert_eq!(params.completed, Some(true));
         assert_eq!((params.urgent, params.started), (None, None));
+        assert_eq!(params.tag_ids, None);
         let flagged: UpdateTodoParams = serde_json::from_value(serde_json::json!({
             "id": "a",
             "urgent": true,
             "started": false,
+            "tagIds": ["t"],
         }))
         .unwrap();
         assert_eq!((flagged.urgent, flagged.started), (Some(true), Some(false)));
+        assert_eq!(flagged.tag_ids, Some(HashSet::from(["t".to_string()])));
         assert!(serde_json::from_value::<UpdateTodoParams>(
             serde_json::json!({ "id": "a", "day": "20261004" })
         )
@@ -1275,5 +1315,69 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM todos", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    fn create_tagged(db: &mut Connection, tag_id: &str) -> Result<Todo> {
+        let tag_ids = HashSet::from([tag_id.to_string()]);
+        create_todo_row(db, &day("2026-10-10"), "Tagged", None, None, tag_ids, NOW)
+    }
+
+    #[test]
+    fn create_todo_creates_it_with_its_tags() {
+        let mut db = open_test_database(&WORKSPACE);
+        let work = insert_tag(&db, "Work");
+        let todo = create_tagged(&mut db, &work).unwrap();
+        assert_eq!(todo.tag_ids, [work.as_str()]);
+        assert_eq!(day_todos(&db, "2026-10-10")[0].tag_ids, [work.as_str()]);
+    }
+
+    #[test]
+    fn create_todo_creates_nothing_with_a_deleted_or_unknown_tag() {
+        let mut db = open_test_database(&WORKSPACE);
+        let deleted = insert_tag(&db, "Deleted");
+        delete_at(&db, "tags", &deleted, NOW);
+        assert!(create_tagged(&mut db, &deleted).is_err());
+        assert!(create_tagged(&mut db, "unknown").is_err());
+        assert!(day_todos(&db, "2026-10-10").is_empty());
+    }
+
+    #[test]
+    fn update_todo_replaces_the_tags_only_when_given() {
+        let db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Tagged");
+        let (work, home) = (insert_tag(&db, "Work"), insert_tag(&db, "Home"));
+        tag_todo(&db, &id, &work);
+        let rename = UpdateTodoParams {
+            title: Some("Renamed".into()),
+            ..params(&id)
+        };
+        update_todo_row(&db, rename, NOW).unwrap();
+        assert_eq!(day_todos(&db, "2026-10-04")[0].tag_ids, [work.as_str()]);
+        let retag = UpdateTodoParams {
+            tag_ids: Some(HashSet::from([home.clone()])),
+            ..params(&id)
+        };
+        update_todo_row(&db, retag, NOW).unwrap();
+        assert_eq!(day_todos(&db, "2026-10-04")[0].tag_ids, [home.as_str()]);
+    }
+
+    #[test]
+    fn update_todo_changes_nothing_with_an_unknown_tag_within_a_transaction() {
+        let mut db = open_test_database(&WORKSPACE);
+        let id = insert_todo(&db, "2026-10-04", "Tagged");
+        let work = insert_tag(&db, "Work");
+        tag_todo(&db, &id, &work);
+        let tx = db.transaction().unwrap();
+        let update = UpdateTodoParams {
+            title: Some("Renamed".into()),
+            tag_ids: Some(HashSet::from(["unknown".to_string()])),
+            ..params(&id)
+        };
+        assert!(update_todo_row(&tx, update, NOW).is_err());
+        // Rolled back, as by `update_todo`
+        drop(tx);
+        let todo = &day_todos(&db, "2026-10-04")[0];
+        assert_eq!(todo.title, "Tagged");
+        assert_eq!(todo.tag_ids, [work.as_str()]);
     }
 }

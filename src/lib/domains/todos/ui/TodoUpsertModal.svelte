@@ -42,7 +42,7 @@ const updateTodo = createUpdateTodoMutation({ onSuccess: close });
 <!-- An existing todo's: large, for its description, saved before closing -->
 <Modal
   bind:show
-  size={existing ? "lg" : "md"}
+  size={existing ? "xl" : "lg"}
   onCloseRequest={existing ? saveBeforeClosing : undefined}
 >
   {#snippet header()}
@@ -56,8 +56,10 @@ const updateTodo = createUpdateTodoMutation({ onSuccess: close });
     <TodoForm
       data={{
         day: existing.day,
-        completed: existing.completed,
         title: existing.title,
+        completed: existing.completed,
+        urgent: existing.urgent,
+        tagIds: existing.tagIds,
       }}
       hint="The description and links save as you go · Update saves the rest"
       onSubmit={async (data) => {

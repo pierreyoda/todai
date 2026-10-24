@@ -21,10 +21,12 @@ import {
 } from "./queries";
 import { playTodoCompletedSound } from "./sounds";
 
-type NewTodo = Pick<Todo, "day" | "title">;
+type NewTodo = Pick<Todo, "day" | "title"> & Partial<Pick<Todo, "tagIds">>;
 type TodoUpdate = {
   todo: Pick<Todo, "id" | "day">;
-  changes: Partial<Pick<Todo, "title" | "day" | "completed">>;
+  changes: Partial<
+    Pick<Todo, "title" | "day" | "completed" | "urgent" | "tagIds">
+  >;
 };
 type TodoTagging = { todo: Pick<Todo, "id" | "day">; tagIds: readonly UUID[] };
 
@@ -34,20 +36,26 @@ export const createAddTodoMutation = (
 ) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: ({ day, title }: NewTodo) =>
-      invokeTodos({ name: "create_todo", args: { day, title } }),
+    mutationFn: ({ day, title, tagIds }: NewTodo) =>
+      invokeTodos({ name: "create_todo", args: { day, title, tagIds } }),
     onSuccess: (created, todo) => {
       hooks.onSuccess?.(created, todo);
-      // Returned so the mutation stays pending until its day's list is refetched, with it.
-      return invalidateTodosOf(queryClient, created.day);
+      // Returned so the mutation stays pending until its day's list is refetched, with it, and the tags' linked todos
+      // counts if it has some.
+      return Promise.all([
+        invalidateTodosOf(queryClient, created.day),
+        created.tagIds.length > 0
+          ? queryClient.invalidateQueries({ queryKey: tagKeys.all })
+          : undefined,
+      ]);
     },
     onError: (error, todo) => hooks.onError?.(error, todo),
   }));
 };
 
 /**
- * Changes a todo's title, completion and/or day: moved to another day, it goes at its end. Must be called during
- * component initialization.
+ * Changes a todo's title, completion, urgency, tags and/or day: moved to another day, it goes at its end. Must be called
+ * during component initialization.
  */
 export const createUpdateTodoMutation = (
   hooks: MutationHooks<TodoUpdate> = {},
@@ -62,14 +70,17 @@ export const createUpdateTodoMutation = (
     onSuccess: (_, update) => {
       hooks.onSuccess?.(undefined, update);
       // A todo moved to another day leaves its former one. Returned so the mutation stays pending until the lists are
-      // refetched.
+      // refetched, and the tags' linked todos counts if its tags changed.
       const days = new Set([
         update.todo.day,
         update.changes.day ?? update.todo.day,
       ]);
-      return Promise.all(
-        [...days].map((day) => invalidateTodosOf(queryClient, day)),
-      );
+      return Promise.all([
+        ...[...days].map((day) => invalidateTodosOf(queryClient, day)),
+        update.changes.tagIds
+          ? queryClient.invalidateQueries({ queryKey: tagKeys.all })
+          : undefined,
+      ]);
     },
     onError: (error, update) => hooks.onError?.(error, update),
   }));

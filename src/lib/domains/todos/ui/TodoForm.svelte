@@ -1,5 +1,5 @@
 <script lang="ts" module>
-export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
+  export type TodoFormData = Pick<Todo, "day" | "title" | "completed" | "urgent" | "tagIds">;
 </script>
 
 <script lang="ts">
@@ -11,6 +11,7 @@ export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
   import { DatePicker } from "#core/time";
   import FieldCheckbox from "#shared/ui/FieldCheckbox.svelte";
   import FieldText from "#shared/ui/FieldText.svelte";
+  import TodoTagsEditor from "./TodoTagsEditor.svelte";
 
   type TodoFormProps = (
     | {
@@ -41,6 +42,8 @@ export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
   let editedDay = $state(data?.day ?? dateToTodaiDate(new Date()));
   let editedTitle = $state(data?.title ?? "");
   let editedCompleted = $state(data?.completed ?? false);
+  let editedUrgent = $state(data?.urgent ?? false);
+  let editedTagIds = $state(data?.tagIds ?? []);
   const valid = $derived(
     isTodaiDate(editedDay) && editedTitle.trim().length > 0,
   );
@@ -51,12 +54,14 @@ export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
       day: editedDay,
       completed: editedCompleted,
       title: editedTitle,
+      urgent: editedUrgent,
+      tagIds: editedTagIds,
     });
   };
 </script>
 
 {#snippet submitButton()}
-  <Button type="submit" disabled={!valid} onclick={submit}>
+  <Button size="lg" type="submit" disabled={!valid} onclick={submit}>
     {#if data}
       Update
     {:else}
@@ -75,14 +80,22 @@ export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
     <div class="side">
       <!-- Raised onto the line of the title's label: its own line is 4px taller -->
       <FieldCheckbox
+        color="pink"
         label="Completed"
         bind:checked={editedCompleted}
         class="-mt-0.5"
       />
+      <FieldCheckbox
+        color="red"
+        label="Urgent"
+        bind:checked={editedUrgent}
+        class="shrink-0"
+      />
       <div class="day">
         <span class="label">Day</span>
-        <DatePicker bind:day={editedDay} label="Day" class="self-start" />
+        <DatePicker bind:day={editedDay} label="Day" class="flex-1" />
       </div>
+      <TodoTagsEditor bind:tagIds={editedTagIds} />
     </div>
     <div class="footer">
       {#if hint}
@@ -94,18 +107,20 @@ export type TodoFormData = Pick<Todo, "day" | "title" | "completed">;
 {:else}
   <div class="container">
     <FieldText bind:value={editedTitle} label="Title" />
-    <div class="flex items-center">
+    <div class="flex flex-col items-center gap-6">
       <FieldCheckbox
         label="Completed"
         bind:checked={editedCompleted}
-        class="w-1/2"
+        class="shrink-0"
       />
-      <DatePicker bind:day={editedDay} label="Day" class="ml-auto" />
+      <FieldCheckbox
+        label="Urgent"
+        bind:checked={editedUrgent}
+        class="shrink-0"
+      />
+      <DatePicker bind:day={editedDay} label="Day" class="flex-1" />
     </div>
-    <div class="flex items-center">
-      <div class="w-1/2 px-2"></div>
-      <div class="w-1/2 px-2"></div>
-    </div>
+    <TodoTagsEditor bind:tagIds={editedTagIds} />
     {@render fields?.()}
     {@render submitButton()}
   </div>

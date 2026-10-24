@@ -24,12 +24,14 @@ type TodoCommands = {
     args?: never;
     returns: TodoMonth[];
   };
+  /** Creates nothing if one of `tagIds` isn't a non-deleted tag. */
   create_todo: {
     args: {
       day: Day;
       title: string;
       description?: string;
       estimate?: Estimate;
+      tagIds?: readonly UUID[];
     };
     returns: Todo;
   };
@@ -61,7 +63,8 @@ type TodoCommands = {
   };
   /**
    * Fields left out are unchanged; moving a todo to another day puts it at the end of that day. `started` starts it,
-   * keeping when it was first started if it already is, or clears when it was started.
+   * keeping when it was first started if it already is, or clears when it was started. `tagIds` replaces its tags, as
+   * `set_todo_tags`: changes nothing if one of them isn't a non-deleted tag.
    */
   update_todo: {
     args: {
@@ -72,6 +75,7 @@ type TodoCommands = {
         completed?: boolean;
         urgent?: boolean;
         started?: boolean;
+        tagIds?: readonly UUID[];
       };
     };
     returns: never;

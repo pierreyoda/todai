@@ -6,9 +6,9 @@ type ModalProps = {
   show: boolean;
   /**
    * `md` (by default) fits a form or a message. `lg` takes most of the window, up to 64rem × 52rem, for its content
-   * to fill: e.g. an editor. Its body is then a flex column of bounded height.
+   * to fill: e.g. an editor. `xl` likewise, up to 72rem × 80rem. Its body is then a flex column of bounded height.
    */
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "xl";
   header?: Snippet;
   children: Snippet;
   /** Footer buttons, right-aligned (stacked on small screens). */
@@ -137,8 +137,12 @@ $effect(() => {
     @apply rounded-2xl border border-white/10 bg-slate-800 p-0 shadow-2xl;
     /* Typography */
     @apply text-slate-300;
+    /* Size */
     &[data-size="lg"] {
       @apply h-[min(52rem,calc(100dvh-2rem))] w-[min(64rem,calc(100vw-4rem))] max-w-none;
+    }
+    &[data-size="xl"] {
+      @apply h-[min(80rem,calc(100dvh-2rem))] w-[min(72rem,calc(100vw-4rem))] max-w-none;
     }
     /* Literal values: ::backdrop may not inherit the theme variables */
     &::backdrop {
@@ -157,9 +161,9 @@ $effect(() => {
     @apply flex flex-col gap-4 p-6;
   }
 
-  /* Large: its body takes the height left, for its content to fill. Children only: a modal shown from its content is
-     another one. */
-  dialog[data-size="lg"] > .panel {
+  /* Large and extra large: its body takes the height left, for its content to fill. Children only: a modal shown from
+     its content is another one. */
+  dialog:is([data-size="lg"], [data-size="xl"]) > .panel {
     @apply h-full min-h-0;
     > .body {
       @apply flex min-h-0 flex-1 flex-col;

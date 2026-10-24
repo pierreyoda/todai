@@ -141,7 +141,7 @@ $effect(() => {
 
   /* The title on the left, the field adding a link on the right */
   .head {
-    @apply flex items-center gap-3 py-3;
+    @apply flex items-center gap-3 py-3 justify-between;
   }
 
   .heading {
@@ -159,12 +159,12 @@ $effect(() => {
   }
 
   .add {
-    @apply ml-auto flex max-w-104 min-w-0 flex-1 items-start gap-2;
+    @apply pl-4 flex min-w-0 flex-1 items-start gap-2;
   }
 
   /* Two lines of 36px and their divider */
   .box {
-    @apply h-18.25 shrink-0 overflow-hidden rounded-xl bg-white/3 ring-1 ring-white/10;
+    @apply h-48 shrink-0 overflow-hidden rounded-xl bg-white/3 ring-1 ring-white/10;
   }
 
   .list {
